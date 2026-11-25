@@ -1,0 +1,6 @@
+{
+  "name": "Vértice — Inteligência Financeira & Viabilidade",
+  "description": "Plataforma modular de inteligência financeira empresarial com arquitetura Privacy-by-Design, hierarquia organizacional flexível e Cofre de Anonimização.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

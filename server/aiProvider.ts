@@ -364,3 +364,45 @@ export async function answerCfoChatQuestion(params: {
     suggested_followup: parsed.suggested_followup ?? '',
   };
 }
+
+/**
+ * Chamada genérica com saída JSON estruturada (usada pela classificação de comprovantes OCR).
+ * O payload passa pelo bloqueio Zero-Leak antes de sair do servidor.
+ */
+export async function callAiStructuredJson<T>(params: {
+  systemInstruction: string;
+  userPayload: unknown;
+  userPromptPrefix: string;
+  geminiSchema: Record<string, unknown>;
+}): Promise<{ provider: AiProviderKind; model: string; data: T }> {
+  assertServerPayloadZeroLeak(params.userPayload);
+  const config = getAiProviderConfig();
+  if (!config.configured) {
+    throw new Error('Provedor de IA não configurado no servidor.');
+  }
+  const userPrompt = `${params.userPromptPrefix}\n\n${JSON.stringify(params.userPayload)}`;
+
+  if (config.provider === 'openai') {
+    const data = await callOpenAiCompatibleJson<T>({
+      systemInstruction: params.systemInstruction,
+      userPrompt,
+      model: config.model,
+    });
+    return { provider: 'openai', model: config.model, data };
+  }
+
+  const ai = createGeminiClient();
+  const response = await ai.models.generateContent({
+    model: config.model,
+    contents: userPrompt,
+    config: {
+      systemInstruction: params.systemInstruction,
+      responseMimeType: 'application/json',
+      responseSchema: params.geminiSchema,
+    },
+  });
+  const text = (response.text ?? '{}').trim();
+  return { provider: 'gemini', model: config.model, data: JSON.parse(text) as T };
+}
+
+export { Type as GeminiSchemaType };

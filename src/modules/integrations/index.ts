@@ -1,9 +1,8 @@
 /**
- * Módulo Futuro 5: Integrações Bancárias, Open Finance, OCR & MCP
- * Nenhum webhook ou conector externo ativo nesta etapa (Módulo 1).
+ * Módulo 6: Integrações, Webhooks Adaptáveis, Conciliação OFX/CSV/PDF,
+ * Lançamento por Foto (OCR + IA anonimizada), Agenda, Alertas e Backup Blindado.
  */
-export interface IntegrationsContract {
-  readonly moduleId: 'integrations';
-  readonly status: 'reserved';
-  readonly dependsOn: readonly ['core', 'vault'];
-}
+export { IntegrationsHubView } from './IntegrationsHubView';
+export { ReconciliationView } from './ReconciliationView';
+export { ReceiptCaptureModal } from './ReceiptCaptureModal';
+export { AutomationCenterView } from './AutomationCenterView';

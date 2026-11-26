@@ -13,8 +13,14 @@ import {
   computeForecastLineTotals,
   roundCurrency,
 } from '../src/modules/projects/projectCalculator.ts';
-import type { AnonymizedFinancialContext } from '../src/modules/ai-cfo/aiContextBuilder.ts';
+import {
+  buildAnonymizedCfoContext,
+  type AnonymizedFinancialContext,
+} from '../src/modules/ai-cfo/aiContextBuilder.ts';
 import { assertServerPayloadZeroLeak } from './aiProvider.ts';
+import { getSupabaseAdmin, isServerSandboxMode } from './supabaseAdmin.ts';
+import { loadTenantWorkspace } from './tenantData.ts';
+import type { WorkspaceCfoSource } from '../src/modules/ai-cfo/cfoAgent.ts';
 
 export interface McpTokenRegistryRecord {
   id: string;
@@ -66,6 +72,8 @@ export interface PendingSimulatedProjectDraft {
 }
 
 interface TenantMcpBridgeState {
+  /** memory = ponte sandbox (sem Supabase); database = leitura/gravação direta via service role */
+  mode: 'memory' | 'database';
   tenantId: string;
   anonymizedContext: AnonymizedFinancialContext;
   tokens: McpTokenRegistryRecord[];
@@ -73,10 +81,43 @@ interface TenantMcpBridgeState {
   pendingDrafts: PendingSimulatedProjectDraft[];
   nextDraftSeq: number;
   updatedAt: string;
+  /** Apenas no modo database: workspace real (com nomes) para resolver tokens → IDs internos */
+  workspace?: WorkspaceCfoSource;
 }
 
+// Estado em memória usado SOMENTE no modo sandbox (sem Supabase no servidor)
 const tenantStates = new Map<string, TenantMcpBridgeState>();
 const tokenHashToTenant = new Map<string, string>();
+
+// Cache curto do contexto anonimizado por tenant no modo database (evita recarregar a cada tool call)
+const DB_CONTEXT_CACHE_MS = 30_000;
+const dbContextCache = new Map<
+  string,
+  { context: AnonymizedFinancialContext; workspace: WorkspaceCfoSource; expiresAt: number }
+>();
+
+export function invalidateTenantMcpContext(tenantId: string): void {
+  dbContextCache.delete(tenantId);
+}
+
+async function loadDatabaseContext(
+  tenantId: string
+): Promise<{ context: AnonymizedFinancialContext; workspace: WorkspaceCfoSource }> {
+  const cached = dbContextCache.get(tenantId);
+  if (cached && cached.expiresAt > Date.now()) return cached;
+
+  const workspace = await loadTenantWorkspace(tenantId);
+  const built = buildAnonymizedCfoContext({
+    ...workspace,
+    activeContext: { scope: 'all_independent' },
+    regime: 'cash',
+  });
+  assertServerPayloadZeroLeak(built.context);
+
+  const entry = { context: built.context, workspace, expiresAt: Date.now() + DB_CONTEXT_CACHE_MS };
+  dbContextCache.set(tenantId, entry);
+  return entry;
+}
 
 export function hashMcpToken(rawToken: string): string {
   return crypto.createHash('sha256').update(rawToken.trim()).digest('hex');
@@ -124,6 +165,7 @@ export function syncTenantMcpBridge(params: {
   }, 0);
 
   const nextState: TenantMcpBridgeState = {
+    mode: 'memory',
     tenantId: params.tenantId,
     anonymizedContext: params.anonymizedContext,
     tokens: registryTokens,
@@ -167,15 +209,86 @@ export function pullTenantMcpUpdates(tenantId: string): {
   };
 }
 
-function authenticateMcpBearer(req: Request): {
-  ok: true;
-  state: TenantMcpBridgeState;
-  token: McpTokenRegistryRecord;
-} | {
-  ok: false;
-  status: number;
-  message: string;
-} {
+type McpAuthResult =
+  | { ok: true; state: TenantMcpBridgeState; token: McpTokenRegistryRecord }
+  | { ok: false; status: number; message: string };
+
+function extractRawMcpToken(req: Request): string {
+  const authHeader = req.headers.authorization;
+  const fallbackHeader = req.headers['x-mcp-token'];
+  if (typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  if (typeof fallbackHeader === 'string') return fallbackHeader.trim();
+  return '';
+}
+
+async function authenticateMcpBearer(req: Request): Promise<McpAuthResult> {
+  if (isServerSandboxMode()) {
+    return authenticateMcpBearerMemory(req);
+  }
+
+  const rawToken = extractRawMcpToken(req);
+  if (!rawToken) {
+    return {
+      ok: false,
+      status: 401,
+      message: 'Token Bearer MCP ausente. Envie Authorization: Bearer <seu_token_mcp>.',
+    };
+  }
+
+  const hash = hashMcpToken(rawToken);
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from('mcp_access_tokens')
+    .select('*')
+    .eq('token_hash', hash)
+    .maybeSingle();
+
+  if (error) {
+    return { ok: false, status: 500, message: 'Falha ao validar token MCP.' };
+  }
+  const row = data as McpTokenRegistryRecord | null;
+  if (!row || !row.is_active || row.revoked_at) {
+    return { ok: false, status: 401, message: 'Token MCP inválido ou revogado.' };
+  }
+  if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) {
+    return { ok: false, status: 401, message: 'Token MCP expirado.' };
+  }
+
+  // O convite do titular precisa continuar ativo para o token valer
+  const { data: userData } = await admin.auth.admin.getUserById(row.tenant_id);
+  const email = userData.user?.email?.toLowerCase() ?? '';
+  const { data: invite } = await admin
+    .from('invited_users')
+    .select('is_active')
+    .eq('email', email)
+    .maybeSingle();
+  if (!invite || !(invite as { is_active: boolean }).is_active) {
+    return { ok: false, status: 403, message: 'Titular do token MCP sem convite ativo.' };
+  }
+
+  const { context, workspace } = await loadDatabaseContext(row.tenant_id);
+  const state: TenantMcpBridgeState = {
+    mode: 'database',
+    tenantId: row.tenant_id,
+    anonymizedContext: context,
+    tokens: [row],
+    callLogs: [],
+    pendingDrafts: [],
+    nextDraftSeq: 1,
+    updatedAt: new Date().toISOString(),
+    workspace,
+  };
+
+  return {
+    ok: true,
+    state,
+    token: { ...row, call_count: Number(row.call_count ?? 0) },
+  };
+}
+
+function authenticateMcpBearerMemory(req: Request): McpAuthResult {
   const authHeader = req.headers.authorization;
   const fallbackHeader = req.headers['x-mcp-token'];
   let rawToken = '';
@@ -226,14 +339,38 @@ function authenticateMcpBearer(req: Request): {
   return { ok: true, state, token };
 }
 
-function recordMcpCall(
+async function recordMcpCall(
   state: TenantMcpBridgeState,
   token: McpTokenRegistryRecord,
   entry: Omit<McpCallLog, 'id' | 'tenant_id' | 'token_id' | 'created_at'>
-): void {
+): Promise<void> {
   const now = new Date().toISOString();
   token.call_count += 1;
   token.last_used_at = now;
+
+  if (state.mode === 'database') {
+    const admin = getSupabaseAdmin();
+    // Os argumentos já passaram por assertServerPayloadZeroLeak; ainda assim truncamos o resumo
+    const { error: logErr } = await admin.from('mcp_call_logs').insert({
+      tenant_id: state.tenantId,
+      token_id: token.id,
+      tool_name: entry.tool_name.slice(0, 100) || 'unknown',
+      scope_used: entry.scope_used,
+      status: entry.status,
+      zero_leak_verified: entry.zero_leak_verified,
+      sanitized_args: entry.sanitized_args ?? {},
+      response_summary: entry.response_summary?.slice(0, 500) ?? null,
+    });
+    if (logErr) console.error('[MCP] Falha ao gravar mcp_call_logs:', logErr.message);
+
+    const { error: tokErr } = await admin
+      .from('mcp_access_tokens')
+      .update({ call_count: token.call_count, last_used_at: now })
+      .eq('id', token.id)
+      .eq('tenant_id', state.tenantId);
+    if (tokErr) console.error('[MCP] Falha ao atualizar contador do token:', tokErr.message);
+    return;
+  }
 
   state.callLogs.unshift({
     id: crypto.randomUUID(),
@@ -410,16 +547,103 @@ const MCP_TOOLS_DEFINITIONS = [
   },
 ];
 
-function executeMcpTool(
+/**
+ * Persiste o rascunho simulado diretamente no banco (modo database):
+ * cria o projeto com status idea_simulation + premissas mensais. O trigger gera o PRJ_XX real.
+ */
+async function persistSimulatedDraftToDatabase(
+  state: TenantMcpBridgeState,
+  draft: PendingSimulatedProjectDraft
+): Promise<{ projectId: string; projectToken: string }> {
+  const workspace = state.workspace;
+  if (!workspace) throw new Error('Workspace do tenant indisponível para persistir simulação.');
+
+  const company =
+    workspace.companies.find((c) => c.analytical_token === draft.companyToken) ??
+    workspace.companies[0];
+  if (!company) {
+    throw new Error('Nenhuma empresa cadastrada para vincular a simulação.');
+  }
+  const offer = draft.offerToken
+    ? workspace.productsServices.find((p) => p.analytical_token === draft.offerToken)
+    : undefined;
+
+  const admin = getSupabaseAdmin();
+  const { data: projectRow, error: projErr } = await admin
+    .from('projects')
+    .insert({
+      tenant_id: state.tenantId,
+      company_id: company.id,
+      name: `Simulação MCP ${new Date().toISOString().slice(0, 10)}${offer ? ` · ${offer.analytical_token}` : ''}`,
+      hypothesis: `Simulação gerada via Servidor MCP (${draft.durationMonths} meses · receita mensal ${draft.monthlyRevenue}).`,
+      status: 'idea_simulation',
+      active_scenario: 'realistic',
+      planned_start_date: draft.plannedStartDate,
+      planned_end_date: draft.plannedEndDate,
+      initial_investment: draft.initialInvestment,
+      monthly_fixed_cost_allocation: draft.monthlyFixedCostAllocation,
+      analytical_token: 'PENDING',
+    })
+    .select('id, analytical_token')
+    .single();
+
+  if (projErr || !projectRow) {
+    throw new Error(`Falha ao salvar rascunho do projeto: ${projErr?.message ?? 'sem retorno'}`);
+  }
+
+  const project = projectRow as { id: string; analytical_token: string };
+  const items = [];
+  for (let m = 0; m < draft.durationMonths; m++) {
+    const unitDirectCost = roundCurrency(draft.monthlyRevenue * draft.unitDirectCostRatio);
+    const totals = computeForecastLineTotals({
+      direction: 'revenue',
+      quantity: 1,
+      unitPrice: draft.monthlyRevenue,
+      unitDirectCost,
+      paymentFeePct: draft.paymentFeePct,
+      taxRatePct: draft.taxRatePct,
+    });
+    items.push({
+      tenant_id: state.tenantId,
+      project_id: project.id,
+      scenario: 'realistic',
+      month_date: addMonthsISO(draft.plannedStartDate, m),
+      product_service_id: offer?.id ?? null,
+      direction: 'revenue',
+      label: offer ? `Projeção ${offer.analytical_token}` : `Receita simulada mês ${m + 1}`,
+      quantity: 1,
+      unit_price: draft.monthlyRevenue,
+      unit_direct_cost: unitDirectCost,
+      payment_fee_pct: draft.paymentFeePct,
+      tax_rate_pct: draft.taxRatePct,
+      gross_amount: totals.grossAmount,
+      estimated_direct_cost_total: totals.estimatedDirectCostTotal,
+      estimated_deductions_total: totals.estimatedDeductionsTotal,
+    });
+  }
+
+  if (items.length > 0) {
+    const { error: itemsErr } = await admin.from('project_forecast_items').insert(items);
+    if (itemsErr) {
+      // Sem transação multi-tabela no PostgREST: desfaz o projeto para não deixar rascunho órfão
+      await admin.from('projects').delete().eq('id', project.id).eq('tenant_id', state.tenantId);
+      throw new Error(`Falha ao salvar premissas da simulação: ${itemsErr.message}`);
+    }
+  }
+
+  invalidateTenantMcpContext(state.tenantId);
+  return { projectId: project.id, projectToken: project.analytical_token };
+}
+
+async function executeMcpTool(
   state: TenantMcpBridgeState,
   token: McpTokenRegistryRecord,
   toolName: string,
   rawArgs: Record<string, unknown>
-): { ok: true; payload: Record<string, unknown>; summary: string } | {
-  ok: false;
-  code: number;
-  message: string;
-} {
+): Promise<
+  | { ok: true; payload: Record<string, unknown>; summary: string }
+  | { ok: false; code: number; message: string }
+> {
   // Valida que nenhum argumento enviado contém PII ou campo identificável
   assertServerPayloadZeroLeak(rawArgs);
   const ctx = state.anonymizedContext;
@@ -713,14 +937,23 @@ function executeMcpTool(
       consumedByClient: false,
     };
 
-    state.pendingDrafts.push(draft);
+    let persistedProjectToken = suggestedProjectToken;
+    if (state.mode === 'database') {
+      const persisted = await persistSimulatedDraftToDatabase(state, draft);
+      persistedProjectToken = persisted.projectToken;
+      draft.draftId = persisted.projectId;
+      draft.suggestedProjectToken = persisted.projectToken;
+      draft.consumedByClient = true;
+    } else {
+      state.pendingDrafts.push(draft);
+    }
 
     const payload = {
       privacyNotice: '100% Anonimizado via Cofre Vértice (Zero-Leak Verified)',
       savedAsDraft: true,
       draftStatus: 'idea_simulation',
       draftId: draft.draftId,
-      projectToken: suggestedProjectToken,
+      projectToken: persistedProjectToken,
       companyToken,
       offerToken: draft.offerToken,
       assumptions: {
@@ -739,7 +972,7 @@ function executeMcpTool(
     return {
       ok: true,
       payload,
-      summary: `Simulação ${suggestedProjectToken} salva (ROI ${feasibility.roiPct ?? 'N/A'}% · Payback ${feasibility.paybackExactMonths ?? 'N/A'}m)`,
+      summary: `Simulação ${persistedProjectToken} salva (ROI ${feasibility.roiPct ?? 'N/A'}% · Payback ${feasibility.paybackExactMonths ?? 'N/A'}m)`,
     };
   }
 
@@ -750,17 +983,31 @@ function executeMcpTool(
   };
 }
 
-export function handleMcpJsonRpcPost(req: Request, res: Response): void {
-  const auth = authenticateMcpBearer(req);
+function rpcError(res: Response, status: number, id: unknown, code: number, message: string): void {
+  res.status(status).json({ jsonrpc: '2.0', id: id ?? null, error: { code, message } });
+}
+
+/** Remove argumentos possivelmente sensíveis do log quando a chamada foi bloqueada pelo Zero-Leak */
+function argsForLog(args: Record<string, unknown>, blockedByZeroLeak: boolean): Record<string, unknown> {
+  if (blockedByZeroLeak) {
+    return { redacted: true, reason: 'zero_leak_block', keys: Object.keys(args).slice(0, 20) };
+  }
+  return args;
+}
+
+export async function handleMcpJsonRpcPost(req: Request, res: Response): Promise<void> {
+  const rpcIdEarly = (req.body as { id?: unknown } | undefined)?.id ?? null;
+
+  let auth: McpAuthResult;
+  try {
+    auth = await authenticateMcpBearer(req);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erro ao autenticar token MCP.';
+    rpcError(res, 500, rpcIdEarly, -32603, message);
+    return;
+  }
   if (!auth.ok) {
-    res.status(auth.status).json({
-      jsonrpc: '2.0',
-      id: (req.body as { id?: unknown } | undefined)?.id ?? null,
-      error: {
-        code: -32001,
-        message: auth.message,
-      },
-    });
+    rpcError(res, auth.status, rpcIdEarly, -32001, auth.message);
     return;
   }
 
@@ -772,11 +1019,7 @@ export function handleMcpJsonRpcPost(req: Request, res: Response): void {
   };
 
   if (!body || typeof body.method !== 'string') {
-    res.status(400).json({
-      jsonrpc: '2.0',
-      id: body?.id ?? null,
-      error: { code: -32600, message: 'Requisição JSON-RPC 2.0 inválida.' },
-    });
+    rpcError(res, 400, body?.id, -32600, 'Requisição JSON-RPC 2.0 inválida.');
     return;
   }
 
@@ -793,19 +1036,21 @@ export function handleMcpJsonRpcPost(req: Request, res: Response): void {
         },
         serverInfo: {
           name: 'vertice-privacy-mcp',
-          version: '1.0.0',
+          version: '1.1.0',
         },
       },
     });
     return;
   }
 
-  if (body.method === 'notifications/initialized' || body.method === 'ping') {
-    res.json({
-      jsonrpc: '2.0',
-      id: rpcId,
-      result: {},
-    });
+  if (body.method === 'notifications/initialized') {
+    // Notificação JSON-RPC: sem corpo de resposta
+    res.status(202).end();
+    return;
+  }
+
+  if (body.method === 'ping') {
+    res.json({ jsonrpc: '2.0', id: rpcId, result: {} });
     return;
   }
 
@@ -818,13 +1063,7 @@ export function handleMcpJsonRpcPost(req: Request, res: Response): void {
           : tool.description,
     }));
 
-    res.json({
-      jsonrpc: '2.0',
-      id: rpcId,
-      result: {
-        tools: visibleTools,
-      },
-    });
+    res.json({ jsonrpc: '2.0', id: rpcId, result: { tools: visibleTools } });
     return;
   }
 
@@ -837,9 +1076,9 @@ export function handleMcpJsonRpcPost(req: Request, res: Response): void {
         : {};
 
     try {
-      const outcome = executeMcpTool(auth.state, auth.token, toolName, args);
+      const outcome = await executeMcpTool(auth.state, auth.token, toolName, args);
       if (!outcome.ok) {
-        recordMcpCall(auth.state, auth.token, {
+        await recordMcpCall(auth.state, auth.token, {
           tool_name: toolName || 'unknown',
           scope_used: auth.token.scope,
           status: outcome.code === -32003 ? 'denied' : 'error',
@@ -847,19 +1086,11 @@ export function handleMcpJsonRpcPost(req: Request, res: Response): void {
           sanitized_args: args,
           response_summary: outcome.message,
         });
-
-        res.status(outcome.code === -32003 ? 403 : 400).json({
-          jsonrpc: '2.0',
-          id: rpcId,
-          error: {
-            code: outcome.code,
-            message: outcome.message,
-          },
-        });
+        rpcError(res, outcome.code === -32003 ? 403 : 400, rpcId, outcome.code, outcome.message);
         return;
       }
 
-      recordMcpCall(auth.state, auth.token, {
+      await recordMcpCall(auth.state, auth.token, {
         tool_name: toolName,
         scope_used: auth.token.scope,
         status: 'success',
@@ -872,12 +1103,7 @@ export function handleMcpJsonRpcPost(req: Request, res: Response): void {
         jsonrpc: '2.0',
         id: rpcId,
         result: {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(outcome.payload, null, 2),
-            },
-          ],
+          content: [{ type: 'text', text: JSON.stringify(outcome.payload, null, 2) }],
           structuredContent: outcome.payload,
           isError: false,
         },
@@ -885,39 +1111,31 @@ export function handleMcpJsonRpcPost(req: Request, res: Response): void {
       return;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro interno ao executar tool MCP.';
-      recordMcpCall(auth.state, auth.token, {
+      const blocked = message.includes('Bloqueio Zero-Leak');
+      await recordMcpCall(auth.state, auth.token, {
         tool_name: toolName || 'unknown',
         scope_used: auth.token.scope,
-        status: 'error',
-        zero_leak_verified: true,
-        sanitized_args: args,
+        status: blocked ? 'denied' : 'error',
+        zero_leak_verified: !blocked,
+        sanitized_args: argsForLog(args, blocked),
         response_summary: message,
-      });
-
-      res.status(400).json({
-        jsonrpc: '2.0',
-        id: rpcId,
-        error: {
-          code: -32002,
-          message,
-        },
-      });
+      }).catch(() => undefined);
+      rpcError(res, 400, rpcId, -32002, message);
       return;
     }
   }
 
-  res.status(404).json({
-    jsonrpc: '2.0',
-    id: rpcId,
-    error: {
-      code: -32601,
-      message: `Método JSON-RPC não suportado: ${body.method}`,
-    },
-  });
+  rpcError(res, 404, rpcId, -32601, `Método JSON-RPC não suportado: ${body.method}`);
 }
 
-export function handleMcpSseGet(req: Request, res: Response): void {
-  const auth = authenticateMcpBearer(req);
+export async function handleMcpSseGet(req: Request, res: Response): Promise<void> {
+  let auth: McpAuthResult;
+  try {
+    auth = await authenticateMcpBearer(req);
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Erro de autenticação MCP.' });
+    return;
+  }
   if (!auth.ok) {
     res.status(auth.status).json({ error: auth.message });
     return;
@@ -929,7 +1147,7 @@ export function handleMcpSseGet(req: Request, res: Response): void {
 
   const endpointPayload = JSON.stringify({
     server: 'vertice-privacy-mcp',
-    version: '1.0.0',
+    version: '1.1.0',
     scope: auth.token.scope,
     tools: MCP_TOOLS_DEFINITIONS.map((t) => t.name),
   });

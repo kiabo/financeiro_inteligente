@@ -1,7 +1,11 @@
 import {
   Activity,
   ArrowLeftRight,
+  BellRing,
   Building2,
+  Camera,
+  GitCompareArrows,
+  Plug,
   Cpu,
   FileSpreadsheet,
   FolderKanban,
@@ -45,6 +49,8 @@ interface AppShellProps {
   onChangeContext: (ctx: ActiveContext) => void;
   onNavigate: (section: AppSection) => void;
   onLogout: () => Promise<void>;
+  /** Abre o fluxo "Lançar por Foto (OCR) ou Manual" (botão central mobile / topo desktop) */
+  onOpenReceiptCapture: () => void;
   children: React.ReactNode;
 }
 
@@ -114,6 +120,13 @@ const NAV_ITEMS: NavItem[] = [
     icon: Package,
   },
   {
+    id: 'reconciliation',
+    label: 'Conciliação Bancária',
+    mobileLabel: 'Conciliar',
+    sectionGroup: 'core',
+    icon: GitCompareArrows,
+  },
+  {
     id: 'hierarchy',
     label: 'Empresas & Contas',
     mobileLabel: 'Cadastros',
@@ -126,6 +139,20 @@ const NAV_ITEMS: NavItem[] = [
     mobileLabel: 'Cofre',
     sectionGroup: 'governance',
     icon: ShieldCheck,
+  },
+  {
+    id: 'integrations',
+    label: 'Integrações & Webhooks',
+    mobileLabel: 'Integrações',
+    sectionGroup: 'governance',
+    icon: Plug,
+  },
+  {
+    id: 'automation',
+    label: 'Alertas, Agenda & Backup',
+    mobileLabel: 'Alertas',
+    sectionGroup: 'governance',
+    icon: BellRing,
   },
   {
     id: 'mcp_settings',
@@ -143,8 +170,11 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-const MOBILE_PRIMARY_IDS: AppSection[] = ['health', 'dre', 'transactions', 'debts_taxes'];
-const MOBILE_BOTTOM_ITEMS = NAV_ITEMS.filter((item) => MOBILE_PRIMARY_IDS.includes(item.id));
+// Barra inferior: 2 itens · botão central de ação rápida (foto/manual) · 1 item · "Mais"
+const MOBILE_PRIMARY_IDS: AppSection[] = ['health', 'transactions', 'reconciliation'];
+const MOBILE_BOTTOM_ITEMS = MOBILE_PRIMARY_IDS.map((id) => NAV_ITEMS.find((item) => item.id === id)).filter(
+  (item): item is NavItem => Boolean(item)
+);
 const MOBILE_MORE_ITEMS = NAV_ITEMS.filter((item) => !MOBILE_PRIMARY_IDS.includes(item.id));
 
 export const AppShell: React.FC<AppShellProps> = ({
@@ -159,6 +189,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   onChangeContext,
   onNavigate,
   onLogout,
+  onOpenReceiptCapture,
   children,
 }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -330,6 +361,14 @@ export const AppShell: React.FC<AppShellProps> = ({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={onOpenReceiptCapture}
+              className="hidden h-8 items-center gap-2 rounded-[4px] bg-[#0F374A] px-3 text-[12px] font-medium text-white hover:bg-[#164E63] md:inline-flex cursor-pointer"
+            >
+              <Camera className="h-4 w-4" />
+              <span>Lançar por Foto</span>
+            </button>
             <div className="hidden sm:block">
               <PWAInstallButton />
             </div>
@@ -448,10 +487,10 @@ export const AppShell: React.FC<AppShellProps> = ({
         className="fixed bottom-0 left-0 right-0 z-30 border-t border-[#E2E8F0] bg-white/95 backdrop-blur-md md:hidden pb-safe dark:border-[#1E2F3F] dark:bg-[#0D1A26]/95"
       >
         <div className="grid h-16 grid-cols-5 items-center">
-          {MOBILE_BOTTOM_ITEMS.map((item) => {
+          {MOBILE_BOTTOM_ITEMS.map((item, idx) => {
             const Icon = item.icon;
             const active = activeSection === item.id;
-            return (
+            const button = (
               <button
                 key={item.id}
                 type="button"
@@ -469,6 +508,25 @@ export const AppShell: React.FC<AppShellProps> = ({
                 <Icon className="h-5 w-5" />
                 <span>{item.mobileLabel}</span>
               </button>
+            );
+            if (idx !== 1) return button;
+            return (
+              <React.Fragment key={`${item.id}-with-fab`}>
+                {button}
+                <div className="flex h-full items-center justify-center">
+                  <button
+                    type="button"
+                    aria-label="Lançar por foto (OCR) ou manual"
+                    onClick={() => {
+                      setMobileMoreOpen(false);
+                      onOpenReceiptCapture();
+                    }}
+                    className="-mt-6 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#0F374A] text-white shadow-[0_8px_16px_-4px_rgba(15,55,74,0.45)] ring-4 ring-[#F8FAFC] active:scale-95 dark:ring-[#08131D] cursor-pointer"
+                  >
+                    <Camera className="h-6 w-6" />
+                  </button>
+                </div>
+              </React.Fragment>
             );
           })}
           <button

@@ -24,6 +24,8 @@ import {
   type CreateAiInsightInput,
   type PendingMcpDraftPayload,
 } from '../core/repository';
+import { apiFetch } from '../core/apiClient';
+import { isSupabaseConfigured } from '../core/supabase';
 import { rehydrateFromAI } from '../vault/anonymizer';
 import {
   buildAnonymizedCfoContext,
@@ -54,7 +56,10 @@ export interface AiProviderStatus {
 }
 
 export async function fetchAiProviderStatus(): Promise<AiProviderStatus> {
-  const res = await fetch('/api/cfo/status');
+  const res = await apiFetch('/api/cfo/status').catch(() => null);
+  if (!res) {
+    return { provider: 'gemini', model: 'gemini-4-hydrogen', configured: false };
+  }
   if (!res.ok) {
     return { provider: 'gemini', model: 'gemini-4-hydrogen', configured: false };
   }
@@ -79,9 +84,8 @@ export async function runCfoStrategicAnalysis(params: {
     regime: params.regime ?? 'cash',
   });
 
-  const response = await fetch('/api/cfo/analyze', {
+  const response = await apiFetch('/api/cfo/analyze', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       anonymizedContext: built.context,
     }),
@@ -174,9 +178,8 @@ export async function askCfoPrivateChat(params: {
     regime: 'cash',
   });
 
-  const response = await fetch('/api/cfo/chat', {
+  const response = await apiFetch('/api/cfo/chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       question: sanitizedQuestion,
       history: params.history.map((h) => ({
@@ -226,6 +229,15 @@ export async function syncMcpContextBridge(params: {
   activeContext: ActiveContext;
   tokens: McpAccessToken[];
 }): Promise<{ syncedTokens: number; pendingDraftsCount: number }> {
+  if (isSupabaseConfigured) {
+    // Modo Supabase: o servidor MCP lê o banco diretamente (hash do token + contexto anonimizado
+    // montado no servidor). Nenhum dado precisa ser empurrado pelo navegador.
+    return {
+      syncedTokens: params.tokens.filter((t) => t.is_active && !t.revoked_at).length,
+      pendingDraftsCount: 0,
+    };
+  }
+
   const built = buildAnonymizedCfoContext({
     ...params.workspace,
     activeContext: params.activeContext,
@@ -256,6 +268,11 @@ export async function pullAndPersistMcpUpdates(params: {
   companies: Company[];
   productsServices: ProductService[];
 }): Promise<number> {
+  if (isSupabaseConfigured) {
+    // Modo Supabase: rascunhos, logs e contadores já são gravados pelo servidor MCP no banco.
+    return 0;
+  }
+
   const res = await fetch(
     `/api/mcp/bridge/updates?tenantId=${encodeURIComponent(params.tenantId)}`
   );

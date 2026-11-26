@@ -26,6 +26,12 @@ import {
   DreView,
   HealthCommandCenterView,
 } from './modules/health';
+import {
+  AutomationCenterView,
+  IntegrationsHubView,
+  ReceiptCaptureModal,
+  ReconciliationView,
+} from './modules/integrations';
 import { CatalogView } from './modules/products';
 import { ProjectsView } from './modules/projects';
 import { HierarchySettingsView } from './modules/settings/HierarchySettingsView';
@@ -62,6 +68,21 @@ export default function App(): React.JSX.Element {
 
   const [activeContext, setActiveContext] = useState<ActiveContext>({ scope: 'all_independent' });
   const [activeSection, setActiveSection] = useState<AppSection>('overview');
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  // Retorno do OAuth do Google (/?google=connected|error) → abre a Central de Alertas & Backup
+  const [googleReturn] = useState<{ tone: 'success' | 'error'; text: string } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const flag = params.get('google');
+    if (!flag) return null;
+    window.history.replaceState(null, '', window.location.pathname);
+    return flag === 'connected'
+      ? { tone: 'success', text: 'Conta Google conectada. Ative o backup diário e a sincronização da agenda abaixo.' }
+      : { tone: 'error', text: `Não foi possível conectar o Google: ${params.get('reason') ?? 'erro desconhecido'}` };
+  });
+  useEffect(() => {
+    if (googleReturn) setActiveSection('automation');
+  }, [googleReturn]);
   const [autoCadence, setAutoCadence] = useState<'manual' | 'daily_open'>(() => {
     if (typeof window === 'undefined') return 'manual';
     return localStorage.getItem('vertice_cfo_cadence') === 'daily_open'
@@ -290,7 +311,28 @@ export default function App(): React.JSX.Element {
       onChangeContext={setActiveContext}
       onNavigate={setActiveSection}
       onLogout={handleLogout}
+      onOpenReceiptCapture={() => setReceiptOpen(true)}
     >
+      <ReceiptCaptureModal
+        open={receiptOpen}
+        onOpenChange={setReceiptOpen}
+        session={session}
+        companies={snapshot.companies}
+        accounts={snapshot.accounts}
+        categories={snapshot.categories}
+        productsServices={snapshot.productsServices}
+        projects={snapshot.projects}
+        vault={snapshot.vault}
+        defaultCompanyId={
+          activeContext.scope === 'company'
+            ? activeContext.companyId
+            : activeContext.scope === 'account'
+              ? snapshot.accounts.find((a) => a.id === activeContext.accountId)?.company_id ?? null
+              : null
+        }
+        onCreated={refreshWorkspace}
+        onOpenManual={() => setActiveSection('transactions')}
+      />
       {dataError ? (
         <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-6 text-[14px] text-[#991B1B] dark:border-[#7F1D1D] dark:bg-[#3B1219] dark:text-[#FCA5A5]">
           <p className="font-semibold">Erro ao consultar registros protegidos por RLS</p>
@@ -477,6 +519,32 @@ export default function App(): React.JSX.Element {
               onNavigate={setActiveSection}
             />
           )}
+
+          {activeSection === 'integrations' && (
+            <IntegrationsHubView
+              session={session}
+              companies={snapshot.companies}
+              accounts={snapshot.accounts}
+              categories={snapshot.categories}
+              productsServices={snapshot.productsServices}
+              onRefresh={refreshWorkspace}
+            />
+          )}
+
+          {activeSection === 'reconciliation' && (
+            <ReconciliationView
+              session={session}
+              companies={snapshot.companies}
+              accounts={snapshot.accounts}
+              categories={snapshot.categories}
+              productsServices={snapshot.productsServices}
+              projects={snapshot.projects}
+              transactions={snapshot.transactions}
+              onRefresh={refreshWorkspace}
+            />
+          )}
+
+          {activeSection === 'automation' && <AutomationCenterView session={session} initialMessage={googleReturn} />}
 
           {activeSection === 'security' && (
             <SecurityAuditView

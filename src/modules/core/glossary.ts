@@ -203,6 +203,37 @@ export const FINANCIAL_GLOSSARY: Record<string, GlossaryEntry> = {
     summary:
       'Endpoint JSON-RPC protegido por token Bearer com hash SHA-256 e escopo granular (Somente Leitura ou Simulação de Rascunhos), permitindo que assistentes externos consultem saúde financeira e simulem novos projetos sem acessar identidades reais.',
   },
+  webhook_idempotencia: {
+    key: 'webhook_idempotencia',
+    term: 'Webhook com Idempotência',
+    category: 'Integrações',
+    summary:
+      'Cada evento recebido do gateway é validado pela assinatura (HMAC/token) e gravado com o identificador único do provedor. Se o mesmo evento chegar de novo (reenvio automático), ele é reconhecido e não gera lançamento duplicado. A receita bruta e a taxa do gateway são lançadas separadamente para preservar a margem real.',
+    example:
+      'Venda de R$ 100 no cartão com taxa de R$ 3,99: entra uma receita de R$ 100 e uma despesa de R$ 3,99 na categoria "Taxas de Meios de Pagamento".',
+  },
+  conciliacao_bancaria: {
+    key: 'conciliacao_bancaria',
+    term: 'Conciliação Bancária',
+    category: 'Integrações',
+    summary:
+      'Confronta cada linha do extrato do banco com os lançamentos do sistema. Casamento exato: mesmo valor e data em até ±3 dias. Parcial: valor diferente por uma taxa ou data mais distante — você decide se ajusta o valor ou lança a diferença como taxa. Sem correspondência: movimento novo que pode virar um lançamento. O extrato é lido no seu navegador e não é enviado à IA.',
+  },
+  ocr_privacidade: {
+    key: 'ocr_privacidade',
+    term: 'Lançamento por Foto (OCR Privado)',
+    category: 'Privacy-by-Design',
+    summary:
+      'O texto da foto é reconhecido no próprio aparelho. Antes de pedir a sugestão de categoria à IA, o sistema remove CPF, CNPJ, telefone, endereço e razão social, e troca nomes das suas empresas, produtos e projetos pelos tokens do Cofre. Nada entra no saldo sem a sua confirmação.',
+  },
+  backup_blindado: {
+    key: 'backup_blindado',
+    term: 'Backup Blindado (AES-256-GCM)',
+    category: 'Continuidade',
+    summary:
+      'Todas as tabelas do seu espaço (inclusive o Cofre) são exportadas, compactadas e cifradas com AES-256-GCM usando uma chave derivada da sua BACKUP_ENCRYPTION_KEY. O arquivo vai para uma pasta própria do seu Google Drive com o hash SHA-256 registrado. Sem a chave, ninguém — nem o Google — consegue ler o conteúdo.',
+    example: 'Guarde a BACKUP_ENCRYPTION_KEY em um cofre de senhas: sem ela o backup não pode ser restaurado.',
+  },
 };
 
 export type GlossaryKey = keyof typeof FINANCIAL_GLOSSARY;

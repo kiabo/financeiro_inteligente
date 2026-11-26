@@ -15,6 +15,11 @@ import {
   pullTenantMcpUpdates,
   syncTenantMcpBridge,
 } from './server/mcpHandler.ts';
+import { requireUser } from './server/authMiddleware.ts';
+import { createAutomationRouter } from './server/integrations/automationRoutes.ts';
+import { startInternalScheduler } from './server/integrations/dailyJobs.ts';
+import { createWebhookRouter } from './server/integrations/webhookRoutes.ts';
+import { isServerSandboxMode, isServerSupabaseConfigured } from './server/supabaseAdmin.ts';
 import type { AnonymizedFinancialContext } from './src/modules/ai-cfo/aiContextBuilder.ts';
 import type { McpAccessToken } from './src/modules/core/types.ts';
 
@@ -23,16 +28,48 @@ const __dirname = path.dirname(__filename);
 
 async function startServer(): Promise<void> {
   const app = express();
-  app.use(express.json({ limit: '2mb' }));
+  app.disable('x-powered-by');
+  // Atrás de proxy reverso (Railway/Render/Fly/Nginx): respeita X-Forwarded-Proto para URLs https
+  if ((process.env.TRUST_PROXY ?? '').toLowerCase() === 'true') {
+    app.set('trust proxy', 1);
+  }
+  app.use(
+    express.json({
+      limit: '2mb',
+      // Mantém o corpo bruto para validação de assinatura HMAC dos webhooks (Módulo 6)
+      verify: (req, _res, buf) => {
+        (req as unknown as { rawBody?: Buffer }).rawBody = Buffer.from(buf);
+      },
+    })
+  );
+
+  if (!isServerSupabaseConfigured()) {
+    console.warn(
+      isServerSandboxMode()
+        ? '[Vértice Server] Supabase não configurado no servidor: modo SANDBOX (sem autenticação nas rotas /api).'
+        : '[Vértice Server] ERRO: Supabase não configurado em produção. Rotas autenticadas vão recusar todas as chamadas.'
+    );
+  }
+
+  // Bloqueia a ponte MCP em memória fora do modo sandbox (no modo Supabase o MCP lê o banco direto)
+  const sandboxBridgeOnly: express.RequestHandler = (_req, res, next) => {
+    if (!isServerSandboxMode()) {
+      res.status(410).json({
+        error: 'Ponte MCP desativada: com Supabase configurado o servidor MCP lê o banco diretamente.',
+      });
+      return;
+    }
+    next();
+  };
 
   // Health & AI Provider Status (never exposes API keys)
-  app.get('/api/cfo/status', (_req, res) => {
+  app.get('/api/cfo/status', requireUser, (_req, res) => {
     const config = getAiProviderConfig();
     res.json(config);
   });
 
   // CFO Virtual: Proactive Strategic Analysis (100% Zero-Leak Anonymized Input)
-  app.post('/api/cfo/analyze', async (req, res) => {
+  app.post('/api/cfo/analyze', requireUser, async (req, res) => {
     try {
       const body = req.body as { anonymizedContext?: unknown };
       if (!body?.anonymizedContext || typeof body.anonymizedContext !== 'object') {
@@ -55,7 +92,7 @@ async function startServer(): Promise<void> {
   });
 
   // CFO Virtual: Private Analytical Chat ("Pergunte ao seu CFO")
-  app.post('/api/cfo/chat', async (req, res) => {
+  app.post('/api/cfo/chat', requireUser, async (req, res) => {
     try {
       const body = req.body as {
         question?: string;
@@ -97,7 +134,7 @@ async function startServer(): Promise<void> {
   });
 
   // Bridge: Sincroniza apenas contexto 100% anonimizado e hashes SHA-256 de tokens MCP
-  app.post('/api/mcp/bridge/sync', (req, res) => {
+  app.post('/api/mcp/bridge/sync', sandboxBridgeOnly, (req, res) => {
     try {
       const body = req.body as {
         tenantId?: string;
@@ -123,7 +160,7 @@ async function startServer(): Promise<void> {
     }
   });
 
-  app.get('/api/mcp/bridge/updates', (req, res) => {
+  app.get('/api/mcp/bridge/updates', sandboxBridgeOnly, (req, res) => {
     const tenantId = typeof req.query.tenantId === 'string' ? req.query.tenantId : '';
     if (!tenantId) {
       res.status(400).json({ error: 'tenantId é obrigatório.' });
@@ -133,9 +170,17 @@ async function startServer(): Promise<void> {
     res.json(updates);
   });
 
+  // Módulo 6: webhooks adaptáveis, integrações, Google, alertas, backup e OCR
+  app.use('/api', createWebhookRouter());
+  app.use('/api', createAutomationRouter());
+
   // Endpoint Oficial do Servidor MCP (JSON-RPC Streamable HTTP + SSE)
-  app.post('/api/mcp', handleMcpJsonRpcPost);
-  app.get('/api/mcp', handleMcpSseGet);
+  app.post('/api/mcp', (req, res) => {
+    void handleMcpJsonRpcPost(req, res);
+  });
+  app.get('/api/mcp', (req, res) => {
+    void handleMcpSseGet(req, res);
+  });
   app.delete('/api/mcp', (_req, res) => {
     res.json({ ok: true, closed: true });
   });
@@ -167,6 +212,7 @@ async function startServer(): Promise<void> {
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, '0.0.0.0', () => {
     console.log(`[Vértice Server] Listening on http://0.0.0.0:${port}`);
+    startInternalScheduler();
   });
 }
 

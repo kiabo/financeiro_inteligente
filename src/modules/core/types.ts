@@ -364,7 +364,10 @@ export type AppSection =
   | 'hierarchy'
   | 'vault'
   | 'mcp_settings'
-  | 'security';
+  | 'security'
+  | 'integrations'
+  | 'reconciliation'
+  | 'automation';
 
 export interface AuthSessionState {
   mode: 'supabase' | 'sandbox';

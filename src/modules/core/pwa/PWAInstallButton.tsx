@@ -31,7 +31,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ compact = fa
         className="gap-1.5"
         title="Instalar aplicativo PWA"
       >
-        <Download className="h-4 w-4 text-teal-700 dark:text-teal-400" />
+        <Download className="h-4 w-4 text-[#0F374A] dark:text-[#A7CBE3]" />
         {!compact && <span>Instalar App</span>}
       </Button>
     );
@@ -46,7 +46,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ compact = fa
         className="gap-1.5"
         title="Instalar como aplicativo (PWA)"
       >
-        <Smartphone className="h-4 w-4 text-teal-700 dark:text-teal-400" />
+        <Smartphone className="h-4 w-4 text-[#0F374A] dark:text-[#A7CBE3]" />
         {!compact && <span>Instalar PWA</span>}
       </Button>
 

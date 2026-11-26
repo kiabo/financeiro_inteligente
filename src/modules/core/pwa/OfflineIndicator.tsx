@@ -24,7 +24,7 @@ export const OfflineIndicator: React.FC = () => {
   return (
     <div
       role="status"
-      className="fixed bottom-20 left-4 z-50 flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 shadow-md md:bottom-4 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+      className="fixed bottom-20 left-4 z-50 flex items-center gap-2 rounded-[4px] border border-[#F59E0B] bg-[#FFFBEB] px-3 py-2 text-[12px] font-medium text-[#92400E] shadow-sm md:bottom-4 dark:border-[#D97706] dark:bg-[#2E1A04] dark:text-[#FDE68A]"
     >
       <WifiOff className="h-4 w-4 shrink-0" />
       <span>Modo offline — exibindo dados em cache local.</span>

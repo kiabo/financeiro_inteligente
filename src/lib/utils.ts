@@ -55,3 +55,73 @@ export function formatDateTimeBR(isoString: string): string {
     second: '2-digit',
   }).format(date);
 }
+
+export function formatCurrencyBRL(value: number): string {
+  const safe = Number.isFinite(value) ? value : 0;
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(safe);
+}
+
+export function formatDateBR(dateISO: string | null | undefined): string {
+  if (!dateISO) return '—';
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateISO);
+  if (match) {
+    return `${match[3]}/${match[2]}/${match[1]}`;
+  }
+  const date = new Date(dateISO);
+  if (Number.isNaN(date.getTime())) return dateISO;
+  return new Intl.DateTimeFormat('pt-BR').format(date);
+}
+
+export function getTodayISO(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function getMonthKey(dateISO: string): string {
+  return dateISO.slice(0, 7);
+}
+
+export function getMonthRangeISO(monthKey: string): { start: string; end: string } {
+  const [yStr, mStr] = monthKey.split('-');
+  const year = Number(yStr) || new Date().getFullYear();
+  const month = Number(mStr) || new Date().getMonth() + 1;
+  const lastDay = new Date(year, month, 0).getDate();
+  const mm = String(month).padStart(2, '0');
+  return {
+    start: `${year}-${mm}-01`,
+    end: `${year}-${mm}-${String(lastDay).padStart(2, '0')}`,
+  };
+}
+
+export function addMonthsISO(dateISO: string, monthsToAdd: number): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateISO);
+  if (!match) return dateISO;
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+
+  const targetMonthTotal = monthIndex + monthsToAdd;
+  const targetYear = year + Math.floor(targetMonthTotal / 12);
+  const targetMonth = ((targetMonthTotal % 12) + 12) % 12;
+  const maxDayInTarget = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const clampedDay = Math.min(day, maxDayInTarget);
+
+  return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
+}
+
+export function formatMonthLabelPT(monthKey: string): string {
+  const [yStr, mStr] = monthKey.split('-');
+  const year = Number(yStr);
+  const month = Number(mStr);
+  if (!year || !month) return monthKey;
+  const date = new Date(year, month - 1, 1);
+  return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(date);
+}

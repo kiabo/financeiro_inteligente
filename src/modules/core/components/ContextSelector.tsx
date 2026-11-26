@@ -60,19 +60,19 @@ export const ContextSelector: React.FC<ContextSelectorProps> = ({
         <button
           type="button"
           aria-label="Seletor Global de Contexto"
-          className="inline-flex h-9 max-w-[230px] sm:max-w-[320px] items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs sm:text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+          className="inline-flex h-9 max-w-[230px] sm:max-w-[340px] items-center justify-between gap-2 rounded-[4px] border border-[#CBD5E1] bg-white px-3 text-[13px] font-medium text-[#0F172A] transition-colors hover:bg-[#F8FAFC] focus:border-[#0F374A] focus:outline-none focus:ring-2 focus:ring-[#0F374A]/12 dark:border-[#2A3B4C] dark:bg-[#0D1A26] dark:text-[#EAF1FF] dark:hover:bg-[#162838] cursor-pointer"
         >
           <span className="flex items-center gap-2 truncate">
             {activeContext.scope === 'group' ? (
-              <Layers className="h-3.5 w-3.5 shrink-0 text-teal-700 dark:text-teal-400" />
+              <Layers className="h-3.5 w-3.5 shrink-0 text-[#0F374A] dark:text-[#A7CBE3]" />
             ) : activeContext.scope === 'account' ? (
-              <Wallet className="h-3.5 w-3.5 shrink-0 text-teal-700 dark:text-teal-400" />
+              <Wallet className="h-3.5 w-3.5 shrink-0 text-[#0F374A] dark:text-[#A7CBE3]" />
             ) : (
-              <Building2 className="h-3.5 w-3.5 shrink-0 text-teal-700 dark:text-teal-400" />
+              <Building2 className="h-3.5 w-3.5 shrink-0 text-[#0F374A] dark:text-[#A7CBE3]" />
             )}
-            <span className="truncate">{activeLabel}</span>
+            <span className="truncate tabular-nums">{activeLabel}</span>
           </span>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[#72787D]" />
         </button>
       </PopoverTrigger>
 
@@ -82,25 +82,25 @@ export const ContextSelector: React.FC<ContextSelectorProps> = ({
             type="button"
             onClick={() => selectAndClose({ scope: 'all_independent' })}
             className={cn(
-              'flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium transition-colors cursor-pointer',
+              'flex w-full items-center justify-between rounded-[4px] px-2.5 py-2 text-left text-[12px] font-medium transition-colors cursor-pointer',
               activeContext.scope === 'all_independent'
-                ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
-                : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60'
+                ? 'bg-[#EFF4FF] text-[#0F374A] dark:bg-[#162838] dark:text-[#EAF1FF]'
+                : 'text-[#334155] hover:bg-[#F1F5F9] dark:text-[#B9CADB] dark:hover:bg-[#162838]/60'
             )}
           >
             <span>Todas as Empresas / Estrutura</span>
             {activeContext.scope === 'all_independent' && (
-              <Check className="h-3.5 w-3.5 text-teal-700 dark:text-teal-400" />
+              <Check className="h-3.5 w-3.5 text-[#0F374A] dark:text-[#68DBA9]" />
             )}
           </button>
 
           {/* Visão Consolidada por Grupo (somente quando há empresas vinculadas) */}
-          <div className="border-t border-slate-100 pt-2 dark:border-slate-800">
-            <p className="px-2.5 pb-1 text-[11px] font-medium text-slate-400">
+          <div className="border-t border-[#E2E8F0] pt-2 dark:border-[#1E2F3F]">
+            <p className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
               Grupos Consolidados
             </p>
             {consolidatedGroups.length === 0 ? (
-              <p className="px-2.5 py-1.5 text-xs text-slate-500 dark:text-slate-400">
+              <p className="px-2.5 py-1.5 text-[12px] text-[#42484C] dark:text-[#9DB0C2]">
                 Nenhuma empresa vinculada a grupo. Operação independente ativa.
               </p>
             ) : (
@@ -114,21 +114,21 @@ export const ContextSelector: React.FC<ContextSelectorProps> = ({
                       type="button"
                       onClick={() => selectAndClose({ scope: 'group', groupId: group.id })}
                       className={cn(
-                        'flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition-colors cursor-pointer',
+                        'flex w-full items-center justify-between rounded-[4px] px-2.5 py-2 text-left text-[12px] transition-colors cursor-pointer',
                         isSelected
-                          ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
-                          : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60'
+                          ? 'bg-[#EFF4FF] text-[#0F374A] dark:bg-[#162838] dark:text-[#EAF1FF]'
+                          : 'text-[#334155] hover:bg-[#F1F5F9] dark:text-[#B9CADB] dark:hover:bg-[#162838]/60'
                       )}
                     >
                       <div className="min-w-0">
                         <p className="truncate font-medium">{group.name}</p>
-                        <p className="font-mono text-[11px] text-slate-400">
+                        <p className="text-[11px] tabular-nums text-[#72787D]">
                           {group.analytical_token} · {linkedCompanies.length}{' '}
                           {linkedCompanies.length === 1 ? 'empresa' : 'empresas'}
                         </p>
                       </div>
                       {isSelected && (
-                        <Check className="h-3.5 w-3.5 shrink-0 text-teal-700 dark:text-teal-400" />
+                        <Check className="h-3.5 w-3.5 shrink-0 text-[#0F374A] dark:text-[#68DBA9]" />
                       )}
                     </button>
                   );
@@ -138,12 +138,12 @@ export const ContextSelector: React.FC<ContextSelectorProps> = ({
           </div>
 
           {/* Empresas e Contas Individuais */}
-          <div className="border-t border-slate-100 pt-2 dark:border-slate-800">
-            <p className="px-2.5 pb-1 text-[11px] font-medium text-slate-400">
+          <div className="border-t border-[#E2E8F0] pt-2 dark:border-[#1E2F3F]">
+            <p className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
               Empresas &amp; Contas
             </p>
             {companies.length === 0 ? (
-              <p className="px-2.5 py-1.5 text-xs text-slate-500 dark:text-slate-400">
+              <p className="px-2.5 py-1.5 text-[12px] text-[#42484C] dark:text-[#9DB0C2]">
                 Cadastre sua primeira empresa em Configurações.
               </p>
             ) : (
@@ -158,23 +158,23 @@ export const ContextSelector: React.FC<ContextSelectorProps> = ({
                         type="button"
                         onClick={() => selectAndClose({ scope: 'company', companyId: company.id })}
                         className={cn(
-                          'flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition-colors cursor-pointer',
+                          'flex w-full items-center justify-between rounded-[4px] px-2.5 py-2 text-left text-[12px] transition-colors cursor-pointer',
                           isCompSelected
-                            ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
-                            : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/60'
+                            ? 'bg-[#EFF4FF] text-[#0F374A] dark:bg-[#162838] dark:text-[#EAF1FF]'
+                            : 'text-[#334155] hover:bg-[#F1F5F9] dark:text-[#B9CADB] dark:hover:bg-[#162838]/60'
                         )}
                       >
                         <div className="min-w-0">
                           <p className="truncate font-medium">
                             {company.trade_name ?? company.legal_name}
                           </p>
-                          <p className="font-mono text-[11px] text-slate-400">
+                          <p className="text-[11px] tabular-nums text-[#72787D]">
                             {company.analytical_token} ·{' '}
                             {company.group_id ? 'Vinculada a grupo' : 'Independente'}
                           </p>
                         </div>
                         {isCompSelected && (
-                          <Check className="h-3.5 w-3.5 shrink-0 text-teal-700 dark:text-teal-400" />
+                          <Check className="h-3.5 w-3.5 shrink-0 text-[#0F374A] dark:text-[#68DBA9]" />
                         )}
                       </button>
 
@@ -190,20 +190,20 @@ export const ContextSelector: React.FC<ContextSelectorProps> = ({
                               selectAndClose({ scope: 'account', accountId: account.id })
                             }
                             className={cn(
-                              'flex w-full items-center justify-between rounded-lg py-1.5 pl-6 pr-2.5 text-left text-xs transition-colors cursor-pointer',
+                              'flex w-full items-center justify-between rounded-[4px] py-1.5 pl-6 pr-2.5 text-left text-[12px] transition-colors cursor-pointer',
                               isAccSelected
-                                ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
-                                : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60'
+                                ? 'bg-[#EFF4FF] text-[#0F374A] dark:bg-[#162838] dark:text-[#EAF1FF]'
+                                : 'text-[#42484C] hover:bg-[#F1F5F9] dark:text-[#9DB0C2] dark:hover:bg-[#162838]/60'
                             )}
                           >
                             <div className="min-w-0">
                               <p className="truncate">{account.name}</p>
-                              <p className="font-mono text-[10px] text-slate-400">
+                              <p className="text-[11px] tabular-nums text-[#72787D]">
                                 {account.analytical_token}
                               </p>
                             </div>
                             {isAccSelected && (
-                              <Check className="h-3.5 w-3.5 shrink-0 text-teal-700 dark:text-teal-400" />
+                              <Check className="h-3.5 w-3.5 shrink-0 text-[#0F374A] dark:text-[#68DBA9]" />
                             )}
                           </button>
                         );

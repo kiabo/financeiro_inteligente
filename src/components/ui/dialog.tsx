@@ -14,10 +14,10 @@ export function DialogContent({
 }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>): React.JSX.Element {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-[2px]" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[#0F172A]/40 backdrop-blur-[1px]" />
       <DialogPrimitive.Content
         className={cn(
-          'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl focus:outline-none dark:border-slate-800 dark:bg-slate-900 max-h-[90vh] overflow-y-auto',
+          'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-[12px] border border-[#CBD5E1] bg-white p-6 shadow-[0_20px_25px_-5px_rgba(15,23,42,0.1),0_8px_10px_-6px_rgba(15,23,42,0.06)] focus:outline-none dark:border-[#2A3B4C] dark:bg-[#0D1A26] max-h-[90vh] overflow-y-auto',
           className
         )}
         {...props}
@@ -25,7 +25,7 @@ export function DialogContent({
         {children}
         <DialogPrimitive.Close
           aria-label="Fechar"
-          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 cursor-pointer"
+          className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-[4px] text-[#42484C] hover:bg-[#F1F5F9] hover:text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F374A]/20 dark:text-[#9DB0C2] dark:hover:bg-[#162838] dark:hover:text-[#EAF1FF] cursor-pointer"
         >
           <X className="h-4 w-4" />
         </DialogPrimitive.Close>
@@ -38,7 +38,7 @@ export function DialogHeader({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element {
-  return <div className={cn('flex flex-col gap-1.5 pr-8 text-left', className)} {...props} />;
+  return <div className={cn('flex flex-col gap-1 pr-8 text-left', className)} {...props} />;
 }
 
 export function DialogTitle({
@@ -47,7 +47,10 @@ export function DialogTitle({
 }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>): React.JSX.Element {
   return (
     <DialogPrimitive.Title
-      className={cn('font-display text-lg font-semibold text-slate-900 dark:text-slate-100', className)}
+      className={cn(
+        'font-display text-[18px] font-semibold leading-6 tracking-[-0.01em] text-[#0F172A] dark:text-[#EAF1FF]',
+        className
+      )}
       {...props}
     />
   );
@@ -59,7 +62,7 @@ export function DialogDescription({
 }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>): React.JSX.Element {
   return (
     <DialogPrimitive.Description
-      className={cn('text-sm text-slate-500 dark:text-slate-400', className)}
+      className={cn('text-[14px] leading-5 text-[#42484C] dark:text-[#9DB0C2]', className)}
       {...props}
     />
   );

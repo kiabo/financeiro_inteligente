@@ -11,7 +11,7 @@ export function TabsList({
   return (
     <TabsPrimitive.List
       className={cn(
-        'inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-900 overflow-x-auto max-w-full',
+        'inline-flex items-center gap-1 rounded-[6px] border border-[#E2E8F0] bg-[#F1F5F9] p-1 dark:border-[#1E2F3F] dark:bg-[#0D1A26] overflow-x-auto max-w-full',
         className
       )}
       {...props}
@@ -26,7 +26,7 @@ export function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        'inline-flex items-center justify-center whitespace-nowrap shrink-0 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-xs dark:text-slate-400 dark:hover:text-slate-200 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100 cursor-pointer',
+        'inline-flex items-center justify-center whitespace-nowrap shrink-0 rounded-[4px] px-3 py-1.5 text-[12px] font-medium tracking-[0.01em] text-[#42484C] transition-colors hover:text-[#0F172A] data-[state=active]:bg-white data-[state=active]:text-[#0F374A] data-[state=active]:shadow-[0_1px_2px_0_rgba(15,23,42,0.06)] dark:text-[#9DB0C2] dark:hover:text-[#EAF1FF] dark:data-[state=active]:bg-[#162838] dark:data-[state=active]:text-[#EAF1FF] cursor-pointer',
         className
       )}
       {...props}

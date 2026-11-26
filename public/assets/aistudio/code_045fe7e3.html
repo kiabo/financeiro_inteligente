@@ -1,0 +1,524 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_dashboard" name="shell-type"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "primary": "#002130", "on-secondary-fixed": "#111c2d", "surface-tint": "#3f6377", "secondary": "#545f73", "on-tertiary": "#ffffff", "surface-dim": "#cbdbf5", "on-primary-fixed-variant": "#264b5f", "on-primary": "#ffffff", "tertiary-fixed": "#85f8c4", "on-secondary": "#ffffff", "outline": "#72787d", "on-tertiary-fixed-variant": "#005137", "surface-container-highest": "#d3e4fe", "background": "#f8f9ff", "primary-fixed": "#c4e7ff", "surface-bright": "#f8f9ff", "secondary-container": "#d5e0f8", "surface-container-high": "#dce9ff", "tertiary-container": "#003c28", "primary-fixed-dim": "#a7cbe3", "surface": "#f8f9ff", "error": "#ba1a1a", "on-primary-container": "#7da0b7", "inverse-primary": "#a7cbe3", "primary-container": "#0f374a", "inverse-surface": "#213145", "outline-variant": "#c2c7cc", "on-tertiary-container": "#36af80", "on-error": "#ffffff", "on-primary-fixed": "#001e2c", "on-surface-variant": "#42484c", "secondary-fixed-dim": "#bcc7de", "surface-variant": "#d3e4fe", "inverse-on-surface": "#eaf1ff", "tertiary-fixed-dim": "#68dba9", "surface-container": "#e5eeff", "on-surface": "#0b1c30", "error-container": "#ffdad6", "surface-container-lowest": "#ffffff", "tertiary": "#002416", "on-secondary-fixed-variant": "#3c475a", "on-secondary-container": "#586377", "secondary-fixed": "#d8e3fb", "on-tertiary-fixed": "#002114", "on-background": "#0b1c30", "surface-container-low": "#eff4ff", "on-error-container": "#93000a" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "space-lg": "1rem", "space-md": "0.75rem", "gutter-desktop": "1.5rem", "gutter": "1rem", "space-xl": "1.5rem", "margin-desktop": "2rem", "space-2xl": "2rem", "space-2xs": "0.125rem", "space-sm": "0.5rem", "space-xs": "0.25rem", "margin": "1rem" }, "fontFamily": { "body-sm": ["Inter"], "tabular-metric-lg": ["Inter"], "tabular-metric-md": ["Inter"], "label-lg": ["Inter"], "headline-sm": ["Inter"], "title-md": ["Inter"], "body-md": ["Inter"], "label-md": ["Inter"], "label-sm": ["Inter"], "headline-md": ["Inter"], "body-lg": ["Inter"], "headline-xl": ["Inter"], "headline-lg": ["Inter"] }, "fontSize": { "body-sm": ["0.75rem", { "lineHeight": "1rem", "fontWeight": "400" }], "tabular-metric-lg": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.02em", "fontWeight": "600" }], "tabular-metric-md": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "600" }], "label-lg": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0.01em", "fontWeight": "500" }], "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "600" }], "title-md": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "500" }], "body-md": ["0.875rem", { "lineHeight": "1.25rem", "fontWeight": "400" }], "label-md": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.02em", "fontWeight": "500" }], "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "600" }], "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "600" }], "body-lg": ["1rem", { "lineHeight": "1.5rem", "fontWeight": "400" }], "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.025em", "fontWeight": "600" }], "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }] } } } }</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between py-space-xl"><div class="flex flex-col gap-space-xl"><div class="px-space-xl flex items-center gap-space-sm"><img alt="Valence Finance Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/ALJJyrDz6IP99CMNToBf6T0ZErvXPGxwcNSWGtsGZK8jrK3fiiT4-0B0Z_pDUWg9uarBFdq31ToHl7ybmNDSMPtx33DWbJJCKNkxOhZlGY6CKwx3TRKKO9FPgOWazoSHJ30mw3jmRmJ_RFjPm3P7wWqLynYLR01M6CPzWQxI7sv4kvW_3n3aVZoVcHxVjoR7EAS1hzdbofTVOVeeCV9jL6KImiuTTdi8x12-JyWKzSJnNLeF"><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-primary tracking-tight font-bold">VALENCE</span><span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Financial Intel</span></div></div><nav class="flex flex-col gap-space-xs px-space-md" data-active-classes="bg-primary-container text-on-primary font-label-lg rounded-lg"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant font-label-lg hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="visao-geral-e-caixa" href="#"><span class="material-symbols-outlined text-[20px]">dashboard</span>Visão Executiva</a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant font-label-lg hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="dre-e-resultados" href="#"><span class="material-symbols-outlined text-[20px]">query_stats</span>Demonstrativos &amp; DRE</a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant font-label-lg hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="contas-a-pagar-receber" href="#"><span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>Fluxo &amp; Liquidez</a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant font-label-lg hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="planejamento-orcamentario" href="#"><span class="material-symbols-outlined text-[20px]">pie_chart</span>Orçamento &amp; Forecast</a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant font-label-lg hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="projetos-e-rentabilidade" href="#"><span class="material-symbols-outlined text-[20px]">trending_up</span>Projetos &amp; Retorno</a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant font-label-lg hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="auditoria-e-compliance" href="#"><span class="material-symbols-outlined text-[20px]">verified_user</span>Auditoria &amp; Trilha</a></nav></div><div class="px-space-md flex flex-col gap-space-sm"><div class="bg-surface-container-low p-space-md rounded-lg flex flex-col gap-space-xs"><div class="flex items-center gap-space-xs text-on-tertiary-container"><span class="w-2 h-2 rounded-full bg-on-tertiary-container animate-pulse"></span><span class="font-label-sm text-label-sm uppercase tracking-wider font-semibold">Auditoria Fiscal Ativa</span></div><p class="font-body-sm text-body-sm text-on-surface-variant">Sincronismo Contábil: v2.4</p></div><div class="flex items-center justify-between px-space-sm text-on-surface-variant font-body-sm text-body-sm"><span>Valence Suite</span><span>2024.2</span></div></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 z-40 bg-surface-container-lowest/95 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-surface-container"><div class="px-margin-desktop py-space-sm flex flex-col gap-space-xs"><div class="flex items-center justify-between gap-gutter-desktop"><div class="flex items-center gap-space-md flex-wrap"><div class="flex items-center gap-space-xs bg-surface-container-low px-space-md py-space-xs rounded-lg"><span class="material-symbols-outlined text-[18px] text-secondary">domain</span><select class="bg-transparent font-label-md text-label-md text-on-surface focus:outline-none cursor-pointer pr-space-xs"><option selected="">Grupo Consolidado (Holding)</option><option>Empresa Individual (CNPJ 01 - Matriz)</option><option>Empresa Individual (CNPJ 02 - Filial SP)</option></select></div><div class="flex items-center gap-space-xs bg-surface-container-low px-space-md py-space-xs rounded-lg"><span class="material-symbols-outlined text-[18px] text-secondary">account_balance</span><select class="bg-transparent font-label-md text-label-md text-on-surface focus:outline-none cursor-pointer pr-space-xs"><option selected="">Todas as Contas</option><option>Itaú Principal (Op.)</option><option>Bradesco Invest</option><option>Safra Tesouraria</option></select></div><div class="flex items-center gap-space-xs bg-surface-container-low px-space-md py-space-xs rounded-lg"><span class="material-symbols-outlined text-[18px] text-secondary">calendar_today</span><select class="bg-transparent font-label-md text-label-md text-on-surface focus:outline-none cursor-pointer pr-space-xs"><option selected="">Out 2024 vs Set 2024 (Mês Ant.)</option><option>Último Trimestre vs Anterior</option><option>YTD (Acumulado do Ano)</option></select></div></div><div class="flex items-center gap-space-lg"><div class="relative flex items-center group/sync"><button aria-label="Sincronizar dados" class="w-9 h-9 rounded-lg flex items-center justify-center text-on-surface-variant bg-surface-container-low hover:bg-surface-container-high hover:text-on-surface transition-colors border border-surface-container"><span class="material-symbols-outlined text-[20px] text-surface-tint hover:text-primary transition-colors">sync</span></button><div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/sync:flex items-center gap-space-xs px-space-sm py-space-xs bg-inverse-surface text-inverse-on-surface text-body-sm font-label-sm rounded-lg shadow-lg z-50 pointer-events-none whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-on-tertiary-container animate-pulse"></span><span>Google Drive • Sincronizado há 4 min</span></div></div><div class="flex items-center gap-space-xs"><button aria-label="Notificações" class="w-9 h-9 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors relative"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="w-1.5 h-1.5 rounded-full bg-error absolute top-2 right-2"></span></button><button aria-label="Configurações" class="w-9 h-9 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">tune</span></button><div class="relative flex items-center pl-space-xs"><button aria-label="Menu do Usuário" class="flex items-center gap-space-2xs p-space-2xs rounded-full hover:bg-surface-container transition-colors"><div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-sm font-semibold text-[13px]">HM</div><span class="material-symbols-outlined text-[18px] text-secondary">expand_more</span></button></div></div></div></div><div class="flex items-center justify-between border-t border-surface-container pt-space-xs"><nav class="flex items-center gap-space-lg overflow-x-auto" data-active-classes="text-primary font-headline-sm border-b-2 border-primary-container pb-space-xs"><a class="text-primary font-semibold border-b-2 border-primary-container pb-space-xs text-label-lg transition-colors" data-path="visao-geral-e-caixa" href="#">Visão Geral &amp; Caixa</a><a class="text-on-surface-variant font-label-lg text-label-lg hover:text-on-surface pb-space-xs transition-colors" data-path="dre-e-resultados" href="#">DRE &amp; Resultados</a><a class="text-on-surface-variant font-label-lg text-label-lg hover:text-on-surface pb-space-xs transition-colors" data-path="contas-a-pagar-receber" href="#">Contas a Pagar/Receber</a><a class="text-on-surface-variant font-label-lg text-label-lg hover:text-on-surface pb-space-xs transition-colors" data-path="planejamento-orcamentario" href="#">Planejamento Orçamentário</a><a class="text-on-surface-variant font-label-lg text-label-lg hover:text-on-surface pb-space-xs transition-colors" data-path="projetos-e-rentabilidade" href="#">Projetos &amp; Retorno</a></nav><div class="flex items-center gap-space-xs text-on-surface-variant font-label-sm text-label-sm pl-space-md"><span class="material-symbols-outlined text-[16px]">schedule</span><span>Base: 31/10/2024 - 18:42 BRT</span></div></div></div></header><main class="w-full pt-36 px-margin-desktop bg-surface"><div class="flex flex-col w-full gap-space-xl pb-space-2xl"><!-- 1. Header de Contexto Executivo & Controles Rápidos -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md p-space-md bg-surface-container-lowest rounded-xl shadow-sm">
+<div class="flex flex-wrap items-center gap-space-sm text-body-sm font-body-sm text-secondary">
+<div class="flex items-center gap-space-xs bg-surface-container-low px-space-md py-space-xs rounded-lg text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-surface-tint">corporate_fare</span>
+<span class="font-label-sm uppercase tracking-wider text-secondary">Visualizando:</span>
+<span class="font-label-md font-semibold text-primary">Grupo Consolidado (CNPJ 01 + CNPJ 02)</span>
+</div>
+<span class="text-outline-variant">•</span>
+<div class="flex items-center gap-space-xs bg-surface-container-low px-space-md py-space-xs rounded-lg text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-secondary">account_balance_wallet</span>
+<span class="font-label-sm uppercase tracking-wider text-secondary">Carteiras:</span>
+<span class="font-label-md font-semibold text-primary">Todas (4 Contas Ativas)</span>
+</div>
+<span class="text-outline-variant">•</span>
+<div class="flex items-center gap-space-xs bg-surface-container-low px-space-md py-space-xs rounded-lg text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-secondary">compare_arrows</span>
+<span class="font-label-sm uppercase tracking-wider text-secondary">Comparativo:</span>
+<span class="font-label-md font-semibold text-primary">Out 2024 vs. Set 2024</span>
+</div>
+<div class="hidden 2xl:flex items-center gap-space-xs bg-tertiary-fixed/20 text-on-tertiary-fixed-variant px-space-sm py-space-2xs rounded-full">
+<span class="w-1.5 h-1.5 rounded-full bg-on-tertiary-container animate-pulse"></span>
+<span class="font-label-sm uppercase tracking-wider font-semibold">SOC2 Type II</span>
+</div>
+</div>
+<!-- Botões de Ação Executiva Organizados -->
+<div class="flex items-center gap-space-sm self-start lg:self-center">
+<button class="flex items-center gap-space-xs px-space-md py-space-sm bg-surface-container-low hover:bg-surface-container text-on-surface rounded-lg font-label-md transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[18px] text-surface-tint">analytics</span>
+<span>Simulação de Cenários</span>
+</button>
+<div class="relative group/export flex items-center"><button aria-label="Exportar Relatório" class="w-9 h-9 flex items-center justify-center bg-primary-container hover:bg-primary text-on-primary rounded-lg transition-colors shadow-sm focus:outline-none"><span class="material-symbols-outlined text-[20px]">download</span></button><div class="absolute right-0 top-full mt-2 hidden group-hover/export:flex flex-col bg-surface-container-lowest border border-surface-container rounded-xl shadow-lg p-space-xs z-50 w-56 whitespace-nowrap"><div class="px-space-sm py-space-xs border-b border-surface-container flex items-center justify-between text-secondary"><span class="font-label-sm uppercase tracking-wider font-semibold">Exportar Relatório</span><span class="material-symbols-outlined text-[16px]">file_download</span></div><button class="flex items-center gap-space-xs px-space-sm py-space-xs rounded-lg hover:bg-surface-container-low text-on-surface font-label-md transition-colors text-left w-full"><span class="material-symbols-outlined text-[18px] text-error">picture_as_pdf</span><div class="flex flex-col"><span class="font-medium">PDF Executivo</span><span class="text-body-sm text-secondary font-normal">.pdf (DRE &amp; Caixa)</span></div></button><button class="flex items-center gap-space-xs px-space-sm py-space-xs rounded-lg hover:bg-surface-container-low text-on-surface font-label-md transition-colors text-left w-full"><span class="material-symbols-outlined text-[18px] text-on-tertiary-container">table_view</span><div class="flex flex-col"><span class="font-medium">Planilha Consolidada</span><span class="text-body-sm text-secondary font-normal">.xlsx (Dados brutos)</span></div></button></div></div>
+</div>
+</div>
+
+<!-- 2. Linha Superior - 4 Cards de Indicadores Financeiros (KPIs Harmonizados) -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-space-lg">
+<!-- Card 1: Saúde Financeira -->
+<div class="flex flex-col justify-between p-space-xl bg-surface-container-lowest rounded-xl shadow-sm relative group hover:shadow-md transition-shadow">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between gap-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-md text-secondary">Saúde Financeira</span>
+<div class="relative flex items-center cursor-pointer group/tip">
+<span class="material-symbols-outlined text-[16px] text-outline">info</span>
+<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex w-56 p-space-xs bg-inverse-surface text-inverse-on-surface text-body-sm rounded-lg shadow-lg z-30 pointer-events-none">
+Índice ponderado de liquidez corrente, margem operacional e solvência geral.
+</div>
+</div>
+</div>
+<span class="px-space-xs py-space-2xs bg-tertiary-fixed/30 text-on-tertiary-fixed-variant rounded-full font-label-sm uppercase tracking-wider font-semibold">
+Excelente
+</span>
+</div>
+<div class="flex items-baseline gap-space-sm mt-space-xs">
+<span class="font-tabular-metric-lg text-tabular-metric-lg text-primary tracking-tight font-bold">84<span class="text-body-lg text-secondary font-normal">/100</span></span>
+<span class="flex items-center font-label-sm text-on-tertiary-container font-semibold">
+<span class="material-symbols-outlined text-[14px]">arrow_upward</span>+3 pts
+</span>
+</div>
+<div class="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden mt-space-sm">
+<div class="bg-on-tertiary-container h-full rounded-full transition-all duration-700" style="width: 84%;"></div>
+</div>
+</div>
+<div class="pt-space-md mt-space-sm bg-gradient-to-t from-surface-container-low/40 to-transparent flex items-center justify-between text-body-sm font-body-sm text-secondary">
+<span>Vs. Setembro: <strong class="text-on-surface font-semibold">81/100</strong></span>
+<span class="text-label-sm text-on-tertiary-container font-medium">Grau A+</span>
+</div>
+</div>
+
+<!-- Card 2: Caixa Livre Disponível -->
+<div class="flex flex-col justify-between p-space-xl bg-surface-container-lowest rounded-xl shadow-sm relative group hover:shadow-md transition-shadow">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between gap-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-md text-secondary">Caixa Livre</span>
+<div class="relative flex items-center cursor-pointer group/tip">
+<span class="material-symbols-outlined text-[16px] text-outline">info</span>
+<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex w-56 p-space-xs bg-inverse-surface text-inverse-on-surface text-body-sm rounded-lg shadow-lg z-30 pointer-events-none">
+Recursos imediatamente resgatáveis deduzidos de provisões operacionais de curto prazo.
+</div>
+</div>
+</div>
+<span class="px-space-xs py-space-2xs bg-tertiary-fixed/30 text-on-tertiary-fixed-variant rounded-full font-label-sm font-semibold">
++8,4% MoM
+</span>
+</div>
+<div class="flex items-baseline gap-space-sm mt-space-xs">
+<span class="font-tabular-metric-lg text-tabular-metric-lg text-primary tracking-tight font-bold">R$ 4.820.500</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-space-2xs leading-relaxed">
+R$ 3,1M Líquido • R$ 1,72M CDB Diário
+</p>
+</div>
+<div class="pt-space-md mt-space-sm bg-gradient-to-t from-surface-container-low/40 to-transparent flex items-center justify-between text-body-sm font-body-sm text-secondary">
+<span>Saldo consolidado</span>
+<span class="flex items-center gap-space-2xs text-surface-tint font-label-sm">
+<span class="material-symbols-outlined text-[15px]">verified</span>Conciliado
+</span>
+</div>
+</div>
+
+<!-- Card 3: Runway de Caixa Harmonizado -->
+<div class="flex flex-col justify-between p-space-xl bg-surface-container-lowest rounded-xl shadow-sm relative group hover:shadow-md transition-shadow">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-start justify-between gap-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-md text-secondary">Runway de Caixa</span>
+<div class="relative flex items-center cursor-pointer group/tip">
+<span class="material-symbols-outlined text-[16px] text-outline">info</span>
+<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex w-56 p-space-xs bg-inverse-surface text-inverse-on-surface text-body-sm rounded-lg shadow-lg z-30 pointer-events-none">
+Estimativa de sobrevivência do caixa operacional considerando o burn rate médio dos últimos 3 meses.
+</div>
+</div>
+</div>
+<span class="px-space-xs py-space-2xs bg-surface-container-high text-primary font-label-sm uppercase tracking-wider font-semibold rounded-full">
+Risco Baixo
+</span>
+</div>
+<div class="flex items-baseline gap-space-sm mt-space-xs">
+<span class="font-tabular-metric-lg text-tabular-metric-lg text-primary tracking-tight font-bold">18,6 <span class="text-headline-sm font-normal text-secondary">Meses</span></span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-space-2xs leading-relaxed">
+Burn rate: R$ 258k/mês | Fator seguro: 1.8x
+</p>
+</div>
+<div class="pt-space-md mt-space-sm bg-gradient-to-t from-surface-container-low/40 to-transparent flex items-center justify-between text-body-sm font-body-sm text-secondary">
+<span>Horizonte</span>
+<span class="font-label-sm text-on-surface font-semibold">Até Mai/2026</span>
+</div>
+</div>
+
+<!-- Card 4: Resultado Líquido do Mês -->
+<div class="flex flex-col justify-between p-space-xl bg-surface-container-lowest rounded-xl shadow-sm relative group hover:shadow-md transition-shadow">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between gap-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-md text-secondary">Resultado Líquido</span>
+<div class="relative flex items-center cursor-pointer group/tip">
+<span class="material-symbols-outlined text-[16px] text-outline">info</span>
+<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex w-56 p-space-xs bg-inverse-surface text-inverse-on-surface text-body-sm rounded-lg shadow-lg z-30 pointer-events-none">
+Lucro líquido apurado após custos, despesas operacionais e tributos incidentes.
+</div>
+</div>
+</div>
+<span class="px-space-xs py-space-2xs bg-tertiary-fixed/30 text-on-tertiary-fixed-variant rounded-full font-label-sm font-semibold">
++14,2% MoM
+</span>
+</div>
+<div class="flex items-baseline gap-space-sm mt-space-xs">
+<span class="font-tabular-metric-lg text-tabular-metric-lg text-primary tracking-tight font-bold">R$ 894.200</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant mt-space-2xs leading-relaxed">
+Setembro anterior: R$ 783.000 (+R$ 111k)
+</p>
+</div>
+<div class="pt-space-md mt-space-sm bg-gradient-to-t from-surface-container-low/40 to-transparent flex items-center justify-between text-body-sm font-body-sm text-secondary">
+<span>Margem Líquida</span>
+<span class="font-label-sm text-on-tertiary-container font-semibold">22,8% da Receita</span>
+</div>
+</div>
+</div>
+
+<!-- 3. Área Central (Gráfico 65% / Insights CFO IA 35%) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-xl">
+<!-- Gráfico Financeiro -->
+<div class="lg:col-span-8 flex flex-col justify-between p-space-xl bg-surface-container-lowest rounded-xl shadow-sm">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md mb-space-lg">
+<div class="flex flex-col">
+<h2 class="font-headline-sm text-headline-sm text-primary font-bold">Evolução Semanal: Receitas vs. Despesas vs. Saldo de Caixa</h2>
+<span class="font-body-sm text-body-sm text-secondary">Comparação de performance operacional com marco enterprise</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex p-space-2xs bg-surface-container-low rounded-lg">
+<button class="px-space-md py-space-2xs font-label-sm text-label-sm font-semibold bg-surface-container-lowest text-primary rounded shadow-sm">Semanal</button>
+<button class="px-space-md py-space-2xs font-label-sm text-label-sm text-secondary hover:text-on-surface">Mensal</button>
+<button class="px-space-md py-space-2xs font-label-sm text-label-sm text-secondary hover:text-on-surface">Trimestral</button>
+</div>
+</div>
+</div>
+
+<div class="flex flex-wrap items-center gap-space-lg mb-space-md text-label-sm font-label-sm">
+<div class="flex items-center gap-space-xs">
+<span class="w-3 h-3 rounded-sm bg-primary-container"></span>
+<span class="text-on-surface font-medium">Receitas Operacionais</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="w-3 h-3 rounded-sm bg-secondary"></span>
+<span class="text-on-surface font-medium">Despesas &amp; Custos</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="w-4 h-0.5 bg-on-tertiary-container"></span>
+<span class="w-2 h-2 rounded-full bg-on-tertiary-container -ml-2"></span>
+<span class="text-on-surface font-medium">Saldo de Caixa Acumulado</span>
+</div>
+</div>
+
+<div class="relative w-full h-72 sm:h-80 select-none">
+<svg class="w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 760 260">
+<line stroke="#E2E8F0" stroke-dasharray="3 3" x1="45" x2="740" y1="20" y2="20"></line>
+<text fill="#72787D" font-family="Inter" font-size="10" text-anchor="end" x="35" y="24">1.200k</text>
+<line stroke="#E2E8F0" stroke-dasharray="3 3" x1="45" x2="740" y1="75" y2="75"></line>
+<text fill="#72787D" font-family="Inter" font-size="10" text-anchor="end" x="35" y="79">900k</text>
+<line stroke="#E2E8F0" stroke-dasharray="3 3" x1="45" x2="740" y1="130" y2="130"></line>
+<text fill="#72787D" font-family="Inter" font-size="10" text-anchor="end" x="35" y="134">600k</text>
+<line stroke="#E2E8F0" stroke-dasharray="3 3" x1="45" x2="740" y1="185" y2="185"></line>
+<text fill="#72787D" font-family="Inter" font-size="10" text-anchor="end" x="35" y="189">300k</text>
+<line stroke="#CBD5E1" stroke-width="1.5" x1="45" x2="740" y1="240" y2="240"></line>
+<text fill="#72787D" font-family="Inter" font-size="10" text-anchor="end" x="35" y="243">0k</text>
+
+<rect class="hover:opacity-90 transition-opacity" fill="#0F374A" height="139" rx="3" width="22" x="110" y="101"></rect>
+<rect class="hover:opacity-90 transition-opacity" fill="#545F73" height="112" rx="3" width="22" x="136" y="128"></rect>
+<text fill="#42484C" font-family="Inter" font-size="11" font-weight="500" text-anchor="middle" x="134" y="255">Semana 1</text>
+
+<rect class="hover:opacity-90 transition-opacity" fill="#0F374A" height="150" rx="3" width="22" x="270" y="90"></rect>
+<rect class="hover:opacity-90 transition-opacity" fill="#545F73" height="123" rx="3" width="22" x="296" y="117"></rect>
+<text fill="#42484C" font-family="Inter" font-size="11" font-weight="500" text-anchor="middle" x="294" y="255">Semana 2</text>
+
+<rect class="hover:opacity-90 transition-opacity" fill="#0F374A" height="172" rx="3" width="22" x="430" y="68"></rect>
+<rect class="hover:opacity-90 transition-opacity" fill="#545F73" height="130" rx="3" width="22" x="456" y="110"></rect>
+<text fill="#42484C" font-family="Inter" font-size="11" font-weight="500" text-anchor="middle" x="454" y="255">Semana 3</text>
+
+<rect class="hover:opacity-90 transition-opacity" fill="#0F374A" height="161" rx="3" width="22" x="590" y="79"></rect>
+<rect class="hover:opacity-90 transition-opacity" fill="#545F73" height="126" rx="3" width="22" x="616" y="114"></rect>
+<text fill="#42484C" font-family="Inter" font-size="11" font-weight="500" text-anchor="middle" x="614" y="255">Semana 4</text>
+
+<path d="M 134 155 L 294 130 L 454 75 L 614 45" fill="none" stroke="#36AF80" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path>
+<circle cx="134" cy="155" fill="#FFFFFF" r="4.5" stroke="#36AF80" stroke-width="2.5"></circle>
+<circle cx="294" cy="130" fill="#FFFFFF" r="4.5" stroke="#36AF80" stroke-width="2.5"></circle>
+<circle cx="454" cy="75" fill="#FFFFFF" r="5" stroke="#36AF80" stroke-width="3"></circle>
+<circle cx="614" cy="45" fill="#FFFFFF" r="4.5" stroke="#36AF80" stroke-width="2.5"></circle>
+
+<!-- Tooltip ajustado para não encobrir o eixo -->
+<g transform="translate(365, 14)">
+<rect fill="#002130" height="36" opacity="0.95" rx="6" width="195" x="0" y="0"></rect>
+<polygon fill="#002130" opacity="0.95" points="98,36 103,42 108,36"></polygon>
+<text fill="#85F8C4" font-family="Inter" font-size="9.5" font-weight="600" x="10" y="15">PICO: FECHAMENTO ENTERPRISE</text>
+<text fill="#FFFFFF" font-family="Inter" font-size="10.5" x="10" y="28">Receita Semanal: R$ 940.000</text>
+</g>
+</svg>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-space-md pt-space-md mt-space-md bg-surface-container-low/50 p-space-md rounded-lg">
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-secondary uppercase tracking-wider">Receitas Totais</span>
+<div class="flex items-baseline gap-space-xs mt-space-2xs">
+<span class="font-headline-sm text-primary font-bold">R$ 3.920.000</span>
+<span class="text-label-sm text-on-tertiary-container font-semibold">+11,0%</span>
+</div>
+</div>
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-secondary uppercase tracking-wider">Despesas Consolidadas</span>
+<div class="flex items-baseline gap-space-xs mt-space-2xs">
+<span class="font-headline-sm text-primary font-bold">R$ 3.030.000</span>
+<span class="text-label-sm text-secondary font-medium">+2,1%</span>
+</div>
+</div>
+<div class="flex flex-col">
+<span class="text-label-sm font-label-sm text-secondary uppercase tracking-wider">Geração Líquida Caixa</span>
+<div class="flex items-baseline gap-space-xs mt-space-2xs">
+<span class="font-headline-sm text-on-tertiary-container font-bold">+R$ 890.000</span>
+<span class="text-label-sm text-on-tertiary-container font-medium">Fluxo Livre</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Painel Insights do CFO Virtual (IA) com Títulos e Badges Harmonizados -->
+<div class="lg:col-span-4 flex flex-col justify-between p-space-xl bg-surface-container-lowest rounded-xl shadow-sm">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[20px] text-surface-tint">psychology</span>
+<h3 class="font-headline-sm text-headline-sm text-primary font-bold">Insights do CFO Virtual</h3>
+</div>
+<div class="flex items-center gap-space-2xs bg-tertiary-fixed/30 text-on-tertiary-fixed-variant px-space-xs py-space-2xs rounded-full font-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-on-tertiary-container animate-pulse"></span>
+<span>IA Ativa</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-secondary">
+Análises preditivas automatizadas com base no plano de contas e auditoria em tempo real.
+</p>
+
+<div class="flex flex-col gap-space-md mt-space-xs">
+<!-- Card IA 1: Margem & Precificação -->
+<div class="p-space-md bg-surface-container-low/70 rounded-lg flex flex-col gap-space-xs hover:bg-surface-container-low transition-colors">
+<div class="flex items-center justify-between gap-space-xs">
+<span class="font-label-sm font-semibold uppercase tracking-wider text-error">Margem &amp; Precificação</span>
+<span class="font-label-sm font-bold text-on-tertiary-container bg-tertiary-fixed/40 px-space-xs py-space-2xs rounded">+R$ 48k/mês</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface leading-snug">
+Erosão no produto <strong>SaaS Enterprise Tier 2</strong> (-4,8 p.p.) por custos de nuvem.
+</p>
+<div class="flex items-center justify-between pt-space-xs mt-space-2xs border-t border-surface-container-high/60">
+<span class="text-label-sm text-secondary">Ação</span>
+<button class="font-label-sm text-surface-tint hover:text-primary font-semibold flex items-center gap-space-2xs">
+Ver Análise <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</div>
+
+<!-- Card IA 2: Oportunidade de Caixa -->
+<div class="p-space-md bg-surface-container-low/70 rounded-lg flex flex-col gap-space-xs hover:bg-surface-container-low transition-colors">
+<div class="flex items-center justify-between gap-space-xs">
+<span class="font-label-sm font-semibold uppercase tracking-wider text-on-tertiary-container">Oportunidade de Caixa</span>
+<span class="font-label-sm font-bold text-on-tertiary-container bg-tertiary-fixed/40 px-space-xs py-space-2xs rounded">+R$ 11.2k/mês</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface leading-snug">
+Excesso de liquidez em conta (R$ 1,45M parados). Sugestão: Aplicação a 104% CDI.
+</p>
+<div class="flex items-center justify-between pt-space-xs mt-space-2xs border-t border-surface-container-high/60">
+<span class="text-label-sm text-secondary">Ação</span>
+<button class="font-label-sm text-surface-tint hover:text-primary font-semibold flex items-center gap-space-2xs">
+Aprovar Aplicação <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</div>
+
+<!-- Card IA 3: Contas a Receber -->
+<div class="p-space-md bg-surface-container-low/70 rounded-lg flex flex-col gap-space-xs hover:bg-surface-container-low transition-colors">
+<div class="flex items-center justify-between gap-space-xs">
+<span class="font-label-sm font-semibold uppercase tracking-wider text-secondary">Contas a Receber</span>
+<span class="font-label-sm font-bold text-primary bg-secondary-container px-space-xs py-space-2xs rounded">Risco R$ 620k</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface leading-snug">
+Concentração de 38% dos recebíveis de nov em 2 clientes corporativos (CNPJ 01).
+</p>
+<div class="flex items-center justify-between pt-space-xs mt-space-2xs border-t border-surface-container-high/60">
+<span class="text-label-sm text-secondary">Ação</span>
+<button class="font-label-sm text-surface-tint hover:text-primary font-semibold flex items-center gap-space-2xs">
+Detalhar <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-space-md mt-space-sm bg-gradient-to-t from-surface-container-low/50 to-transparent flex items-center justify-between text-body-sm font-body-sm text-secondary">
+<span>Confiança Estatística: 96,4%</span>
+<button class="font-label-sm text-secondary hover:text-primary flex items-center gap-space-2xs">
+Histórico IA <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+</button>
+</div>
+</div>
+</div>
+
+<!-- 4. Parte Inferior: Tabela de Desempenho por Projeto -->
+<div class="flex flex-col p-space-xl bg-surface-container-lowest rounded-xl shadow-sm">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md pb-space-lg">
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-primary font-bold">Desempenho por Projeto &amp; Unidade de Negócio</h3>
+<span class="font-body-sm text-body-sm text-secondary">Análise detalhada de rentabilidade, margem de contribuição e alocação societária</span>
+</div>
+<div class="flex flex-wrap items-center gap-space-sm">
+<div class="flex p-space-2xs bg-surface-container-low rounded-lg">
+<button class="px-space-md py-space-xs font-label-md bg-surface-container-lowest text-primary rounded font-semibold shadow-sm">Todos (6)</button>
+<button class="px-space-md py-space-xs font-label-md text-secondary hover:text-on-surface">Consultoria</button>
+<button class="px-space-md py-space-xs font-label-md text-secondary hover:text-on-surface">Software SaaS</button>
+<button class="px-space-md py-space-xs font-label-md text-secondary hover:text-on-surface">Recorrentes</button>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container-low px-space-md py-space-xs rounded-lg">
+<span class="material-symbols-outlined text-[18px] text-secondary">search</span>
+<input class="bg-transparent font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none w-32 lg:w-44" placeholder="Filtrar projetos..." type="text">
+</div>
+</div>
+</div>
+
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left font-body-sm text-body-sm border-collapse">
+<thead class="bg-surface-container-low text-secondary font-label-md">
+<tr>
+<th class="py-space-sm px-space-md font-semibold w-1/4">Projeto / Linha de Produto</th>
+<th class="py-space-sm px-space-md font-semibold text-center">CNPJ Alocado</th>
+<th class="py-space-sm px-space-md font-semibold text-right">Receita Bruta</th>
+<th class="py-space-sm px-space-md font-semibold text-right">Custos &amp; Despesas</th>
+<th class="py-space-sm px-space-md font-semibold text-right">Margem Contrib.</th>
+<th class="py-space-sm px-space-md font-semibold text-right">Resultado Líquido</th>
+<th class="py-space-sm px-space-md font-semibold text-center">Status Rentabilidade</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-low">
+<!-- Linha 1 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-md px-space-md font-medium text-primary flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-surface-tint">account_tree</span>
+Projeto Alfa - Transformação Digital
+</td>
+<td class="py-space-md px-space-md text-center">
+<span class="px-space-xs py-space-2xs bg-surface-container text-secondary font-label-sm rounded">CNPJ 01 (Matriz)</span>
+</td>
+<td class="py-space-md px-space-md text-right font-medium font-tabular-metric-md text-on-surface">R$ 1.250.000</td>
+<td class="py-space-md px-space-md text-right font-tabular-metric-md text-secondary">R$ 680.000</td>
+<td class="py-space-md px-space-md text-right font-bold text-on-tertiary-container font-tabular-metric-md">45,6%</td>
+<td class="py-space-md px-space-md text-right font-bold text-on-tertiary-container font-tabular-metric-md">+R$ 570.000</td>
+<td class="py-space-md px-space-md text-center">
+<span class="inline-flex items-center gap-space-2xs px-space-sm py-space-2xs rounded-full bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-on-tertiary-container"></span>
+Lucro Alto (+45.6%)
+</span>
+</td>
+</tr>
+<!-- Linha 2 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-md px-space-md font-medium text-primary flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-surface-tint">cloud_done</span>
+Plataforma SaaS Core (Recorrente)
+</td>
+<td class="py-space-md px-space-md text-center">
+<span class="px-space-xs py-space-2xs bg-surface-container text-secondary font-label-sm rounded">CNPJ 01 (Matriz)</span>
+</td>
+<td class="py-space-md px-space-md text-right font-medium font-tabular-metric-md text-on-surface">R$ 1.100.000</td>
+<td class="py-space-md px-space-md text-right font-tabular-metric-md text-secondary">R$ 420.000</td>
+<td class="py-space-md px-space-md text-right font-bold text-on-tertiary-container font-tabular-metric-md">61,8%</td>
+<td class="py-space-md px-space-md text-right font-bold text-on-tertiary-container font-tabular-metric-md">+R$ 680.000</td>
+<td class="py-space-md px-space-md text-center">
+<span class="inline-flex items-center gap-space-2xs px-space-sm py-space-2xs rounded-full bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-on-tertiary-container"></span>
+Lucro Alto (+61.8%)
+</span>
+</td>
+</tr>
+<!-- Linha 3 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-md px-space-md font-medium text-primary flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-surface-tint">precision_manufacturing</span>
+Implementação ERP Logística Beta
+</td>
+<td class="py-space-md px-space-md text-center">
+<span class="px-space-xs py-space-2xs bg-surface-container text-secondary font-label-sm rounded">CNPJ 02 (Filial SP)</span>
+</td>
+<td class="py-space-md px-space-md text-right font-medium font-tabular-metric-md text-on-surface">R$ 640.000</td>
+<td class="py-space-md px-space-md text-right font-tabular-metric-md text-secondary">R$ 490.000</td>
+<td class="py-space-md px-space-md text-right font-bold text-surface-tint font-tabular-metric-md">23,4%</td>
+<td class="py-space-md px-space-md text-right font-bold text-surface-tint font-tabular-metric-md">+R$ 150.000</td>
+<td class="py-space-md px-space-md text-center">
+<span class="inline-flex items-center gap-space-2xs px-space-sm py-space-2xs rounded-full bg-secondary-container text-primary font-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-surface-tint"></span>
+Lucro Saudável (+23.4%)
+</span>
+</td>
+</tr>
+<!-- Linha 4 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-space-md px-space-md font-medium text-primary flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-surface-tint">hub</span>
+Módulo Integração Open Finance
+</td>
+<td class="py-space-md px-space-md text-center">
+<span class="px-space-xs py-space-2xs bg-surface-container text-secondary font-label-sm rounded">CNPJ 01 (Matriz)</span>
+</td>
+<td class="py-space-md px-space-md text-right font-medium font-tabular-metric-md text-on-surface">R$ 380.000</td>
+<td class="py-space-md px-space-md text-right font-tabular-metric-md text-secondary">R$ 330.000</td>
+<td class="py-space-md px-space-md text-right font-bold text-secondary font-tabular-metric-md">13,1%</td>
+<td class="py-space-md px-space-md text-right font-bold text-secondary font-tabular-metric-md">+R$ 50.000</td>
+<td class="py-space-md px-space-md text-center">
+<span class="inline-flex items-center gap-space-2xs px-space-sm py-space-2xs rounded-full bg-surface-container-high text-on-surface-variant font-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+Margem Estável (+13.1%)
+</span>
+</td>
+</tr>
+<!-- Linha 5 -->
+<tr class="hover:bg-error-container/20 transition-colors bg-error-container/10">
+<td class="py-space-md px-space-md font-medium text-error flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-error">warning</span>
+Consultoria Legada Migração V1
+</td>
+<td class="py-space-md px-space-md text-center">
+<span class="px-space-xs py-space-2xs bg-surface-container text-secondary font-label-sm rounded">CNPJ 02 (Filial SP)</span>
+</td>
+<td class="py-space-md px-space-md text-right font-medium font-tabular-metric-md text-on-surface">R$ 180.000</td>
+<td class="py-space-md px-space-md text-right font-tabular-metric-md text-error">R$ 225.000</td>
+<td class="py-space-md px-space-md text-right font-bold text-error font-tabular-metric-md">-25,0%</td>
+<td class="py-space-md px-space-md text-right font-bold text-error font-tabular-metric-md">-R$ 45.000</td>
+<td class="py-space-md px-space-md text-center">
+<span class="inline-flex items-center gap-space-2xs px-space-sm py-space-2xs rounded-full bg-error-container text-on-error-container font-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+Prejuízo Operacional (-25.0%)
+</span>
+</td>
+</tr>
+<!-- Linha 6 -->
+<tr class="hover:bg-error-container/10 transition-colors">
+<td class="py-space-md px-space-md font-medium text-primary flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-outline">smartphone</span>
+App Mobile Customizado Varejo
+</td>
+<td class="py-space-md px-space-md text-center">
+<span class="px-space-xs py-space-2xs bg-surface-container text-secondary font-label-sm rounded">CNPJ 02 (Filial SP)</span>
+</td>
+<td class="py-space-md px-space-md text-right font-medium font-tabular-metric-md text-on-surface">R$ 370.000</td>
+<td class="py-space-md px-space-md text-right font-tabular-metric-md text-secondary">R$ 388.000</td>
+<td class="py-space-md px-space-md text-right font-bold text-error font-tabular-metric-md">-4,8%</td>
+<td class="py-space-md px-space-md text-right font-bold text-error font-tabular-metric-md">-R$ 18.000</td>
+<td class="py-space-md px-space-md text-center">
+<span class="inline-flex items-center gap-space-2xs px-space-sm py-space-2xs rounded-full bg-error-container/60 text-on-error-container font-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+Prejuízo Moderado (-4.8%)
+</span>
+</td>
+</tr>
+</tbody>
+<!-- Totalizador Consolidado -->
+<tfoot class="bg-surface-container-high/60 font-semibold text-primary border-t-2 border-primary-container/20">
+<tr>
+<td class="py-space-md px-space-md font-bold uppercase tracking-wider font-label-md">Total Consolidado (Holding)</td>
+<td class="py-space-md px-space-md text-center text-secondary font-label-sm">2 Unidades</td>
+<td class="py-space-md px-space-md text-right font-tabular-metric-md font-bold">R$ 3.920.000</td>
+<td class="py-space-md px-space-md text-right font-tabular-metric-md font-bold text-secondary">R$ 2.533.000</td>
+<td class="py-space-md px-space-md text-right font-tabular-metric-md font-bold text-on-tertiary-container">35,4% Média</td>
+<td class="py-space-md px-space-md text-right font-tabular-metric-md font-bold text-on-tertiary-container">+R$ 1.387.000</td>
+<td class="py-space-md px-space-md text-center">
+<span class="px-space-md py-space-2xs bg-primary text-on-primary rounded font-label-sm font-semibold">
+Superávit Consolidado
+</span>
+</td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div></div></main></div>
+
+</body></html>

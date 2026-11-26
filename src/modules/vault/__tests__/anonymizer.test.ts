@@ -199,10 +199,228 @@ export function runAnonymizerUnitTests(): UnitTestCaseResult[] {
     });
   }
 
+  // Teste 6: Sanitização de Produtos/Serviços (PRD_01, SRV_01) no cofre
+  try {
+    const extendedVault: VaultEntry[] = [
+      ...SAMPLE_VAULT,
+      {
+        id: 'p-1',
+        tenant_id: 'tenant-1',
+        entity_type: 'product',
+        entity_id: 'p-1',
+        analytical_token: 'PRD_01',
+        real_label: 'Plataforma ERP Cloud',
+        sensitive_identifier: 'SKU-ERP-01',
+        secondary_aliases: ['SKU-ERP-01'],
+        is_archived: false,
+        created_at: '2026-11-25T10:05:00Z',
+        updated_at: '2026-11-25T10:05:00Z',
+      },
+      {
+        id: 's-1',
+        tenant_id: 'tenant-1',
+        entity_type: 'service',
+        entity_id: 's-1',
+        analytical_token: 'SRV_01',
+        real_label: 'Consultoria Tributária Premium',
+        sensitive_identifier: null,
+        secondary_aliases: [],
+        is_archived: false,
+        created_at: '2026-11-25T10:06:00Z',
+        updated_at: '2026-11-25T10:06:00Z',
+      },
+    ];
+
+    const payload = {
+      oferta: 'Plataforma ERP Cloud (SKU-ERP-01)',
+      servico: 'Consultoria Tributária Premium',
+    };
+    const { sanitized, report } = sanitizeForAI(payload, extendedVault);
+    const json = JSON.stringify(sanitized);
+
+    expectEqual(report.zeroLeakageVerified, true, 'Zero vazamento para produtos e serviços');
+    expectEqual(json.includes('Plataforma ERP Cloud'), false, 'Nome do produto não pode vazar');
+    expectEqual(json.includes('Consultoria Tributária Premium'), false, 'Nome do serviço não pode vazar');
+    expectEqual(json.includes('PRD_01'), true, 'Token PRD_01 presente');
+    expectEqual(json.includes('SRV_01'), true, 'Token SRV_01 presente');
+
+    const restored = rehydrateFromAI(sanitized, extendedVault, { isAuthenticatedClient: true });
+    expectEqual(restored.servico, 'Consultoria Tributária Premium', 'SRV_01 deve re-hidratar');
+
+    results.push({
+      name: '6. Sanitização e re-hidratação de Produtos (PRD_XX) e Serviços (SRV_XX)',
+      passed: true,
+      details: 'Ofertas substituídas por PRD_01/SRV_01 e restauradas apenas no cliente autenticado.',
+    });
+  } catch (err) {
+    results.push({
+      name: '6. Sanitização e re-hidratação de Produtos (PRD_XX) e Serviços (SRV_XX)',
+      passed: false,
+      details: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // Teste 7: Sanitização de descrições de lançamentos e nomes de fornecedores/clientes
+  try {
+    const extendedVault: VaultEntry[] = [
+      ...SAMPLE_VAULT,
+      {
+        id: 'p-1',
+        tenant_id: 'tenant-1',
+        entity_type: 'product',
+        entity_id: 'p-1',
+        analytical_token: 'PRD_01',
+        real_label: 'Plataforma ERP Cloud',
+        sensitive_identifier: null,
+        secondary_aliases: [],
+        is_archived: false,
+        created_at: '2026-11-25T10:05:00Z',
+        updated_at: '2026-11-25T10:05:00Z',
+      },
+    ];
+
+    const txPayload = [
+      {
+        transaction_type: 'income',
+        competence_date: '2026-11-10',
+        amount: 14500,
+        counterparty_name: 'Construtora Horizonte Sul S.A.',
+        description: 'Fatura 1/3 Plataforma ERP Cloud para Construtora Horizonte Sul S.A.',
+        notes: 'Contato financeiro@horizontesul.com.br',
+      },
+    ];
+
+    const { sanitized, report } = sanitizeForAI(txPayload, extendedVault);
+    const json = JSON.stringify(sanitized);
+
+    expectEqual(report.zeroLeakageVerified, true, 'Zero vazamento em lançamentos financeiros');
+    expectEqual(json.includes('Construtora Horizonte Sul'), false, 'Cliente não pode vazar');
+    expectEqual(json.includes('Plataforma ERP Cloud'), false, 'Produto na descrição não pode vazar');
+    expectEqual(json.includes('financeiro@horizontesul.com.br'), false, 'E-mail na nota não pode vazar');
+    expectEqual(json.includes('[PARCEIRO_01]'), true, 'Cliente vira token [PARCEIRO_01]');
+    expectEqual(json.includes('PRD_01'), true, 'Produto vira token PRD_01 na descrição');
+
+    results.push({
+      name: '7. Remoção de descrições sensíveis e contrapartes em lançamentos',
+      passed: true,
+      details: 'Descrições redigidas preservando tokens (PRD_01, 1/3) e fornecedores/clientes anonimizados.',
+    });
+  } catch (err) {
+    results.push({
+      name: '7. Remoção de descrições sensíveis e contrapartes em lançamentos',
+      passed: false,
+      details: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // Teste 8: Sanitização e re-hidratação de Projetos (PRJ_01) e hipóteses confidenciais
+  try {
+    const extendedVault: VaultEntry[] = [
+      ...SAMPLE_VAULT,
+      {
+        id: 'prj-1',
+        tenant_id: 'tenant-1',
+        entity_type: 'project',
+        entity_id: 'prj-1',
+        analytical_token: 'PRJ_01',
+        real_label: 'Expansão Planta Campinas',
+        sensitive_identifier: null,
+        secondary_aliases: [],
+        is_archived: false,
+        created_at: '2026-11-25T10:10:00Z',
+        updated_at: '2026-11-25T10:10:00Z',
+      },
+    ];
+
+    const projectPayload = {
+      name: 'Expansão Planta Campinas',
+      planned_start_date: '2026-12-01',
+      initial_investment: 180000,
+      hypothesis: 'Abertura da unidade Campinas para atender Alpha Engenharia sem terceiros.',
+    };
+
+    const { sanitized, report } = sanitizeForAI(projectPayload, extendedVault);
+    const json = JSON.stringify(sanitized);
+
+    expectEqual(report.zeroLeakageVerified, true, 'Zero vazamento para projetos');
+    expectEqual(json.includes('Expansão Planta Campinas'), false, 'Nome do projeto não pode vazar');
+    expectEqual(json.includes('Abertura da unidade Campinas'), false, 'Hipótese confidencial deve ser redigida');
+    expectEqual(json.includes('PRJ_01'), true, 'Token PRJ_01 deve estar presente');
+
+    const restored = rehydrateFromAI(sanitized, extendedVault, { isAuthenticatedClient: true });
+    expectEqual(restored.name, 'Expansão Planta Campinas', 'Nome do projeto deve re-hidratar');
+
+    results.push({
+      name: '8. Sanitização e re-hidratação de Projetos (PRJ_XX) e hipóteses',
+      passed: true,
+      details: 'Nome do projeto convertido em PRJ_01, hipótese redigida e re-hidratação validada.',
+    });
+  } catch (err) {
+    results.push({
+      name: '8. Sanitização e re-hidratação de Projetos (PRJ_XX) e hipóteses',
+      passed: false,
+      details: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // Teste 9: Sanitização e re-hidratação de Credores de Dívidas (CRD_01)
+  try {
+    const extendedVault: VaultEntry[] = [
+      ...SAMPLE_VAULT,
+      {
+        id: 'crd-1',
+        tenant_id: 'tenant-1',
+        entity_type: 'creditor',
+        entity_id: 'crd-1',
+        analytical_token: 'CRD_01',
+        real_label: 'Banco Safra Empresas S.A.',
+        sensitive_identifier: 'CTR-99210-BNDES',
+        secondary_aliases: ['CTR-99210-BNDES'],
+        is_archived: false,
+        created_at: '2026-11-25T10:15:00Z',
+        updated_at: '2026-11-25T10:15:00Z',
+      },
+    ];
+
+    const debtPayload = {
+      contrato: 'Financiamento Giro junto ao Banco Safra Empresas S.A. (CTR-99210-BNDES)',
+      creditor_name: 'Banco Safra Empresas S.A.',
+      principal_amount: 120000,
+    };
+
+    const { sanitized, report } = sanitizeForAI(debtPayload, extendedVault);
+    const json = JSON.stringify(sanitized);
+
+    expectEqual(report.zeroLeakageVerified, true, 'Zero vazamento para credor de dívida');
+    expectEqual(json.includes('Banco Safra'), false, 'Nome do credor não pode vazar');
+    expectEqual(json.includes('CTR-99210-BNDES'), false, 'Código do contrato não pode vazar');
+    expectEqual(json.includes('CRD_01'), true, 'Token CRD_01 deve estar presente');
+
+    const restored = rehydrateFromAI(sanitized, extendedVault, { isAuthenticatedClient: true });
+    expectEqual(restored.creditor_name, 'Banco Safra Empresas S.A.', 'Nome do credor deve re-hidratar');
+
+    results.push({
+      name: '9. Sanitização e re-hidratação de Credores de Dívidas (CRD_XX)',
+      passed: true,
+      details: 'Credor e contrato convertidos em CRD_01 e restaurados somente no cliente autenticado.',
+    });
+  } catch (err) {
+    results.push({
+      name: '9. Sanitização e re-hidratação de Credores de Dívidas (CRD_XX)',
+      passed: false,
+      details: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   return results;
 }
 
-if (typeof process !== 'undefined' && process.argv[1]?.includes('anonymizer.test')) {
+if (
+  typeof window === 'undefined' &&
+  typeof process !== 'undefined' &&
+  Array.isArray(process.argv) &&
+  process.argv[1]?.includes('anonymizer.test')
+) {
   const outcomes = runAnonymizerUnitTests();
   let failures = 0;
   for (const t of outcomes) {

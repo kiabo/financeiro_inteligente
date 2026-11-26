@@ -1,5 +1,10 @@
 import { Check, Copy, Database, History, RotateCcw, Shield, UserPlus, X } from 'lucide-react';
 import React, { useState } from 'react';
+import sqlMigrationRaw from '../../../supabase/migrations/0001_module1_foundation.sql?raw';
+import sqlMigrationModule2Raw from '../../../supabase/migrations/0002_module2_financial_core.sql?raw';
+import sqlMigrationModule3Raw from '../../../supabase/migrations/0003_module3_projects.sql?raw';
+import sqlMigrationModule4Raw from '../../../supabase/migrations/0004_module4_health_debts_taxes.sql?raw';
+import sqlMigrationModule5Raw from '../../../supabase/migrations/0005_module5_ai_cfo_mcp.sql?raw';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input, Label } from '../../components/ui/input';
@@ -10,13 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import { StatusChip } from '../../components/ui/status-chip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { formatDateTimeBR } from '../../lib/utils';
 import { InfoTooltip } from '../core/components/InfoTooltip';
 import { inviteUser, resetSandboxStore, revokeInvite } from '../core/repository';
 import { isSupabaseConfigured } from '../core/supabase';
 import type { AppRole, AuditLogEntry, AuthSessionState, InvitedUser } from '../core/types';
-import sqlMigrationRaw from '../../../supabase/migrations/0001_module1_foundation.sql?raw';
 
 interface SecurityAuditViewProps {
   session: AuthSessionState;
@@ -35,7 +40,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
   const [inviteRole, setInviteRole] = useState<AppRole>('analyst');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copiedSql, setCopiedSql] = useState(false);
+  const [copiedSql, setCopiedSql] = useState<'m1' | 'm2' | 'm3' | 'm4' | 'm5' | null>(null);
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,33 +56,46 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
     }
   };
 
-  const handleCopySql = async () => {
-    await navigator.clipboard.writeText(sqlMigrationRaw);
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2000);
+  const handleCopySql = async (target: 'm1' | 'm2' | 'm3' | 'm4' | 'm5') => {
+    const content =
+      target === 'm1'
+        ? sqlMigrationRaw
+        : target === 'm2'
+          ? sqlMigrationModule2Raw
+          : target === 'm3'
+            ? sqlMigrationModule3Raw
+            : target === 'm4'
+              ? sqlMigrationModule4Raw
+              : sqlMigrationModule5Raw;
+    await navigator.clipboard.writeText(content);
+    setCopiedSql(target);
+    setTimeout(() => setCopiedSql(null), 2000);
   };
 
   return (
     <div className="space-y-6">
       <div className="space-y-1">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
+          Governança &amp; Auditoria
+        </span>
         <div className="flex items-center gap-2">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          <h1 className="font-display text-[24px] font-semibold leading-8 tracking-[-0.02em] text-[#0F172A] dark:text-[#EAF1FF]">
             Segurança, Auditoria &amp; Infraestrutura
           </h1>
           <InfoTooltip glossaryKey="rls_isolamento" />
         </div>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-[14px] leading-5 text-[#42484C] dark:text-[#9DB0C2]">
           Controle de convites Invite-Only, histórico imutável de auditoria e migração SQL Supabase.
         </p>
       </div>
 
       <Tabs defaultValue="invites">
         <TabsList>
-          <TabsTrigger value="invites" className="gap-1.5">
+          <TabsTrigger value="invites" className="gap-1.5 tabular-nums">
             <Shield className="h-3.5 w-3.5" />
             <span>Convites ({invitedUsers.filter((u) => u.is_active).length})</span>
           </TabsTrigger>
-          <TabsTrigger value="audit" className="gap-1.5">
+          <TabsTrigger value="audit" className="gap-1.5 tabular-nums">
             <History className="h-3.5 w-3.5" />
             <span>Auditoria ({auditLogs.length})</span>
           </TabsTrigger>
@@ -99,18 +117,18 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
             </CardHeader>
             <CardContent className="space-y-4">
               {error && (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-900 dark:bg-rose-950/60 dark:text-rose-200">
+                <div className="rounded-[4px] border border-[#FECACA] bg-[#FEF2F2] px-3 py-2 text-[12px] font-medium text-[#991B1B] dark:border-[#7F1D1D] dark:bg-[#3B1219] dark:text-[#FCA5A5]">
                   {error}
                 </div>
               )}
               {feedback && (
-                <div className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs text-teal-900 dark:border-teal-900 dark:bg-teal-950/60 dark:text-teal-200">
+                <div className="rounded-[4px] border border-[#A7F3D0] bg-[#ECFDF5] px-3 py-2 text-[12px] font-medium text-[#065F46] dark:border-[#005137] dark:bg-[#003C28]/70 dark:text-[#68DBA9]">
                   {feedback}
                 </div>
               )}
 
               <form onSubmit={handleInviteSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="invite-email">E-mail autorizado *</Label>
                   <Input
                     id="invite-email"
@@ -121,7 +139,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
                     placeholder="controller@empresa.com.br"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="invite-role">Perfil de Acesso</Label>
                   <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as AppRole)}>
                     <SelectTrigger id="invite-role">
@@ -152,31 +170,38 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
                 <span className="font-mono">{session.aal.toUpperCase()}</span>
               </CardDescription>
             </CardHeader>
-            <CardContent className="divide-y divide-slate-100 p-0 dark:divide-slate-800">
+            <CardContent className="divide-y divide-[#F1F5F9] p-0 dark:divide-[#1E2F3F]">
               {invitedUsers.map((u) => (
                 <div
                   key={u.id}
-                  className="flex items-center justify-between gap-4 px-6 py-3.5 text-sm"
+                  className="flex items-center justify-between gap-4 px-6 py-3 text-[13px] hover:bg-[#F1F5F9] dark:hover:bg-[#162838]/50"
                 >
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-900 dark:text-slate-100">
-                      {u.email}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Perfil: {u.role} · {u.is_active ? 'Convite ativo' : 'Revogado'}
-                      {u.accepted_at ? ` · Aceito em ${formatDateTimeBR(u.accepted_at)}` : ' · Aguardando primeiro login'}
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate font-medium text-[#0F172A] dark:text-[#EAF1FF]">
+                        {u.email}
+                      </p>
+                      <StatusChip variant={u.is_active ? 'positive' : 'alert'}>
+                        {u.is_active ? 'Ativo' : 'Revogado'}
+                      </StatusChip>
+                    </div>
+                    <p className="text-[12px] tabular-nums text-[#42484C] dark:text-[#9DB0C2]">
+                      Perfil: {u.role}
+                      {u.accepted_at
+                        ? ` · Aceito em ${formatDateTimeBR(u.accepted_at)}`
+                        : ' · Aguardando primeiro login'}
                     </p>
                   </div>
                   {u.is_active && u.email.toLowerCase() !== session.email.toLowerCase() && (
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       size="sm"
                       onClick={async () => {
                         await revokeInvite(session.userId, session.email, u.id);
                         await onRefresh();
                       }}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3.5 w-3.5" />
                       <span>Revogar</span>
                     </Button>
                   )}
@@ -197,32 +222,36 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="border-y border-slate-200 bg-slate-50/70 text-slate-500 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-400">
+                <table className="w-full text-left text-[12px]">
+                  <thead className="border-y border-[#CBD5E1] bg-[#F8FAFC] font-medium tracking-[0.02em] text-[#64748B] dark:border-[#2A3B4C] dark:bg-[#08131D] dark:text-[#9DB0C2]">
                     <tr>
-                      <th className="px-6 py-3 font-medium">Data / Hora</th>
-                      <th className="px-6 py-3 font-medium">Ação</th>
-                      <th className="px-6 py-3 font-medium">Entidade</th>
-                      <th className="px-6 py-3 font-medium">Token</th>
-                      <th className="px-6 py-3 font-medium">Metadados</th>
+                      <th className="px-6 py-2.5">Data / Hora</th>
+                      <th className="px-6 py-2.5">Ação</th>
+                      <th className="px-6 py-2.5">Entidade</th>
+                      <th className="px-6 py-2.5">Token</th>
+                      <th className="px-6 py-2.5">Metadados</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-[#F1F5F9] dark:divide-[#1E2F3F]">
                     {auditLogs.map((log) => (
-                      <tr key={log.id}>
-                        <td className="whitespace-nowrap px-6 py-3 font-mono tabular-nums text-slate-500 dark:text-slate-400">
+                      <tr key={log.id} className="hover:bg-[#F1F5F9] dark:hover:bg-[#162838]/50">
+                        <td className="whitespace-nowrap px-6 py-2.5 tabular-nums text-[#42484C] dark:text-[#9DB0C2]">
                           {formatDateTimeBR(log.created_at)}
                         </td>
-                        <td className="px-6 py-3 font-mono font-medium text-slate-900 dark:text-slate-100">
+                        <td className="px-6 py-2.5 font-mono font-medium text-[#0F172A] dark:text-[#EAF1FF]">
                           {log.action}
                         </td>
-                        <td className="px-6 py-3 text-slate-600 dark:text-slate-300">
+                        <td className="px-6 py-2.5 text-[#334155] dark:text-[#B9CADB]">
                           {log.entity_type}
                         </td>
-                        <td className="px-6 py-3 font-mono text-teal-700 dark:text-teal-400">
-                          {log.analytical_token ?? '—'}
+                        <td className="px-6 py-2.5">
+                          {log.analytical_token ? (
+                            <StatusChip variant="primary">{log.analytical_token}</StatusChip>
+                          ) : (
+                            <span className="text-[#72787D]">—</span>
+                          )}
                         </td>
-                        <td className="px-6 py-3 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                        <td className="px-6 py-2.5 font-mono text-[11px] text-[#42484C] dark:text-[#9DB0C2]">
                           {JSON.stringify(log.metadata)}
                         </td>
                       </tr>
@@ -238,26 +267,32 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
         <TabsContent value="sql" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Configuração de Variáveis de Ambiente Supabase</CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle>Configuração de Variáveis de Ambiente Supabase</CardTitle>
+                <StatusChip variant={isSupabaseConfigured ? 'positive' : 'neutral'}>
+                  {isSupabaseConfigured ? 'Conectado' : 'Sandbox Local'}
+                </StatusChip>
+              </div>
               <CardDescription>
-                Status atual:{' '}
-                <strong>
-                  {isSupabaseConfigured
-                    ? 'Conectado ao projeto Supabase configurado'
-                    : 'Operando em Sandbox Local (variáveis ainda não definidas)'}
-                </strong>
+                {isSupabaseConfigured
+                  ? 'Conectado ao projeto Supabase configurado'
+                  : 'Operando em Sandbox Local (variáveis ainda não definidas)'}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 text-sm text-slate-600 dark:text-slate-300">
-              <ol className="list-decimal space-y-2 pl-5 text-xs sm:text-sm leading-relaxed">
+            <CardContent className="space-y-4 text-[13px] text-[#334155] dark:text-[#B9CADB]">
+              <ol className="list-decimal space-y-2 pl-5 leading-relaxed">
                 <li>
-                  No painel do Supabase, acesse <strong>Project Settings → API</strong> e copie a{' '}
-                  <span className="font-mono">Project URL</span> e a chave pública{' '}
-                  <span className="font-mono">anon public</span>.
+                  No painel do Supabase, clique em <strong>Connect</strong> (aba <em>Framework</em> ou{' '}
+                  <em>Server</em>) ou acesse <strong>Project Settings → API Keys</strong> e copie{' '}
+                  <span className="font-mono">SUPABASE_URL</span> e{' '}
+                  <span className="font-mono">SUPABASE_PUBLISHABLE_KEY</span> (ou a chave{' '}
+                  <span className="font-mono">anon</span>). Nunca use a{' '}
+                  <span className="font-mono">SUPABASE_SECRET_KEY</span> no frontend.
                 </li>
                 <li>
                   Configure <span className="font-mono">VITE_SUPABASE_URL</span> e{' '}
-                  <span className="font-mono">VITE_SUPABASE_ANON_KEY</span> no painel de Secrets /
+                  <span className="font-mono">VITE_SUPABASE_PUBLISHABLE_KEY</span> (ou{' '}
+                  <span className="font-mono">VITE_SUPABASE_ANON_KEY</span>) no painel de Secrets /
                   variáveis de ambiente (ou arquivo <span className="font-mono">.env</span> local).
                 </li>
                 <li>
@@ -292,19 +327,126 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <div>
-                <CardTitle>Migração PostgreSQL (`0001_module1_foundation.sql`)</CardTitle>
+                <CardTitle>Migração PostgreSQL · Módulo 1 (`0001_module1_foundation.sql`)</CardTitle>
                 <CardDescription>
-                  Inclui triggers de tokenização imutável, Invite-Only Gate e RLS forçado em 100% das tabelas.
+                  Triggers de tokenização imutável, Invite-Only Gate e RLS forçado na fundação.
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm" onClick={() => void handleCopySql()}>
-                {copiedSql ? <Check className="h-4 w-4 text-teal-600" /> : <Copy className="h-4 w-4" />}
-                <span>{copiedSql ? 'Copiado' : 'Copiar SQL'}</span>
+              <Button variant="outline" size="sm" onClick={() => void handleCopySql('m1')}>
+                {copiedSql === 'm1' ? (
+                  <Check className="h-4 w-4 text-[#059669]" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                <span>{copiedSql === 'm1' ? 'Copiado' : 'Copiar SQL M1'}</span>
               </Button>
             </CardHeader>
             <CardContent>
-              <pre className="max-h-96 overflow-auto rounded-xl border border-slate-200 bg-slate-950 p-4 font-mono text-xs text-slate-200 dark:border-slate-800">
+              <pre className="max-h-80 overflow-auto rounded-[4px] border border-[#1E293B] bg-[#002130] p-4 font-mono text-[12px] text-[#EAF1FF]">
                 {sqlMigrationRaw}
+              </pre>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div>
+                <CardTitle>Migração Incremental · Módulo 2 (`0002_module2_financial_core.sql`)</CardTitle>
+                <CardDescription>
+                  Catálogo de Produtos/Serviços (`PRD_XX`/`SRV_XX`), Plano de Contas, Lançamentos
+                  Caixa/Competência, `project_id` preparado e cálculo seguro de saldos.
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => void handleCopySql('m2')}>
+                {copiedSql === 'm2' ? (
+                  <Check className="h-4 w-4 text-[#059669]" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                <span>{copiedSql === 'm2' ? 'Copiado' : 'Copiar SQL M2'}</span>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <pre className="max-h-96 overflow-auto rounded-[4px] border border-[#1E293B] bg-[#002130] p-4 font-mono text-[12px] text-[#EAF1FF]">
+                {sqlMigrationModule2Raw}
+              </pre>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div>
+                <CardTitle>Migração Incremental · Módulo 3 (`0003_module3_projects.sql`)</CardTitle>
+                <CardDescription>
+                  Projetos (`PRJ_XX`), Premissas Futuras por Cenário, FK `transactions.project_id`
+                  com validação de tenant/empresa e RLS forçado.
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => void handleCopySql('m3')}>
+                {copiedSql === 'm3' ? (
+                  <Check className="h-4 w-4 text-[#059669]" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                <span>{copiedSql === 'm3' ? 'Copiado' : 'Copiar SQL M3'}</span>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <pre className="max-h-96 overflow-auto rounded-[4px] border border-[#1E293B] bg-[#002130] p-4 font-mono text-[12px] text-[#EAF1FF]">
+                {sqlMigrationModule3Raw}
+              </pre>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div>
+                <CardTitle>Migração Incremental · Módulo 4 (`0004_module4_health_debts_taxes.sql`)</CardTitle>
+                <CardDescription>
+                  Dívidas (`CRD_XX`), Parcelas (`debt_installments`), Guias Fiscais (`tax_obligations`),
+                  categorias <span className="font-mono">8.0/8.1/8.2</span>, funções SQL{' '}
+                  <span className="font-mono">get_dre_aggregation</span> /{' '}
+                  <span className="font-mono">get_profitability_ranking</span> e RLS forçado.
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => void handleCopySql('m4')}>
+                {copiedSql === 'm4' ? (
+                  <Check className="h-4 w-4 text-[#059669]" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                <span>{copiedSql === 'm4' ? 'Copiado' : 'Copiar SQL M4'}</span>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <pre className="max-h-96 overflow-auto rounded-[4px] border border-[#1E293B] bg-[#002130] p-4 font-mono text-[12px] text-[#EAF1FF]">
+                {sqlMigrationModule4Raw}
+              </pre>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div>
+                <CardTitle>Migração Incremental · Módulo 5 (`0005_module5_ai_cfo_mcp.sql`)</CardTitle>
+                <CardDescription>
+                  Recomendações do CFO Virtual (<span className="font-mono">ai_insights</span>),
+                  chaves SHA-256 e escopos do Servidor MCP (<span className="font-mono">mcp_access_tokens</span>,{' '}
+                  <span className="font-mono">mcp_call_logs</span>) com RLS forçado.
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => void handleCopySql('m5')}>
+                {copiedSql === 'm5' ? (
+                  <Check className="h-4 w-4 text-[#059669]" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                <span>{copiedSql === 'm5' ? 'Copiado' : 'Copiar SQL M5'}</span>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <pre className="max-h-96 overflow-auto rounded-[4px] border border-[#1E293B] bg-[#002130] p-4 font-mono text-[12px] text-[#EAF1FF]">
+                {sqlMigrationModule5Raw}
               </pre>
             </CardContent>
           </Card>

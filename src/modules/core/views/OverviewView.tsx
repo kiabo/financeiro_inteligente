@@ -1,10 +1,30 @@
-import { ArrowRight, Building2, Layers, Lock, Plus, ShieldCheck, Wallet } from 'lucide-react';
+import {
+  Activity,
+  ArrowLeftRight,
+  ArrowRight,
+  Building2,
+  FileSpreadsheet,
+  FolderKanban,
+  Layers,
+  Lock,
+  Package,
+  Plus,
+  ShieldCheck,
+  Wallet,
+} from 'lucide-react';
 import React, { useMemo } from 'react';
 import { Button } from '../../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
-import { formatCNPJ } from '../../../lib/utils';
+import { StatusChip } from '../../../components/ui/status-chip';
+import { formatCNPJ, formatCurrencyBRL } from '../../../lib/utils';
 import { InfoTooltip } from '../components/InfoTooltip';
 import { FINANCIAL_GLOSSARY, type GlossaryKey } from '../glossary';
+import {
+  computeAccountBalances,
+  getScopedIds,
+  resolveEffectiveStatus,
+  transactionTouchesContext,
+} from '../repository';
 import type {
   ActiveContext,
   AppSection,
@@ -12,6 +32,9 @@ import type {
   BusinessGroup,
   Company,
   FinancialAccount,
+  ProductService,
+  Project,
+  Transaction,
   VaultEntry,
 } from '../types';
 
@@ -20,6 +43,9 @@ interface OverviewViewProps {
   groups: BusinessGroup[];
   companies: Company[];
   accounts: FinancialAccount[];
+  productsServices?: ProductService[];
+  projects?: Project[];
+  transactions?: Transaction[];
   vault: VaultEntry[];
   activeContext: ActiveContext;
   onNavigate: (section: AppSection) => void;
@@ -39,6 +65,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   groups,
   companies,
   accounts,
+  productsServices = [],
+  projects = [],
+  transactions = [],
   vault,
   activeContext,
   onNavigate,
@@ -102,48 +131,98 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const activeVaultCount = vault.filter((v) => !v.is_archived).length;
   const independentCompaniesCount = companies.filter((c) => !c.group_id).length;
 
+  const module2Pulse = useMemo(() => {
+    const scoped = getScopedIds(companies, accounts, activeContext);
+    const balances = computeAccountBalances(accounts, transactions, companies, activeContext);
+    const currentTotal = balances.reduce((sum, b) => sum + b.current_balance, 0);
+    const projectedTotal = balances.reduce((sum, b) => sum + b.projected_balance, 0);
+    const overdueCount = transactions.filter(
+      (t) =>
+        transactionTouchesContext(t, scoped.accountIds) &&
+        resolveEffectiveStatus(t) === 'overdue'
+    ).length;
+    const scopedOffersCount = productsServices.filter((p) => {
+      if (!p.is_active) return false;
+      if (p.company_id && scoped.companyIds.has(p.company_id)) return true;
+      if (p.group_id && activeContext.scope === 'group' && p.group_id === activeContext.groupId) {
+        return true;
+      }
+      if (p.group_id) {
+        return companies.some(
+          (c) => scoped.companyIds.has(c.id) && c.group_id === p.group_id
+        );
+      }
+      return false;
+    }).length;
+
+    return {
+      currentTotal,
+      projectedTotal,
+      overdueCount,
+      scopedOffersCount,
+    };
+  }, [activeContext, companies, accounts, transactions, productsServices]);
+
   return (
     <div className="space-y-6">
-      {/* Cabeçalho do contexto */}
+      {/* Cabeçalho executivo */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span>Contexto Ativo</span>
-            <span aria-hidden="true">·</span>
-            <span>{session.mode === 'supabase' ? 'Supabase RLS' : 'Sandbox Local'}</span>
-            <span aria-hidden="true">·</span>
-            <span className="font-mono">{session.aal.toUpperCase()}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
+              Contexto Ativo
+            </span>
+            <StatusChip variant={session.mode === 'supabase' ? 'positive' : 'neutral'}>
+              {session.mode === 'supabase' ? 'Supabase RLS' : 'Sandbox Local'}
+            </StatusChip>
+            <StatusChip variant="primary">{session.aal.toUpperCase()}</StatusChip>
           </div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          <h1 className="font-display text-[24px] font-semibold leading-8 tracking-[-0.02em] text-[#0F172A] dark:text-[#EAF1FF]">
             {scopedData.title}
           </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400">{scopedData.subtitle}</p>
+          <p className="text-[14px] leading-5 text-[#42484C] dark:text-[#9DB0C2]">
+            {scopedData.subtitle}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => onNavigate('vault')}>
-            <ShieldCheck className="h-4 w-4 text-teal-700 dark:text-teal-400" />
-            <span>Inspecionar Cofre</span>
+          <Button variant="outline" onClick={() => onNavigate('health')}>
+            <Activity className="h-4 w-4 text-[#059669] dark:text-[#68DBA9]" />
+            <span>Saúde Financeira</span>
           </Button>
-          <Button variant="primary" onClick={() => onNavigate('hierarchy')}>
-            <Plus className="h-4 w-4" />
-            <span>Gerenciar Cadastros</span>
+          <Button variant="outline" onClick={() => onNavigate('dre')}>
+            <FileSpreadsheet className="h-4 w-4 text-[#0F374A] dark:text-[#A7CBE3]" />
+            <span>DRE Gerencial</span>
+          </Button>
+          <Button variant="outline" onClick={() => onNavigate('projects')}>
+            <FolderKanban className="h-4 w-4 text-[#0F374A] dark:text-[#A7CBE3]" />
+            <span>Projetos ({projects.length})</span>
+          </Button>
+          <Button variant="outline" onClick={() => onNavigate('catalog')}>
+            <Package className="h-4 w-4 text-[#0F374A] dark:text-[#A7CBE3]" />
+            <span>Produtos &amp; Serviços</span>
+          </Button>
+          <Button variant="primary" onClick={() => onNavigate('transactions')}>
+            <ArrowLeftRight className="h-4 w-4" />
+            <span>Fluxo &amp; Lançamentos</span>
           </Button>
         </div>
       </div>
 
-      {/* KPIs estruturais do Módulo 1 */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      {/* KPIs estruturais do Módulo 1 (tabular-metric-lg) */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
         <Card>
           <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>Empresas no Escopo</span>
-              <Building2 className="h-4 w-4 text-slate-400" />
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#42484C] dark:text-[#9DB0C2]">
+                Empresas no Escopo
+              </span>
+              <Building2 className="h-4 w-4 text-[#72787D]" />
             </div>
-            <p className="mt-2 font-display text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
+            <p className="mt-2 font-display text-[28px] font-semibold leading-9 tracking-[-0.02em] tabular-nums text-[#0F172A] dark:text-[#EAF1FF]">
               {scopedData.companies.length}
             </p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-[12px] leading-4 text-[#42484C] tabular-nums dark:text-[#9DB0C2]">
               {independentCompaniesCount} sem grupo (independentes)
             </p>
           </CardContent>
@@ -151,14 +230,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
         <Card>
           <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span>Contas Financeiras</span>
-              <Wallet className="h-4 w-4 text-slate-400" />
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#42484C] dark:text-[#9DB0C2]">
+                Contas Financeiras
+              </span>
+              <Wallet className="h-4 w-4 text-[#72787D]" />
             </div>
-            <p className="mt-2 font-display text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
+            <p className="mt-2 font-display text-[28px] font-semibold leading-9 tracking-[-0.02em] tabular-nums text-[#0F172A] dark:text-[#EAF1FF]">
               {scopedData.accounts.length}
             </p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-[12px] leading-4 text-[#42484C] dark:text-[#9DB0C2]">
               Bancos, caixas, cartões e carteiras
             </p>
           </CardContent>
@@ -166,17 +247,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
         <Card>
           <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-1">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#42484C] dark:text-[#9DB0C2]">
                 Tokens no Cofre
                 <InfoTooltip glossaryKey="token_analitico" />
               </span>
-              <ShieldCheck className="h-4 w-4 text-teal-700 dark:text-teal-400" />
+              <ShieldCheck className="h-4 w-4 text-[#059669] dark:text-[#68DBA9]" />
             </div>
-            <p className="mt-2 font-display text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
+            <p className="mt-2 font-display text-[28px] font-semibold leading-9 tracking-[-0.02em] tabular-nums text-[#0F172A] dark:text-[#EAF1FF]">
               {activeVaultCount}
             </p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-[12px] leading-4 text-[#065F46] dark:text-[#68DBA9]">
               Imutáveis e isolados por RLS
             </p>
           </CardContent>
@@ -184,17 +265,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
         <Card>
           <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-1">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#42484C] dark:text-[#9DB0C2]">
                 Grupos Opcionais
                 <InfoTooltip glossaryKey="consolidacao_grupo" />
               </span>
-              <Layers className="h-4 w-4 text-slate-400" />
+              <Layers className="h-4 w-4 text-[#72787D]" />
             </div>
-            <p className="mt-2 font-display text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
+            <p className="mt-2 font-display text-[28px] font-semibold leading-9 tracking-[-0.02em] tabular-nums text-[#0F172A] dark:text-[#EAF1FF]">
               {groups.length}
             </p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-[12px] leading-4 text-[#42484C] tabular-nums dark:text-[#9DB0C2]">
               {groups.filter((g) => companies.some((c) => c.group_id === g.id)).length} com
               consolidação ativa
             </p>
@@ -202,10 +283,86 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </Card>
       </div>
 
+      {/* Resumo Rápido Módulo 2 (Saldo Atual, Projetado e Catálogo) */}
+      {companies.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Card>
+            <CardContent className="flex items-center justify-between p-4 sm:p-5">
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#42484C] dark:text-[#9DB0C2]">
+                  Saldo Realizado Atual
+                </span>
+                <p
+                  className={`mt-1.5 font-display text-[22px] font-semibold tabular-nums ${
+                    module2Pulse.currentTotal >= 0
+                      ? 'text-[#059669] dark:text-[#68DBA9]'
+                      : 'text-[#DC2626] dark:text-[#FCA5A5]'
+                  }`}
+                >
+                  {formatCurrencyBRL(module2Pulse.currentTotal)}
+                </p>
+                <p className="mt-0.5 text-[12px] text-[#42484C] dark:text-[#9DB0C2]">
+                  Considerando apenas baixas efetuadas
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => onNavigate('transactions')}>
+                <span>Ver Fluxo</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-center justify-between p-4 sm:p-5">
+              <div>
+                <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#42484C] dark:text-[#9DB0C2]">
+                  Saldo Projetado
+                  <InfoTooltip glossaryKey="saldo_projetado" />
+                </span>
+                <p className="mt-1.5 font-display text-[22px] font-semibold tabular-nums text-[#0F172A] dark:text-[#EAF1FF]">
+                  {formatCurrencyBRL(module2Pulse.projectedTotal)}
+                </p>
+                <p className="mt-0.5 text-[12px] tabular-nums text-[#42484C] dark:text-[#9DB0C2]">
+                  {module2Pulse.overdueCount > 0
+                    ? `${module2Pulse.overdueCount} lançamento(s) atrasado(s)`
+                    : 'Inclui previsões a pagar/receber'}
+                </p>
+              </div>
+              {module2Pulse.overdueCount > 0 && (
+                <StatusChip variant="alert">{module2Pulse.overdueCount} atrasado(s)</StatusChip>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-center justify-between p-4 sm:p-5">
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#42484C] dark:text-[#9DB0C2]">
+                  Ofertas no Catálogo
+                </span>
+                <p className="mt-1.5 font-display text-[22px] font-semibold tabular-nums text-[#0F172A] dark:text-[#EAF1FF]">
+                  {module2Pulse.scopedOffersCount}
+                </p>
+                <p className="mt-0.5 text-[12px] text-[#42484C] dark:text-[#9DB0C2]">
+                  Produtos &amp; Serviços com tokens PRD/SRV
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => onNavigate('catalog')}>
+                <span>Catálogo</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Estado Vazio ou Mapa da Hierarquia */}
       {companies.length === 0 ? (
         <Card>
           <CardHeader>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
+              Configuração Inicial
+            </span>
             <CardTitle>Comece cadastrando sua primeira empresa</CardTitle>
             <CardDescription>
               Não é obrigatório criar um Grupo Empresarial. Cadastre diretamente suas empresas (CNPJs)
@@ -231,10 +388,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </Card>
       ) : (
         <Card>
-          <CardHeader className="border-b border-slate-100 dark:border-slate-800">
+          <CardHeader className="border-b border-[#E2E8F0] dark:border-[#1E2F3F]">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <CardTitle>Mapa da Hierarquia no Escopo</CardTitle>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
+                  Estrutura &amp; Tokenização
+                </span>
+                <CardTitle className="mt-0.5">Mapa da Hierarquia no Escopo</CardTitle>
                 <CardDescription>
                   Cada entidade possui um token analítico imutável exibido ao lado da razão social.
                 </CardDescription>
@@ -245,7 +405,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="divide-y divide-slate-100 p-0 dark:divide-slate-800">
+          <CardContent className="divide-y divide-[#F1F5F9] p-0 dark:divide-[#1E2F3F]">
             {scopedData.companies.map((company) => {
               const parentGroup = company.group_id
                 ? groups.find((g) => g.id === company.group_id)
@@ -253,32 +413,29 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               const compAccounts = scopedData.accounts.filter((a) => a.company_id === company.id);
 
               return (
-                <div key={company.id} className="px-5 py-4 sm:px-6">
+                <div key={company.id} className="px-4 py-4 sm:px-6">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-0.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-display text-sm font-semibold text-slate-900 dark:text-slate-100">
+                        <span className="font-display text-[15px] font-semibold text-[#0F172A] dark:text-[#EAF1FF]">
                           {company.trade_name ?? company.legal_name}
                         </span>
-                        <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-medium text-teal-800 dark:bg-slate-800 dark:text-teal-300">
-                          {company.analytical_token}
-                        </code>
+                        <StatusChip variant="primary">{company.analytical_token}</StatusChip>
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {company.legal_name} <span aria-hidden="true">·</span>{' '}
-                        <span className="font-mono tabular-nums">{formatCNPJ(company.cnpj)}</span>
+                      <p className="text-[12px] leading-4 text-[#42484C] dark:text-[#9DB0C2]">
+                        {company.legal_name} ·{' '}
+                        <span className="tabular-nums font-medium">{formatCNPJ(company.cnpj)}</span>
                         {company.tax_regime ? ` · ${company.tax_regime}` : ''}
                       </p>
                     </div>
 
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                    <div className="text-[12px] text-[#42484C] dark:text-[#9DB0C2]">
                       {parentGroup ? (
-                        <span>
-                          Grupo: <strong className="text-slate-700 dark:text-slate-200">{parentGroup.name}</strong>{' '}
-                          <span className="font-mono">({parentGroup.analytical_token})</span>
-                        </span>
+                        <StatusChip variant="neutral">
+                          Grupo: {parentGroup.name} ({parentGroup.analytical_token})
+                        </StatusChip>
                       ) : (
-                        <span>Operação Independente (sem grupo)</span>
+                        <StatusChip variant="neutral">Operação Independente</StatusChip>
                       )}
                     </div>
                   </div>
@@ -288,20 +445,18 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       {compAccounts.map((acc) => (
                         <div
                           key={acc.id}
-                          className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs dark:border-slate-800 dark:bg-slate-950/60"
+                          className="flex items-center justify-between rounded-[4px] border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-[12px] dark:border-[#1E2F3F] dark:bg-[#08131D]"
                         >
                           <div className="min-w-0 pr-2">
-                            <p className="truncate font-medium text-slate-800 dark:text-slate-200">
+                            <p className="truncate font-medium text-[#0F172A] dark:text-[#EAF1FF]">
                               {acc.name}
                             </p>
-                            <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                            <p className="truncate text-[11px] tabular-nums text-[#42484C] dark:text-[#9DB0C2]">
                               {acc.institution_name ?? acc.account_type}
                               {acc.last_four ? ` · final ${acc.last_four}` : ''}
                             </p>
                           </div>
-                          <code className="shrink-0 font-mono text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                            {acc.analytical_token}
-                          </code>
+                          <StatusChip variant="neutral">{acc.analytical_token}</StatusChip>
                         </div>
                       ))}
                     </div>
@@ -318,13 +473,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
             <div>
-              <CardTitle>Glossário Financeiro Contextual</CardTitle>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
+                Referência Técnica
+              </span>
+              <CardTitle className="mt-0.5">Glossário Financeiro Contextual</CardTitle>
               <CardDescription>
                 Toque ou clique no ícone informativo ao lado de cada conceito para consultar definição
                 e exemplo prático.
               </CardDescription>
             </div>
-            <Lock className="h-4 w-4 text-slate-400 shrink-0" />
+            <Lock className="h-4 w-4 text-[#72787D] shrink-0" />
           </div>
         </CardHeader>
         <CardContent>
@@ -335,11 +493,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               return (
                 <div
                   key={key}
-                  className="flex items-start justify-between gap-2 rounded-lg border border-slate-200 p-3.5 dark:border-slate-800"
+                  className="flex items-start justify-between gap-2 rounded-[4px] border border-[#E2E8F0] bg-[#F8FAFC] p-3.5 dark:border-[#1E2F3F] dark:bg-[#08131D]"
                 >
                   <div className="min-w-0">
-                    <p className="text-[11px] text-slate-400">{item.category}</p>
-                    <p className="mt-0.5 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
+                      {item.category}
+                    </p>
+                    <p className="mt-1 text-[13px] font-semibold leading-5 text-[#0F172A] dark:text-[#EAF1FF]">
                       {item.term}
                     </p>
                   </div>

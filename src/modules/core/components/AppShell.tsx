@@ -1,13 +1,23 @@
 import {
+  Activity,
+  ArrowLeftRight,
   Building2,
+  Cpu,
+  FileSpreadsheet,
+  FolderKanban,
+  KeyRound,
+  Landmark,
   LayoutDashboard,
   LogOut,
+  Menu,
   Moon,
+  Package,
   PanelLeftClose,
   PanelLeftOpen,
   Shield,
   ShieldCheck,
   Sun,
+  X,
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { cn } from '../../../lib/utils';
@@ -38,17 +48,104 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-const NAV_ITEMS: Array<{
+interface NavItem {
   id: AppSection;
   label: string;
   mobileLabel: string;
+  sectionGroup: 'core' | 'governance';
   icon: React.ComponentType<{ className?: string }>;
-}> = [
-  { id: 'overview', label: 'Visão Geral', mobileLabel: 'Visão', icon: LayoutDashboard },
-  { id: 'hierarchy', label: 'Empresas & Contas', mobileLabel: 'Cadastros', icon: Building2 },
-  { id: 'vault', label: 'Cofre de Privacidade', mobileLabel: 'Cofre', icon: ShieldCheck },
-  { id: 'security', label: 'Segurança & SQL', mobileLabel: 'Segurança', icon: Shield },
+}
+
+const NAV_ITEMS: NavItem[] = [
+  {
+    id: 'overview',
+    label: 'Visão Geral',
+    mobileLabel: 'Visão',
+    sectionGroup: 'core',
+    icon: LayoutDashboard,
+  },
+  {
+    id: 'health',
+    label: 'Saúde Financeira',
+    mobileLabel: 'Saúde',
+    sectionGroup: 'core',
+    icon: Activity,
+  },
+  {
+    id: 'ai_cfo',
+    label: 'CFO Virtual (IA)',
+    mobileLabel: 'CFO IA',
+    sectionGroup: 'core',
+    icon: Cpu,
+  },
+  {
+    id: 'dre',
+    label: 'DRE Gerencial',
+    mobileLabel: 'DRE',
+    sectionGroup: 'core',
+    icon: FileSpreadsheet,
+  },
+  {
+    id: 'transactions',
+    label: 'Fluxo & Lançamentos',
+    mobileLabel: 'Fluxo',
+    sectionGroup: 'core',
+    icon: ArrowLeftRight,
+  },
+  {
+    id: 'debts_taxes',
+    label: 'Dívidas & Impostos',
+    mobileLabel: 'Dívidas',
+    sectionGroup: 'core',
+    icon: Landmark,
+  },
+  {
+    id: 'projects',
+    label: 'Projetos & Viabilidade',
+    mobileLabel: 'Projetos',
+    sectionGroup: 'core',
+    icon: FolderKanban,
+  },
+  {
+    id: 'catalog',
+    label: 'Produtos & Serviços',
+    mobileLabel: 'Catálogo',
+    sectionGroup: 'core',
+    icon: Package,
+  },
+  {
+    id: 'hierarchy',
+    label: 'Empresas & Contas',
+    mobileLabel: 'Cadastros',
+    sectionGroup: 'governance',
+    icon: Building2,
+  },
+  {
+    id: 'vault',
+    label: 'Cofre de Privacidade',
+    mobileLabel: 'Cofre',
+    sectionGroup: 'governance',
+    icon: ShieldCheck,
+  },
+  {
+    id: 'mcp_settings',
+    label: 'Servidor MCP & Chaves',
+    mobileLabel: 'MCP',
+    sectionGroup: 'governance',
+    icon: KeyRound,
+  },
+  {
+    id: 'security',
+    label: 'Segurança & SQL',
+    mobileLabel: 'Segurança',
+    sectionGroup: 'governance',
+    icon: Shield,
+  },
 ];
+
+const MOBILE_PRIMARY_IDS: AppSection[] = ['health', 'dre', 'transactions', 'debts_taxes'];
+const MOBILE_BOTTOM_ITEMS = NAV_ITEMS.filter((item) => MOBILE_PRIMARY_IDS.includes(item.id));
+const MOBILE_MORE_ITEMS = NAV_ITEMS.filter((item) => !MOBILE_PRIMARY_IDS.includes(item.id));
 
 export const AppShell: React.FC<AppShellProps> = ({
   session,
@@ -65,25 +162,33 @@ export const AppShell: React.FC<AppShellProps> = ({
   children,
 }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+
+  const isMoreSectionActive = MOBILE_MORE_ITEMS.some((i) => i.id === activeSection);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] dark:bg-[#08131D] dark:text-[#EAF1FF]">
       {/* Desktop Sidebar (Colapsável) */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-30 hidden border-r border-slate-200 bg-white transition-[width] duration-200 md:flex md:flex-col dark:border-slate-800 dark:bg-slate-900',
-          sidebarCollapsed ? 'w-[72px]' : 'w-64'
+          'fixed inset-y-0 left-0 z-30 hidden border-r border-[#E2E8F0] bg-white transition-[width] duration-200 md:flex md:flex-col dark:border-[#1E2F3F] dark:bg-[#0D1A26]',
+          sidebarCollapsed ? 'w-[68px]' : 'w-64'
         )}
       >
-        <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
-          <div className={cn('flex items-center gap-2.5 overflow-hidden', sidebarCollapsed && 'justify-center w-full')}>
+        <div className="flex h-14 items-center justify-between border-b border-[#E2E8F0] px-4 dark:border-[#1E2F3F]">
+          <div
+            className={cn(
+              'flex items-center gap-2.5 overflow-hidden',
+              sidebarCollapsed && 'justify-center w-full'
+            )}
+          >
             <img
               src="/icon.svg"
               alt="Vértice"
-              className="h-8 w-8 shrink-0 rounded-lg border border-slate-200 dark:border-slate-800"
+              className="h-7 w-7 shrink-0 rounded-[4px] border border-[#E2E8F0] dark:border-[#2A3B4C]"
             />
             {!sidebarCollapsed && (
-              <span className="font-display text-base font-bold tracking-tight whitespace-nowrap">
+              <span className="font-display text-[15px] font-semibold tracking-[-0.015em] text-[#0F172A] whitespace-nowrap dark:text-[#EAF1FF]">
                 Vértice
               </span>
             )}
@@ -93,57 +198,94 @@ export const AppShell: React.FC<AppShellProps> = ({
               type="button"
               onClick={() => setSidebarCollapsed(true)}
               aria-label="Recolher barra lateral"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 cursor-pointer"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-[4px] text-[#72787D] hover:bg-[#F1F5F9] hover:text-[#0F172A] dark:hover:bg-[#162838] dark:hover:text-[#EAF1FF] cursor-pointer"
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
           )}
         </div>
 
-        <nav className="flex-1 space-y-1 p-3" aria-label="Navegação principal">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = activeSection === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onNavigate(item.id)}
-                title={sidebarCollapsed ? item.label : undefined}
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer whitespace-nowrap',
-                  sidebarCollapsed && 'justify-center px-0',
-                  active
-                    ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-              </button>
-            );
-          })}
+        <nav className="flex-1 space-y-4 overflow-y-auto p-3" aria-label="Navegação principal">
+          <div className="space-y-1">
+            {!sidebarCollapsed && (
+              <p className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
+                Core Financeiro
+              </p>
+            )}
+            {NAV_ITEMS.filter((i) => i.sectionGroup === 'core').map((item) => {
+              const Icon = item.icon;
+              const active = activeSection === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onNavigate(item.id)}
+                  title={sidebarCollapsed ? item.label : undefined}
+                  className={cn(
+                    'flex h-9 w-full items-center gap-3 rounded-[4px] px-3 text-[13px] font-medium transition-colors cursor-pointer whitespace-nowrap',
+                    sidebarCollapsed && 'justify-center px-0',
+                    active
+                      ? 'bg-[#0F374A] text-white dark:bg-[#0F374A] dark:text-white'
+                      : 'text-[#334155] hover:bg-[#F1F5F9] hover:text-[#0F172A] dark:text-[#B9CADB] dark:hover:bg-[#162838] dark:hover:text-[#EAF1FF]'
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="space-y-1">
+            {!sidebarCollapsed && (
+              <p className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
+                Governança &amp; Base
+              </p>
+            )}
+            {NAV_ITEMS.filter((i) => i.sectionGroup === 'governance').map((item) => {
+              const Icon = item.icon;
+              const active = activeSection === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onNavigate(item.id)}
+                  title={sidebarCollapsed ? item.label : undefined}
+                  className={cn(
+                    'flex h-9 w-full items-center gap-3 rounded-[4px] px-3 text-[13px] font-medium transition-colors cursor-pointer whitespace-nowrap',
+                    sidebarCollapsed && 'justify-center px-0',
+                    active
+                      ? 'bg-[#0F374A] text-white dark:bg-[#0F374A] dark:text-white'
+                      : 'text-[#334155] hover:bg-[#F1F5F9] hover:text-[#0F172A] dark:text-[#B9CADB] dark:hover:bg-[#162838] dark:hover:text-[#EAF1FF]'
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                </button>
+              );
+            })}
+          </div>
         </nav>
 
-        <div className="border-t border-slate-200 p-3 space-y-2 dark:border-slate-800">
+        <div className="border-t border-[#E2E8F0] p-3 space-y-2 dark:border-[#1E2F3F]">
           {sidebarCollapsed && (
             <button
               type="button"
               onClick={() => setSidebarCollapsed(false)}
               aria-label="Expandir barra lateral"
-              className="flex h-9 w-full items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-100 cursor-pointer"
+              className="flex h-8 w-full items-center justify-center rounded-[4px] text-[#72787D] hover:bg-[#F1F5F9] hover:text-[#0F172A] dark:hover:bg-[#162838] dark:hover:text-[#EAF1FF] cursor-pointer"
             >
               <PanelLeftOpen className="h-4 w-4" />
             </button>
           )}
 
           {!sidebarCollapsed && (
-            <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs dark:bg-slate-950">
-              <p className="truncate font-medium text-slate-900 dark:text-slate-100">
+            <div className="rounded-[4px] border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-[12px] dark:border-[#1E2F3F] dark:bg-[#08131D]">
+              <p className="truncate font-medium text-[#0F172A] dark:text-[#EAF1FF]">
                 {session.email}
               </p>
-              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                Sessão {session.aal.toUpperCase()} · {session.role}
+              <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#42484C] tabular-nums dark:text-[#9DB0C2]">
+                {session.aal.toUpperCase()} · {session.role}
               </p>
             </div>
           )}
@@ -153,12 +295,12 @@ export const AppShell: React.FC<AppShellProps> = ({
             onClick={() => void onLogout()}
             title="Encerrar sessão"
             className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 cursor-pointer',
+              'flex h-8 w-full items-center gap-2.5 rounded-[4px] px-3 text-[12px] font-medium text-[#42484C] hover:bg-[#F1F5F9] hover:text-[#0F172A] dark:text-[#9DB0C2] dark:hover:bg-[#162838] dark:hover:text-[#EAF1FF] cursor-pointer',
               sidebarCollapsed && 'justify-center px-0'
             )}
           >
-            <LogOut className="h-4 w-4 shrink-0" />
-            {!sidebarCollapsed && <span>Sair</span>}
+            <LogOut className="h-3.5 w-3.5 shrink-0" />
+            {!sidebarCollapsed && <span>Encerrar Sessão</span>}
           </button>
         </div>
       </aside>
@@ -167,16 +309,16 @@ export const AppShell: React.FC<AppShellProps> = ({
       <div
         className={cn(
           'flex min-h-screen flex-col transition-[padding-left] duration-200',
-          sidebarCollapsed ? 'md:pl-[72px]' : 'md:pl-64'
+          sidebarCollapsed ? 'md:pl-[68px]' : 'md:pl-64'
         )}
       >
         {/* Header Global (Desktop & Mobile) */}
-        <header className="sticky top-0 z-20 flex h-13 md:h-14 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur-sm sm:px-6 dark:border-slate-800 dark:bg-slate-900/95">
+        <header className="sticky top-0 z-20 flex h-13 md:h-14 items-center justify-between gap-3 border-b border-[#E2E8F0] bg-white/95 px-4 backdrop-blur-sm sm:px-8 dark:border-[#1E2F3F] dark:bg-[#0D1A26]/95">
           <div className="flex items-center gap-2.5 min-w-0">
             <img
               src="/icon.svg"
               alt="Vértice"
-              className="h-7 w-7 shrink-0 rounded-md border border-slate-200 md:hidden dark:border-slate-800"
+              className="h-7 w-7 shrink-0 rounded-[4px] border border-[#E2E8F0] md:hidden dark:border-[#2A3B4C]"
             />
             <ContextSelector
               groups={groups}
@@ -197,9 +339,37 @@ export const AppShell: React.FC<AppShellProps> = ({
 
             <button
               type="button"
+              onClick={() => onNavigate('vault')}
+              aria-label="Cofre de Privacidade"
+              className={cn(
+                'inline-flex h-8 w-8 items-center justify-center rounded-[4px] border md:hidden cursor-pointer',
+                activeSection === 'vault'
+                  ? 'border-[#0F374A] bg-[#0F374A] text-white'
+                  : 'border-[#CBD5E1] bg-white text-[#334155] hover:bg-[#F8FAFC] hover:text-[#0F172A] dark:border-[#2A3B4C] dark:bg-[#0D1A26] dark:text-[#B9CADB]'
+              )}
+            >
+              <ShieldCheck className="h-4 w-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('security')}
+              aria-label="Segurança e SQL"
+              className={cn(
+                'inline-flex h-8 w-8 items-center justify-center rounded-[4px] border md:hidden cursor-pointer',
+                activeSection === 'security'
+                  ? 'border-[#0F374A] bg-[#0F374A] text-white'
+                  : 'border-[#CBD5E1] bg-white text-[#334155] hover:bg-[#F8FAFC] hover:text-[#0F172A] dark:border-[#2A3B4C] dark:bg-[#0D1A26] dark:text-[#B9CADB]'
+              )}
+            >
+              <Shield className="h-4 w-4" />
+            </button>
+
+            <button
+              type="button"
               onClick={onToggleTheme}
               aria-label={isDark ? 'Alternar para tema claro' : 'Alternar para tema escuro'}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[4px] border border-[#CBD5E1] bg-white text-[#334155] hover:bg-[#F8FAFC] hover:text-[#0F172A] dark:border-[#2A3B4C] dark:bg-[#0D1A26] dark:text-[#B9CADB] dark:hover:bg-[#162838] cursor-pointer"
             >
               {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
@@ -208,38 +378,92 @@ export const AppShell: React.FC<AppShellProps> = ({
               type="button"
               onClick={() => void onLogout()}
               aria-label="Sair"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 md:hidden dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 cursor-pointer"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[4px] border border-[#CBD5E1] bg-white text-[#334155] hover:bg-[#F8FAFC] hover:text-[#0F172A] md:hidden dark:border-[#2A3B4C] dark:bg-[#0D1A26] dark:text-[#B9CADB] cursor-pointer"
             >
               <LogOut className="h-4 w-4" />
             </button>
           </div>
         </header>
 
-        {/* Área de Conteúdo */}
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24 sm:px-6 md:pb-10">
+        {/* Área de Conteúdo (margens 16px mobile / 32px desktop) */}
+        <main className="mx-auto w-full max-w-[1280px] flex-1 px-4 py-6 pb-24 sm:px-8 md:pb-10">
           {children}
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation + Drawer "Mais" */}
+      {mobileMoreOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-[#0F172A]/40 md:hidden"
+          onClick={() => setMobileMoreOpen(false)}
+        >
+          <div
+            className="fixed bottom-16 left-0 right-0 border-t border-[#E2E8F0] bg-white p-4 shadow-lg dark:border-[#1E2F3F] dark:bg-[#0D1A26]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
+                Módulos &amp; Governança
+              </span>
+              <button
+                type="button"
+                aria-label="Fechar menu"
+                onClick={() => setMobileMoreOpen(false)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-[4px] text-[#42484C] hover:bg-[#F1F5F9] dark:text-[#9DB0C2] dark:hover:bg-[#162838]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {MOBILE_MORE_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const active = activeSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      onNavigate(item.id);
+                      setMobileMoreOpen(false);
+                    }}
+                    className={cn(
+                      'flex items-center gap-2.5 rounded-[6px] border px-3 py-2.5 text-left text-[12px] font-medium transition-colors cursor-pointer',
+                      active
+                        ? 'border-[#0F374A] bg-[#0F374A] text-white'
+                        : 'border-[#E2E8F0] bg-[#F8FAFC] text-[#0F172A] dark:border-[#1E2F3F] dark:bg-[#08131D] dark:text-[#EAF1FF]'
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav
         aria-label="Navegação móvel"
-        className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-md md:hidden pb-safe dark:border-slate-800 dark:bg-slate-900/95"
+        className="fixed bottom-0 left-0 right-0 z-30 border-t border-[#E2E8F0] bg-white/95 backdrop-blur-md md:hidden pb-safe dark:border-[#1E2F3F] dark:bg-[#0D1A26]/95"
       >
-        <div className="grid h-16 grid-cols-4 items-center">
-          {NAV_ITEMS.map((item) => {
+        <div className="grid h-16 grid-cols-5 items-center">
+          {MOBILE_BOTTOM_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = activeSection === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => onNavigate(item.id)}
+                onClick={() => {
+                  setMobileMoreOpen(false);
+                  onNavigate(item.id);
+                }}
                 className={cn(
-                  'flex h-full min-h-[44px] flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors cursor-pointer',
+                  'flex h-full min-h-[44px] flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors cursor-pointer',
                   active
-                    ? 'text-teal-700 dark:text-teal-400'
-                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                    ? 'text-[#0F374A] font-semibold dark:text-[#68DBA9]'
+                    : 'text-[#42484C] hover:text-[#0F172A] dark:text-[#9DB0C2] dark:hover:text-[#EAF1FF]'
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -247,6 +471,19 @@ export const AppShell: React.FC<AppShellProps> = ({
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => setMobileMoreOpen((prev) => !prev)}
+            className={cn(
+              'flex h-full min-h-[44px] flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors cursor-pointer',
+              mobileMoreOpen || isMoreSectionActive
+                ? 'text-[#0F374A] font-semibold dark:text-[#68DBA9]'
+                : 'text-[#42484C] hover:text-[#0F172A] dark:text-[#9DB0C2] dark:hover:text-[#EAF1FF]'
+            )}
+          >
+            <Menu className="h-5 w-5" />
+            <span>Mais</span>
+          </button>
         </div>
       </nav>
 

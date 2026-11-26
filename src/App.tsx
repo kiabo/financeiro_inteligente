@@ -1,5 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from './components/ui/button';
+import { getTodayISO } from './lib/utils';
+import {
+  AiCfoView,
+  fetchAiProviderStatus,
+  McpSettingsView,
+  pullAndPersistMcpUpdates,
+  runCfoStrategicAnalysis,
+  syncMcpContextBridge,
+} from './modules/ai-cfo';
 import { LoginScreen } from './modules/auth/LoginScreen';
 import { AppShell } from './modules/core/components/AppShell';
 import {
@@ -10,7 +19,15 @@ import {
 } from './modules/core/repository';
 import { getSupabaseClient, isSupabaseConfigured } from './modules/core/supabase';
 import type { ActiveContext, AppSection, AuthSessionState } from './modules/core/types';
+import { CashFlowView } from './modules/core/views/CashFlowView';
 import { OverviewView } from './modules/core/views/OverviewView';
+import {
+  DebtsTaxesView,
+  DreView,
+  HealthCommandCenterView,
+} from './modules/health';
+import { CatalogView } from './modules/products';
+import { ProjectsView } from './modules/projects';
 import { HierarchySettingsView } from './modules/settings/HierarchySettingsView';
 import { SecurityAuditView } from './modules/settings/SecurityAuditView';
 import { PrivacyVaultView } from './modules/vault/PrivacyVaultView';
@@ -22,6 +39,17 @@ const EMPTY_SNAPSHOT: WorkspaceSnapshot = {
   vault: [],
   auditLogs: [],
   invitedUsers: [],
+  productsServices: [],
+  categories: [],
+  transactions: [],
+  projects: [],
+  projectForecastItems: [],
+  debts: [],
+  debtInstallments: [],
+  taxObligations: [],
+  aiInsights: [],
+  mcpTokens: [],
+  mcpCallLogs: [],
 };
 
 export default function App(): React.JSX.Element {
@@ -34,6 +62,12 @@ export default function App(): React.JSX.Element {
 
   const [activeContext, setActiveContext] = useState<ActiveContext>({ scope: 'all_independent' });
   const [activeSection, setActiveSection] = useState<AppSection>('overview');
+  const [autoCadence, setAutoCadence] = useState<'manual' | 'daily_open'>(() => {
+    if (typeof window === 'undefined') return 'manual';
+    return localStorage.getItem('vertice_cfo_cadence') === 'daily_open'
+      ? 'daily_open'
+      : 'manual';
+  });
   const [isDark, setIsDark] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('vertice_theme') === 'dark';
@@ -127,6 +161,85 @@ export default function App(): React.JSX.Element {
     }
   }, [session, refreshWorkspace]);
 
+  const handleChangeAutoCadence = (cadence: 'manual' | 'daily_open') => {
+    setAutoCadence(cadence);
+    localStorage.setItem('vertice_cfo_cadence', cadence);
+  };
+
+  // Ponte MCP: mantém contexto anonimizado e hashes de chaves sincronizados + importa simulações
+  useEffect(() => {
+    if (!session?.mfaVerified || snapshot.companies.length === 0) return;
+
+    const runSync = async () => {
+      try {
+        await syncMcpContextBridge({
+          tenantId: session.userId,
+          workspace: snapshot,
+          activeContext,
+          tokens: snapshot.mcpTokens,
+        });
+        const imported = await pullAndPersistMcpUpdates({
+          tenantId: session.userId,
+          userEmail: session.email,
+          companies: snapshot.companies,
+          productsServices: snapshot.productsServices,
+        });
+        if (imported > 0) {
+          void refreshWorkspace();
+        }
+      } catch {
+        // Falha silenciosa de ponte em segundo plano
+      }
+    };
+
+    void runSync();
+    if (!snapshot.mcpTokens.some((t) => t.is_active)) return;
+
+    const timer = setInterval(() => {
+      void runSync();
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [session, snapshot, activeContext, refreshWorkspace]);
+
+  // Geração agendada (1x ao dia na abertura) quando configurada pelo usuário
+  useEffect(() => {
+    if (
+      !session?.mfaVerified ||
+      autoCadence !== 'daily_open' ||
+      snapshot.companies.length === 0
+    ) {
+      return;
+    }
+
+    const today = getTodayISO();
+    const lastRunKey = `vertice_cfo_last_run_${session.userId}`;
+    if (localStorage.getItem(lastRunKey) === today) return;
+
+    let cancelled = false;
+    void fetchAiProviderStatus().then(async (status) => {
+      if (cancelled || !status.configured) return;
+      localStorage.setItem(lastRunKey, today);
+      try {
+        await runCfoStrategicAnalysis({
+          tenantId: session.userId,
+          userEmail: session.email,
+          workspace: snapshot,
+          activeContext,
+          regime: 'cash',
+        });
+        if (!cancelled) {
+          void refreshWorkspace();
+        }
+      } catch {
+        // Usuário pode acionar manualmente na tela caso ocorra erro transitório
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, autoCadence, snapshot, activeContext, refreshWorkspace]);
+
   const handleLogout = async () => {
     if (session) {
       await recordSecurityEvent(session.userId, session.email, 'auth.logout', 'session');
@@ -154,8 +267,8 @@ export default function App(): React.JSX.Element {
 
   if (initializing) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Verificando sessão segura...</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] dark:bg-[#08131D]">
+        <p className="text-[14px] text-[#42484C] dark:text-[#9DB0C2]">Verificando sessão segura...</p>
       </div>
     );
   }
@@ -179,9 +292,9 @@ export default function App(): React.JSX.Element {
       onLogout={handleLogout}
     >
       {dataError ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-900 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-100">
+        <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-6 text-[14px] text-[#991B1B] dark:border-[#7F1D1D] dark:bg-[#3B1219] dark:text-[#FCA5A5]">
           <p className="font-semibold">Erro ao consultar registros protegidos por RLS</p>
-          <p className="mt-1 text-xs opacity-90">{dataError}</p>
+          <p className="mt-1 text-[12px] opacity-90">{dataError}</p>
           <Button
             variant="outline"
             size="sm"
@@ -193,12 +306,12 @@ export default function App(): React.JSX.Element {
         </div>
       ) : loadingData && snapshot.companies.length === 0 && snapshot.auditLogs.length === 0 ? (
         <div className="space-y-4">
-          <div className="h-24 animate-pulse rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
+          <div className="h-24 animate-pulse rounded-[8px] border border-[#E2E8F0] bg-white dark:border-[#1E2F3F] dark:bg-[#0D1A26]" />
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-28 animate-pulse rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                className="h-28 animate-pulse rounded-[8px] border border-[#E2E8F0] bg-white dark:border-[#1E2F3F] dark:bg-[#0D1A26]"
               />
             ))}
           </div>
@@ -211,11 +324,122 @@ export default function App(): React.JSX.Element {
               groups={snapshot.groups}
               companies={snapshot.companies}
               accounts={snapshot.accounts}
+              productsServices={snapshot.productsServices}
+              projects={snapshot.projects}
+              transactions={snapshot.transactions}
               vault={snapshot.vault}
               activeContext={activeContext}
               onNavigate={setActiveSection}
               onSeedExample={handleSeedExample}
               seeding={seeding}
+            />
+          )}
+
+          {activeSection === 'health' && (
+            <HealthCommandCenterView
+              session={session}
+              groups={snapshot.groups}
+              companies={snapshot.companies}
+              accounts={snapshot.accounts}
+              categories={snapshot.categories}
+              productsServices={snapshot.productsServices}
+              projects={snapshot.projects}
+              projectForecastItems={snapshot.projectForecastItems}
+              transactions={snapshot.transactions}
+              debts={snapshot.debts}
+              debtInstallments={snapshot.debtInstallments}
+              taxObligations={snapshot.taxObligations}
+              vault={snapshot.vault}
+              aiInsights={snapshot.aiInsights}
+              activeContext={activeContext}
+              onNavigate={setActiveSection}
+              onRefresh={refreshWorkspace}
+            />
+          )}
+
+          {activeSection === 'ai_cfo' && (
+            <AiCfoView
+              session={session}
+              workspace={snapshot}
+              aiInsights={snapshot.aiInsights}
+              activeContext={activeContext}
+              onRefresh={refreshWorkspace}
+              onNavigate={setActiveSection}
+              autoCadence={autoCadence}
+              onChangeAutoCadence={handleChangeAutoCadence}
+            />
+          )}
+
+          {activeSection === 'dre' && (
+            <DreView
+              groups={snapshot.groups}
+              companies={snapshot.companies}
+              accounts={snapshot.accounts}
+              categories={snapshot.categories}
+              transactions={snapshot.transactions}
+              activeContext={activeContext}
+              onNavigate={setActiveSection}
+            />
+          )}
+
+          {activeSection === 'debts_taxes' && (
+            <DebtsTaxesView
+              session={session}
+              companies={snapshot.companies}
+              accounts={snapshot.accounts}
+              transactions={snapshot.transactions}
+              debts={snapshot.debts}
+              debtInstallments={snapshot.debtInstallments}
+              taxObligations={snapshot.taxObligations}
+              activeContext={activeContext}
+              onRefresh={refreshWorkspace}
+              onNavigate={setActiveSection}
+            />
+          )}
+
+          {activeSection === 'transactions' && (
+            <CashFlowView
+              session={session}
+              groups={snapshot.groups}
+              companies={snapshot.companies}
+              accounts={snapshot.accounts}
+              categories={snapshot.categories}
+              productsServices={snapshot.productsServices}
+              projects={snapshot.projects}
+              transactions={snapshot.transactions}
+              activeContext={activeContext}
+              onRefresh={refreshWorkspace}
+              onNavigateHierarchy={() => setActiveSection('hierarchy')}
+            />
+          )}
+
+          {activeSection === 'projects' && (
+            <ProjectsView
+              session={session}
+              groups={snapshot.groups}
+              companies={snapshot.companies}
+              accounts={snapshot.accounts}
+              categories={snapshot.categories}
+              productsServices={snapshot.productsServices}
+              projects={snapshot.projects}
+              forecastItems={snapshot.projectForecastItems}
+              transactions={snapshot.transactions}
+              activeContext={activeContext}
+              onRefresh={refreshWorkspace}
+              onNavigateHierarchy={() => setActiveSection('hierarchy')}
+            />
+          )}
+
+          {activeSection === 'catalog' && (
+            <CatalogView
+              session={session}
+              groups={snapshot.groups}
+              companies={snapshot.companies}
+              accounts={snapshot.accounts}
+              productsServices={snapshot.productsServices}
+              activeContext={activeContext}
+              onRefresh={refreshWorkspace}
+              onNavigateHierarchy={() => setActiveSection('hierarchy')}
             />
           )}
 
@@ -235,8 +459,22 @@ export default function App(): React.JSX.Element {
               groups={snapshot.groups}
               companies={snapshot.companies}
               accounts={snapshot.accounts}
+              productsServices={snapshot.productsServices}
+              transactions={snapshot.transactions}
               vault={snapshot.vault}
               onRefresh={refreshWorkspace}
+            />
+          )}
+
+          {activeSection === 'mcp_settings' && (
+            <McpSettingsView
+              session={session}
+              workspace={snapshot}
+              mcpTokens={snapshot.mcpTokens}
+              mcpCallLogs={snapshot.mcpCallLogs}
+              activeContext={activeContext}
+              onRefresh={refreshWorkspace}
+              onNavigate={setActiveSection}
             />
           )}
 

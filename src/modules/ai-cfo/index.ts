@@ -1,10 +1,12 @@
-/**
- * Módulo Futuro 4: AI CFO (Consome exclusivamente payloads sanitizados via anonymizer.ts)
- * Nenhuma chamada LLM ativa nesta etapa (Módulo 1).
- */
+export { AiCfoView } from './AiCfoView';
+export { McpSettingsView } from './McpSettingsView';
+export { PrivacyInspectorModal } from './PrivacyInspectorModal';
+export * from './aiContextBuilder';
+export * from './cfoAgent';
+
 export interface AiCfoContract {
   readonly moduleId: 'ai-cfo';
-  readonly status: 'reserved';
+  readonly status: 'active';
   readonly requiresSanitization: true;
-  readonly dependsOn: readonly ['core', 'vault'];
+  readonly dependsOn: readonly ['core', 'vault', 'projects', 'health'];
 }

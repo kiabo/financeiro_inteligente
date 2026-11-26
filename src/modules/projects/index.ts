@@ -1,9 +1,10 @@
-/**
- * Módulo Futuro 2: Viabilidade de Projetos (Capex, Payback, TIR, VPL)
- * Reservado para implementação modular posterior ao Módulo 1.
- */
-export interface ProjectFeasibilityContract {
-  readonly moduleId: 'projects';
-  readonly status: 'reserved';
-  readonly dependsOn: readonly ['core', 'vault'];
-}
+export { ProjectDetailView } from './ProjectDetailView';
+export { ProjectsView } from './ProjectsView';
+export {
+  calculateProjectFeasibility,
+  computeCompanyCashBeforeProject,
+  computeForecastLineTotals,
+  type ProjectBudgetHealth,
+  type ProjectFeasibilitySummary,
+  type ProjectMonthlyPoint,
+} from './projectCalculator';

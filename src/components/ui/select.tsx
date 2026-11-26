@@ -14,14 +14,14 @@ export function SelectTrigger({
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        'flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 cursor-pointer',
+        'flex h-9 w-full items-center justify-between gap-2 rounded-[4px] border border-[#CBD5E1] bg-white px-3 py-1.5 text-[14px] text-[#0F172A] focus:border-[#0F374A] focus:outline-none focus:ring-2 focus:ring-[#0F374A]/12 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#2A3B4C] dark:bg-[#08131D] dark:text-[#EAF1FF] cursor-pointer',
         className
       )}
       {...props}
     >
       <span className="truncate">{children}</span>
       <SelectPrimitive.Icon asChild>
-        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-[#72787D]" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -38,12 +38,12 @@ export function SelectContent({
         position="popper"
         sideOffset={4}
         className={cn(
-          'z-50 max-h-72 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-xl border border-slate-200 bg-white p-1 text-slate-900 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100',
+          'z-50 max-h-72 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[8px] border border-[#CBD5E1] bg-white p-1 text-[#0F172A] shadow-[0_4px_6px_-1px_rgba(15,23,42,0.07),0_2px_4px_-2px_rgba(15,23,42,0.05)] dark:border-[#2A3B4C] dark:bg-[#0D1A26] dark:text-[#EAF1FF]',
           className
         )}
         {...props}
       >
-        <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
+        <SelectPrimitive.Viewport className="p-0.5">{children}</SelectPrimitive.Viewport>
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   );
@@ -57,14 +57,14 @@ export function SelectItem({
   return (
     <SelectPrimitive.Item
       className={cn(
-        'relative flex w-full cursor-pointer select-none items-center rounded-lg py-2 pl-8 pr-3 text-sm outline-none data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900 dark:data-[highlighted]:bg-slate-800 dark:data-[highlighted]:text-slate-100',
+        'relative flex w-full cursor-pointer select-none items-center rounded-[4px] py-1.5 pl-8 pr-3 text-[13px] outline-none data-[highlighted]:bg-[#F1F5F9] data-[highlighted]:text-[#0F172A] dark:data-[highlighted]:bg-[#162838] dark:data-[highlighted]:text-[#EAF1FF]',
         className
       )}
       {...props}
     >
       <span className="absolute left-2.5 flex h-3.5 w-3.5 items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <Check className="h-4 w-4 text-teal-600" />
+          <Check className="h-3.5 w-3.5 text-[#0F374A] dark:text-[#68DBA9]" />
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

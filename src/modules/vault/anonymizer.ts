@@ -1,4 +1,4 @@
-import { formatCNPJ, normalizeCNPJ } from '../../lib/utils';
+import { formatCNPJ, normalizeCNPJ } from '../../lib/utils.ts';
 import type { VaultEntry } from '../core/types';
 
 export interface ReplacementRule {
@@ -21,12 +21,52 @@ export interface SanitizationResult<T> {
   report: SanitizationReport;
 }
 
+export interface SanitizeOptions {
+  /** Lista explícita de fornecedores/clientes externos que também devem ser anonimizados */
+  counterpartyNames?: string[];
+  /** Força anonimização de descrições livres mesmo fora de objetos de lançamento */
+  redactTransactionDescriptions?: boolean;
+}
+
 export interface RehydrateOptions {
   isAuthenticatedClient: boolean;
   includeFormattedCnpj?: boolean;
 }
 
 const GENERIC_CNPJ_PATTERN = /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g;
+const GENERIC_CPF_PATTERN = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g;
+const GENERIC_EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+
+const COUNTERPARTY_KEYS = new Set([
+  'counterparty_name',
+  'creditor_name',
+  'credor',
+  'lender',
+  'fornecedor',
+  'cliente',
+  'supplier',
+  'supplier_name',
+  'customer',
+  'customer_name',
+  'favorecido',
+  'sacado',
+]);
+
+const DESCRIPTION_KEYS = new Set([
+  'description',
+  'descricao',
+  'notes',
+  'observacoes',
+  'memo',
+]);
+
+const HYPOTHESIS_KEYS = new Set([
+  'hypothesis',
+  'hipotese',
+  'project_hypothesis',
+]);
+
+const TOKEN_EXTRACTOR = /\b((?:GRP|EMP|CTA|PRD|SRV|PRJ|CRD)_\d{2,}|\[PARCEIRO_\d{2,}\]|\d{1,2}\/\d{1,2})\b/g;
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -45,13 +85,61 @@ function buildTextReplacementRegex(term: string): RegExp {
   return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'giu');
 }
 
-export function buildReplacementRules(vaultEntries: readonly VaultEntry[]): ReplacementRule[] {
+function collectExtraSensitiveTerms(
+  value: unknown,
+  counterpartyList: Set<string>,
+  rawDescriptionList: Set<string>
+): void {
+  if (value === null || value === undefined || typeof value !== 'object') return;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectExtraSensitiveTerms(item, counterpartyList, rawDescriptionList);
+    }
+    return;
+  }
+
+  const record = value as Record<string, unknown>;
+  const isTransactionLike =
+    'transaction_type' in record ||
+    'competence_date' in record ||
+    'due_date' in record ||
+    'payment_date' in record ||
+    'counterparty_name' in record;
+
+  const isProjectLike =
+    'planned_start_date' in record ||
+    'initial_investment' in record ||
+    'active_scenario' in record ||
+    'monthly_fixed_cost_allocation' in record;
+
+  for (const [key, val] of Object.entries(record)) {
+    const normalizedKey = key.toLowerCase();
+    if (typeof val === 'string' && val.trim().length >= 2) {
+      if (COUNTERPARTY_KEYS.has(normalizedKey)) {
+        counterpartyList.add(val.trim());
+      } else if (
+        (isTransactionLike && DESCRIPTION_KEYS.has(normalizedKey)) ||
+        (isProjectLike && (HYPOTHESIS_KEYS.has(normalizedKey) || DESCRIPTION_KEYS.has(normalizedKey))) ||
+        HYPOTHESIS_KEYS.has(normalizedKey)
+      ) {
+        rawDescriptionList.add(val.trim());
+      }
+    } else if (typeof val === 'object' && val !== null) {
+      collectExtraSensitiveTerms(val, counterpartyList, rawDescriptionList);
+    }
+  }
+}
+
+export function buildReplacementRules(
+  vaultEntries: readonly VaultEntry[],
+  extraCounterparties: readonly string[] = []
+): ReplacementRule[] {
   const rules: ReplacementRule[] = [];
 
   for (const entry of vaultEntries) {
     if (!entry.analytical_token) continue;
 
-    // 1. Sensitive identifier (CNPJ 14 digits or account last 4)
+    // 1. Sensitive identifier (CNPJ 14 digits, account last 4, or product SKU)
     if (entry.sensitive_identifier) {
       const digits = normalizeCNPJ(entry.sensitive_identifier);
       if (entry.entity_type === 'company' && digits.length === 14) {
@@ -62,7 +150,10 @@ export function buildReplacementRules(vaultEntries: readonly VaultEntry[]): Repl
           token: entry.analytical_token,
           priorityLength: 1000 + digits.length,
         });
-      } else if (entry.entity_type === 'account' && /^\d{4}$/.test(entry.sensitive_identifier.trim())) {
+      } else if (
+        entry.entity_type === 'account' &&
+        /^\d{4}$/.test(entry.sensitive_identifier.trim())
+      ) {
         const last4 = entry.sensitive_identifier.trim();
         rules.push({
           pattern: new RegExp(
@@ -77,7 +168,7 @@ export function buildReplacementRules(vaultEntries: readonly VaultEntry[]): Repl
       }
     }
 
-    // 2. Primary label + secondary aliases (longest-match-first)
+    // 2. Primary label + secondary aliases (longest-match-first, covers GRP, EMP, CTA, PRD, SRV)
     const candidateNames = [entry.real_label, ...entry.secondary_aliases]
       .map((s) => s.trim())
       .filter((s) => s.length >= 2);
@@ -93,6 +184,21 @@ export function buildReplacementRules(vaultEntries: readonly VaultEntry[]): Repl
       });
     }
   }
+
+  // 3. Counterparties (fornecedores / clientes) encontrados nos lançamentos -> [PARCEIRO_XX]
+  const uniqueCounterparties = Array.from(
+    new Set(extraCounterparties.map((c) => c.trim()).filter((c) => c.length >= 2))
+  );
+  uniqueCounterparties.forEach((name, idx) => {
+    const token = `[PARCEIRO_${String(idx + 1).padStart(2, '0')}]`;
+    rules.push({
+      pattern: buildTextReplacementRegex(name),
+      replacement: token,
+      rawTerm: name,
+      token,
+      priorityLength: name.length,
+    });
+  });
 
   return rules.sort((a, b) => b.priorityLength - a.priorityLength);
 }
@@ -117,21 +223,60 @@ function sanitizeString(
     }
   }
 
-  // Defense-in-depth: redact any unmapped CNPJ-shaped sequence
+  // Defense-in-depth: redact any unmapped CNPJ, CPF, or e-mail
   GENERIC_CNPJ_PATTERN.lastIndex = 0;
   output = output.replace(GENERIC_CNPJ_PATTERN, () => {
     counter.count += 1;
     return '[CNPJ_REDIGIDO]';
   });
 
+  GENERIC_CPF_PATTERN.lastIndex = 0;
+  output = output.replace(GENERIC_CPF_PATTERN, () => {
+    counter.count += 1;
+    return '[CPF_REDIGIDO]';
+  });
+
+  GENERIC_EMAIL_PATTERN.lastIndex = 0;
+  output = output.replace(GENERIC_EMAIL_PATTERN, () => {
+    counter.count += 1;
+    return '[EMAIL_REDIGIDO]';
+  });
+
   return output;
+}
+
+function redactTransactionDescription(
+  rawDescription: string,
+  rules: readonly ReplacementRule[],
+  appliedTokens: Set<string>,
+  counter: { count: number }
+): string {
+  const preSanitized = sanitizeString(rawDescription, rules, appliedTokens, counter);
+  const preservedTokens: string[] = [];
+  TOKEN_EXTRACTOR.lastIndex = 0;
+  let match = TOKEN_EXTRACTOR.exec(preSanitized);
+  while (match !== null) {
+    if (match[1] && !preservedTokens.includes(match[1])) {
+      preservedTokens.push(match[1]);
+    }
+    match = TOKEN_EXTRACTOR.exec(preSanitized);
+  }
+
+  counter.count += 1;
+  appliedTokens.add('[DESCRICAO_REDIGIDA]');
+
+  if (preservedTokens.length > 0) {
+    return `[LANCAMENTO: ${preservedTokens.join(' · ')}]`;
+  }
+  return '[DESCRICAO_ANONIMIZADA]';
 }
 
 function sanitizeRecursive(
   value: unknown,
   rules: readonly ReplacementRule[],
   appliedTokens: Set<string>,
-  counter: { count: number }
+  counter: { count: number },
+  redactDescriptions: boolean
 ): unknown {
   if (value === null || value === undefined) return value;
 
@@ -148,14 +293,51 @@ function sanitizeRecursive(
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => sanitizeRecursive(item, rules, appliedTokens, counter));
+    return value.map((item) =>
+      sanitizeRecursive(item, rules, appliedTokens, counter, redactDescriptions)
+    );
   }
 
   if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const isTransactionLike =
+      redactDescriptions ||
+      'transaction_type' in record ||
+      'competence_date' in record ||
+      'due_date' in record ||
+      'payment_date' in record ||
+      'counterparty_name' in record;
+
+    const isProjectLike =
+      'planned_start_date' in record ||
+      'initial_investment' in record ||
+      'active_scenario' in record ||
+      'monthly_fixed_cost_allocation' in record;
+
     const result: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    for (const [key, val] of Object.entries(record)) {
       const sanitizedKey = sanitizeString(key, rules, appliedTokens, counter);
-      result[sanitizedKey] = sanitizeRecursive(val, rules, appliedTokens, counter);
+      const lowerKey = key.toLowerCase();
+
+      if (
+        typeof val === 'string' &&
+        ((isTransactionLike && DESCRIPTION_KEYS.has(lowerKey)) ||
+          (isProjectLike && (HYPOTHESIS_KEYS.has(lowerKey) || DESCRIPTION_KEYS.has(lowerKey))) ||
+          HYPOTHESIS_KEYS.has(lowerKey))
+      ) {
+        result[sanitizedKey] =
+          val.trim().length === 0
+            ? val
+            : redactTransactionDescription(val, rules, appliedTokens, counter);
+      } else {
+        result[sanitizedKey] = sanitizeRecursive(
+          val,
+          rules,
+          appliedTokens,
+          counter,
+          redactDescriptions
+        );
+      }
     }
     return result;
   }
@@ -165,7 +347,8 @@ function sanitizeRecursive(
 
 export function verifyZeroLeakage(
   sanitizedPayload: unknown,
-  vaultEntries: readonly VaultEntry[]
+  vaultEntries: readonly VaultEntry[],
+  extraSensitiveTerms: readonly string[] = []
 ): { clean: boolean; leakedTerms: string[] } {
   const serialized =
     typeof sanitizedPayload === 'string'
@@ -198,6 +381,17 @@ export function verifyZeroLeakage(
     }
   }
 
+  for (const term of extraSensitiveTerms) {
+    const clean = term.trim();
+    if (clean.length < 2) continue;
+    if (serializedLower.includes(clean.toLowerCase())) {
+      const regex = buildTextReplacementRegex(clean);
+      if (regex.test(serialized)) {
+        leaked.add(clean);
+      }
+    }
+  }
+
   return {
     clean: leaked.size === 0,
     leakedTerms: Array.from(leaked),
@@ -206,19 +400,36 @@ export function verifyZeroLeakage(
 
 /**
  * Sanitiza recursivamente qualquer payload (string, objeto ou array) antes de envio
- * para módulos externos (IA CFO, OCR ou MCP), substituindo nomes reais, CNPJs e
- * identificadores sensíveis pelos Tokens Analíticos Imutáveis do Cofre.
+ * para módulos externos (IA CFO, OCR ou MCP), substituindo nomes reais, CNPJs,
+ * produtos/serviços (PRD_XX / SRV_XX), fornecedores/clientes e descrições de lançamentos
+ * pelos Tokens Analíticos Imutáveis do Cofre.
  */
 export function sanitizeForAI<T>(
   payload: T,
-  vaultEntries: readonly VaultEntry[]
+  vaultEntries: readonly VaultEntry[],
+  options: SanitizeOptions = {}
 ): SanitizationResult<T> {
-  const rules = buildReplacementRules(vaultEntries);
+  const detectedCounterparties = new Set<string>(options.counterpartyNames ?? []);
+  const detectedDescriptions = new Set<string>();
+  collectExtraSensitiveTerms(payload, detectedCounterparties, detectedDescriptions);
+
+  const extraTermsList = Array.from(detectedCounterparties);
+  const rules = buildReplacementRules(vaultEntries, extraTermsList);
   const appliedTokens = new Set<string>();
   const counter = { count: 0 };
 
-  const sanitized = sanitizeRecursive(payload, rules, appliedTokens, counter) as T;
-  const verification = verifyZeroLeakage(sanitized, vaultEntries);
+  const sanitized = sanitizeRecursive(
+    payload,
+    rules,
+    appliedTokens,
+    counter,
+    Boolean(options.redactTransactionDescriptions)
+  ) as T;
+
+  const verification = verifyZeroLeakage(sanitized, vaultEntries, [
+    ...extraTermsList,
+    ...Array.from(detectedDescriptions),
+  ]);
 
   return {
     sanitized,
@@ -242,9 +453,7 @@ function rehydrateString(
   output = output.replace(/\[CNPJ:([A-Z]{3}_\d{2,})\]/g, (full, token: string) => {
     const entry = tokenMap.get(token);
     if (!entry?.sensitive_identifier) return full;
-    return includeFormattedCnpj
-      ? formatCNPJ(entry.sensitive_identifier)
-      : entry.real_label;
+    return includeFormattedCnpj ? formatCNPJ(entry.sensitive_identifier) : entry.real_label;
   });
 
   // Restore [FINAL:CTA_01]
@@ -254,8 +463,8 @@ function rehydrateString(
     return `final ${entry.sensitive_identifier}`;
   });
 
-  // Restore standalone tokens (GRP_01, EMP_01, CTA_01)
-  output = output.replace(/\b((?:GRP|EMP|CTA)_\d{2,})\b/g, (full, token: string) => {
+  // Restore standalone tokens (GRP_01, EMP_01, CTA_01, PRD_01, SRV_01, PRJ_01, CRD_01)
+  output = output.replace(/\b((?:GRP|EMP|CTA|PRD|SRV|PRJ|CRD)_\d{2,})\b/g, (full, token: string) => {
     const entry = tokenMap.get(token);
     return entry ? entry.real_label : full;
   });

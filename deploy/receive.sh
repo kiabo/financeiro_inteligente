@@ -17,7 +17,7 @@ APP="financeiro-$ENV_NAME"
 ENV_SRC="$BASE/env/$ENV_NAME.env"
 [ -r "$ENV_SRC" ] || { echo "faltando $ENV_SRC" >&2; exit 3; }
 
-LOCK="$BASE/.lock-$ENV_NAME"
+LOCK="$BASE/releases/.lock-$ENV_NAME"
 exec 9>"$LOCK"
 flock -n 9 || { echo "já existe um deploy de $ENV_NAME em andamento" >&2; exit 4; }
 

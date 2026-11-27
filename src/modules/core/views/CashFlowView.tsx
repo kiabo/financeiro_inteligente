@@ -428,6 +428,11 @@ export const CashFlowView: React.FC<CashFlowViewProps> = ({
             <p className="mt-1 text-[11px] text-[#42484C] dark:text-[#9DB0C2]">
               Realizado antes do período
             </p>
+            {metrics.openingBalanceTotal !== 0 && (
+              <p className="mt-0.5 text-[10px] tabular-nums text-[#72787D]">
+                inclui saldo inicial de {formatCurrencyBRL(metrics.openingBalanceTotal)}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -533,6 +538,11 @@ export const CashFlowView: React.FC<CashFlowViewProps> = ({
                 <p className="mt-0.5 text-[11px] tabular-nums text-[#42484C] dark:text-[#9DB0C2]">
                   Previsto: {formatCurrencyBRL(bal.projected_balance)}
                 </p>
+                {bal.opening_balance !== 0 && (
+                  <p className="mt-0.5 text-[10px] tabular-nums text-[#72787D]">
+                    Saldo inicial: {formatCurrencyBRL(bal.opening_balance)} em {formatDateBR(bal.opening_balance_date)}
+                  </p>
+                )}
               </div>
               <div className="text-right tabular-nums">
                 <p className="text-[10px] uppercase tracking-[0.04em] text-[#72787D]">Saldo Atual</p>

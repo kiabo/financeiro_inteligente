@@ -36,11 +36,11 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
   `App.tsx` repassa `transactions`.
   **Pronto quando:** `tsc` e `build` passam; no sandbox local (`npm run dev`) criar, editar, confirmar e cancelar funcionam. (CA7, CA8)
 
-- [ ] T07 — Fluxo & Lançamentos: observação "inclui saldo inicial de R$ X" no cartão "Saldo Anterior" e linha pequena no cartão de cada conta,
+- [x] T07 — Fluxo & Lançamentos: observação "inclui saldo inicial de R$ X" no cartão "Saldo Anterior" e linha pequena no cartão de cada conta,
   só quando o saldo inicial ≠ 0.
   **Pronto quando:** `tsc`/`build` passam e, no sandbox, a observação aparece e some com saldo zero; nenhuma linha nova no extrato. (CA9)
 
-- [ ] T08 — Rodar tudo: `npx tsc --noEmit`, `npm test`, `npm run build`; conferir o SQL da T01 uma última vez.
+- [x] T08 — Rodar tudo: `npx tsc --noEmit`, `npm test`, `npm run build`; conferir o SQL da T01 uma última vez.
   **Pronto quando:** os três comandos passam. (CA11)
 
 - [ ] T09 — **(usuário)** Aplicar `0007_opening_balance.sql` no SQL Editor do Supabase (o mesmo banco serve h-cfo e cfo) e me avisar.
@@ -61,3 +61,5 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
 - T03: commitada com 8 de 12 testes **falhando de propósito** (o cálculo ainda não usa o saldo inicial) e um erro de `tsc` por `openingBalanceTotal` (campo criado na T04). Sem push até ficar verde (T08).
 - T06: verificado no sandbox local (servidor separado na porta 3011, sem Supabase e **com agendador forçado desligado**): criar com saldo, editar com aviso e prévia ("R$ 63.108,06 → R$ 65.108,06"), voltar/cancelar sem gravar, confirmar, auditoria `entity.updated`.
 - Decisão de UX durante a T06: ao editar conta **sem data de saldo e com lançamentos**, a data padrão é a do lançamento mais antigo (não hoje); com hoje, todos os lançamentos anteriores sairiam do saldo (a prévia mostrava 63.108,06 → 19.280,00). Conta sem lançamentos continua com hoje.
+- T07: verificado no sandbox: cartão "Saldo Anterior" mostra "inclui saldo inicial de R$ 3.500,50"; cartões das contas com "Saldo inicial: R$ … em dd/mm/aaaa"; 0 linhas no extrato.
+- T08: `tsc`, 75/75 testes e build OK.

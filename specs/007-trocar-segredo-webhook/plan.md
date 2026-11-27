@@ -1,6 +1,6 @@
 # Plan 007 — Trocar o segredo do webhook de uma conexão
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Spec:** `specs/007-trocar-segredo-webhook/spec.md` (aprovado em 2026-11-27)
 - **Criado em:** 2026-11-27
 - **Aprovado em:** 2026-11-27

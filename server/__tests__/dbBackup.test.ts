@@ -3,6 +3,21 @@ import { assert, assertEqual, assertRejects, runCases, type TestCase, type TestC
 import { parsePgUrl, pgArgsFor, pgEnvFor, redactConnectionError } from '../integrations/dbBackup/pgConnection.ts';
 import { createPgRunner } from '../integrations/dbBackup/pgRunner.ts';
 import { evaluateUsage, parseUsageOutput, planLimits, readPlanUsage } from '../integrations/dbBackup/planUsage.ts';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
+import {
+  DB_BACKUP_RETENTION,
+  DbBackupBusyError,
+  backupFileName,
+  dbBackupHour,
+  emptyStatus,
+  isDbBackupDue,
+  listLocalBackups,
+  readStatus,
+  runDbBackup,
+  type DbBackupDeps,
+} from '../integrations/dbBackup/dbBackupService.ts';
 import { decryptBackupBytes, decryptBackupPayload, encryptBackupPayload, readBackupHeader } from '../crypto/backupCrypto.ts';
 
 const NOW = new Date('2026-11-27T06:00:00Z');
@@ -10,6 +25,32 @@ const PASS = 'senha-muito-longa-para-backup-1234';
 
 const FAKE_PASSWORD = 'S3nh@-Fict1cia/9z';
 const FAKE_URL = `postgresql://postgres.abcdefgh:${encodeURIComponent(FAKE_PASSWORD)}@aws-0-sa-east-1.pooler.supabase.com:5432/postgres`;
+
+const DUMP_MARKER = Buffer.from('LINHA-SECRETA-DO-DUMP-123');
+const BACKUP_PASS = 'chave-de-backup-com-mais-de-24-chars';
+
+async function tempDir(): Promise<string> {
+  return fs.mkdtemp(path.join(os.tmpdir(), 'dbbackup-test-'));
+}
+
+function makeDeps(dir: string, over: Partial<DbBackupDeps> = {}, at = '2026-11-27T06:00:00Z'): DbBackupDeps & { dumped: number } {
+  const state = { dumped: 0 };
+  const deps: DbBackupDeps = {
+    runner: {
+      dump: async (_c, out) => {
+        state.dumped += 1;
+        await fs.writeFile(out, Buffer.concat([DUMP_MARKER, crypto.randomBytes(512)]));
+      },
+      query: async () => '',
+    },
+    backupsDir: dir,
+    env: { SUPABASE_DB_URL: FAKE_URL } as NodeJS.ProcessEnv,
+    now: () => new Date(at),
+    passphrase: () => BACKUP_PASS,
+    ...over,
+  };
+  return Object.assign(deps, { get dumped() { return state.dumped; } });
+}
 
 const cases: TestCase[] = [
   // ---------------------------------------------------------------- T03 · cifra de dump binário
@@ -137,6 +178,130 @@ const cases: TestCase[] = [
     const lim = planLimits({ PLAN_DB_LIMIT_MB: 'lixo' } as NodeJS.ProcessEnv);
     assertEqual(lim.dbBytes, 500 * mb, 'valor inválido volta ao padrão');
     assertEqual(lim.storageBytes, 1024 * mb, 'padrão do Storage');
+  }],
+
+  // ---------------------------------------------------------------- T06 · backup local
+  ['backup do banco: gera um arquivo cifrado que só decifra com a chave e não guarda o conteúdo em claro (CA3)', async () => {
+    const dir = await tempDir();
+    const run = await runDbBackup(makeDeps(dir), 'manual');
+    assertEqual(run.status, 'success', `resultado: ${run.error ?? ''}`);
+    const file = await fs.readFile(path.join(dir, run.fileName!));
+    assert(file.indexOf(DUMP_MARKER) === -1, 'conteúdo em claro no arquivo');
+    assert(decryptBackupBytes(file, BACKUP_PASS).data.indexOf(DUMP_MARKER) === 0, 'volta com a chave certa');
+    await assertRejects(() => decryptBackupBytes(file, 'chave-errada-com-mais-de-24-caracteres'), /chave incorreta|adulterado/, 'chave errada');
+    assertEqual((await fs.readdir(dir)).filter((n) => n.endsWith('.partial')).length, 0, 'sem arquivo parcial');
+    assert(/^financeiro-db-20261127-060000\.vtxdb$/.test(run.fileName!), `nome do arquivo: ${run.fileName}`);
+  }],
+  ['backup do banco: um por dia; antes das 03:00 não roda; no dia seguinte roda de novo (CA1)', async () => {
+    const dir = await tempDir();
+    const hour = dbBackupHour({} as NodeJS.ProcessEnv);
+    assertEqual(hour, 3, 'padrão 03:00');
+    // 02:30 em São Paulo = 05:30Z; 03:05 = 06:05Z
+    assert(!isDbBackupDue(emptyStatus(), new Date('2026-11-27T05:30:00Z'), hour), 'antes das 03:00 não roda');
+    assert(isDbBackupDue(emptyStatus(), new Date('2026-11-27T06:05:00Z'), hour), 'às 03:05 roda');
+    await runDbBackup(makeDeps(dir, {}, '2026-11-27T06:05:00Z'), 'cron');
+    const status = await readStatus(dir);
+    assert(!isDbBackupDue(status, new Date('2026-11-27T20:00:00Z'), hour), 'já teve sucesso hoje');
+    assert(isDbBackupDue(status, new Date('2026-11-28T06:05:00Z'), hour), 'no dia seguinte roda');
+    assertEqual(dbBackupHour({ DB_BACKUP_HOUR: '5' } as NodeJS.ProcessEnv), 5, 'hora configurável');
+    assertEqual(dbBackupHour({ DB_BACKUP_HOUR: '99' } as NodeJS.ProcessEnv), 3, 'hora inválida volta ao padrão');
+  }],
+  ['backup do banco: contêiner parado às 03:00 recupera na primeira verificação do dia (CA1)', () => {
+    assert(isDbBackupDue(emptyStatus(), new Date('2026-11-27T13:00:00Z'), 3), 'às 10:00 sem backup do dia roda');
+  }],
+  ['backup do banco: retenção mantém os 14 mais recentes e não toca em outros arquivos (CA1)', async () => {
+    const dir = await tempDir();
+    for (let d = 1; d <= 16; d++) {
+      const day = String(d).padStart(2, '0');
+      await fs.writeFile(path.join(dir, `financeiro-db-202611${day}-030000.vtxdb`), 'x');
+    }
+    await fs.writeFile(path.join(dir, 'notas-do-usuario.txt'), 'meu texto');
+    await fs.writeFile(path.join(dir, 'financeiro-db-manual.vtxdb.bak'), 'nao mexer');
+    const run = await runDbBackup(makeDeps(dir, {}, '2026-11-27T06:00:00Z'), 'cron');
+    assertEqual(run.status, 'success', 'sucesso');
+    const files = await listLocalBackups(dir);
+    assertEqual(files.length, DB_BACKUP_RETENTION, 'sobram 14');
+    assertEqual(files[0]!.name, backupFileName(new Date('2026-11-27T06:00:00Z')), 'o mais novo é o de hoje');
+    assert(!files.some((f) => f.name.includes('20261101') || f.name.includes('20261103')), 'os mais antigos saíram');
+    const all = await fs.readdir(dir);
+    assert(all.includes('notas-do-usuario.txt') && all.includes('financeiro-db-manual.vtxdb.bak'), 'outros arquivos intactos');
+  }],
+  ['backup do banco: falha do pg_dump vira "failed", não deixa parcial, preserva o último sucesso e alerta sem a senha (CA6, CA7)', async () => {
+    const dir = await tempDir();
+    await runDbBackup(makeDeps(dir, {}, '2026-11-26T06:00:00Z'), 'cron');
+    const before = (await readStatus(dir)).lastSuccessAt;
+    const alerts: string[] = [];
+    const deps = makeDeps(dir, {
+      runner: {
+        dump: async (_c, out) => {
+          await fs.writeFile(out, 'meio');
+          throw new Error(`pg_dump: FATAL password authentication failed ${FAKE_PASSWORD} ${FAKE_URL}`);
+        },
+        query: async () => '',
+      },
+      onFailure: async (m) => { alerts.push(m); },
+    }, '2026-11-27T06:00:00Z');
+    const run = await runDbBackup(deps, 'cron');
+    assertEqual(run.status, 'failed', 'falhou');
+    assertEqual(alerts.length, 1, 'um alerta');
+    for (const text of [run.error ?? '', alerts[0] ?? '', JSON.stringify(await readStatus(dir))]) {
+      assert(!text.includes(FAKE_PASSWORD) && !text.includes('postgresql://'), `segredo vazou: ${text.slice(0, 120)}`);
+    }
+    assertEqual((await fs.readdir(dir)).filter((n) => n.endsWith('.partial')).length, 0, 'sem parcial');
+    assertEqual((await readStatus(dir)).lastSuccessAt, before, 'último sucesso preservado');
+    assert(!(await listLocalBackups(dir)).some((f) => f.name.includes('20261127')), 'não criou arquivo do dia');
+  }],
+  ['backup do banco: dump vazio, URL ausente e chave ausente são falhas claras (CA6)', async () => {
+    const dir = await tempDir();
+    const empty = await runDbBackup(makeDeps(dir, { runner: { dump: async (_c, out) => fs.writeFile(out, ''), query: async () => '' } }), 'manual');
+    assert(empty.status === 'failed' && /sem gerar conteúdo/.test(empty.error ?? ''), `dump vazio: ${empty.error}`);
+    const noUrl = await runDbBackup(makeDeps(dir, { env: {} as NodeJS.ProcessEnv }), 'manual');
+    assert(noUrl.status === 'failed' && /SUPABASE_DB_URL/.test(noUrl.error ?? ''), `sem URL: ${noUrl.error}`);
+    const noKey = await runDbBackup(makeDeps(dir, { passphrase: () => { throw new Error('BACKUP_ENCRYPTION_KEY ausente ou curta demais'); } }), 'manual');
+    assert(noKey.status === 'failed' && /BACKUP_ENCRYPTION_KEY/.test(noKey.error ?? ''), `sem chave: ${noKey.error}`);
+  }],
+  ['backup do banco: pasta inacessível gera alerta e resultado "failed" sem lançar (CA6)', async () => {
+    const dir = await tempDir();
+    const blocker = path.join(dir, 'arquivo-no-caminho');
+    await fs.writeFile(blocker, 'x');
+    const alerts: string[] = [];
+    const run = await runDbBackup(makeDeps(path.join(blocker, 'backups'), { onFailure: async (m) => { alerts.push(m); } }), 'cron');
+    assertEqual(run.status, 'failed', 'falhou');
+    assert(/pasta de backups/.test(run.error ?? '') && alerts.length === 1, `erro: ${run.error}; alertas: ${alerts.length}`);
+  }],
+  ['backup do banco: duas execuções simultâneas — a segunda recebe "em andamento"; trava velha é descartada', async () => {
+    const dir = await tempDir();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const slow = makeDeps(dir, { runner: { dump: async (_c, out) => { await gate; await fs.writeFile(out, 'dados'); }, query: async () => '' } });
+    const first = runDbBackup(slow, 'cron');
+    await new Promise((r) => setTimeout(r, 30));
+    await assertRejects(() => runDbBackup(makeDeps(dir), 'manual'), /em andamento/, 'segunda execução');
+    release();
+    assertEqual((await first).status, 'success', 'a primeira termina bem');
+    // trava deixada por um processo morto (mais de 30 min) não bloqueia para sempre
+    await fs.writeFile(path.join(dir, '.lock'), '');
+    const clock = new Date('2026-11-27T06:00:00Z');
+    const old = new Date(clock.getTime() - 2 * 60 * 60 * 1000);
+    await fs.utimes(path.join(dir, '.lock'), old, old);
+    assertEqual((await runDbBackup(makeDeps(dir), 'manual')).status, 'success', 'trava velha descartada');
+    // trava recente bloqueia
+    await fs.writeFile(path.join(dir, '.lock'), '');
+    await fs.utimes(path.join(dir, '.lock'), new Date(clock.getTime() - 60 * 1000), new Date(clock.getTime() - 60 * 1000));
+    let busy = false;
+    try { await runDbBackup(makeDeps(dir), 'manual'); } catch (e) { busy = e instanceof DbBackupBusyError; }
+    assert(busy, 'trava recente bloqueia');
+  }],
+  ['backup do banco: depois de 3 falhas no dia para de tentar; entre tentativas espera 30 min (CA6)', async () => {
+    const dir = await tempDir();
+    const failing = (at: string) => makeDeps(dir, { runner: { dump: async () => { throw new Error('rede caiu'); }, query: async () => '' } }, at);
+    await runDbBackup(failing('2026-11-27T06:00:00Z'), 'cron');
+    assert(!isDbBackupDue(await readStatus(dir), new Date('2026-11-27T06:10:00Z'), 3), 'menos de 30 min depois');
+    assert(isDbBackupDue(await readStatus(dir), new Date('2026-11-27T06:40:00Z'), 3), '30 min depois tenta de novo');
+    await runDbBackup(failing('2026-11-27T06:40:00Z'), 'cron');
+    await runDbBackup(failing('2026-11-27T07:20:00Z'), 'cron');
+    assert(!isDbBackupDue(await readStatus(dir), new Date('2026-11-27T12:00:00Z'), 3), 'após 3 falhas não insiste no mesmo dia');
+    assert(isDbBackupDue(await readStatus(dir), new Date('2026-11-28T06:00:00Z'), 3), 'no outro dia tenta');
   }],
 ];
 

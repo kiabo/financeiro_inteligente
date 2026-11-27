@@ -1,9 +1,9 @@
 # Tasks 006 — Supabase Free com backup e monitor de uso
 
-- **Status:** rascunho
+- **Status:** aprovado
 - **Plan:** `specs/006-supabase-backup-monitor/plan.md` (aprovado em 2026-11-27)
 - **Branch:** `feat/006-supabase-backup-monitor` (saindo da `dev`)
-- **Aprovado em:** —
+- **Aprovado em:** 2026-11-27
 
 Uma tarefa por vez, em ordem. Marque `[x]` ao concluir. Commit: `feat(006): descrição (T01)`.
 Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tarefas de tela).

@@ -1,9 +1,9 @@
 # Tasks 005 — Nome e marca do sistema
 
-- **Status:** rascunho
+- **Status:** aprovado
 - **Plan:** `specs/005-marca-e-temas/plan.md` (aprovado em 2026-11-27, incluindo a exceção à constituição nº 2)
 - **Branch:** `feat/005-marca-e-temas` (saindo da `dev`)
-- **Aprovado em:** —
+- **Aprovado em:** 2026-11-27
 
 Uma tarefa por vez, em ordem. Marque `[x]` ao concluir. Commit: `feat(005): descrição (T01)`.
 Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tarefas de tela).

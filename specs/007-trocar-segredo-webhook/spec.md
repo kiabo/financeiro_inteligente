@@ -1,6 +1,6 @@
 # Spec 007 — Trocar o segredo do webhook de uma conexão
 
-- **Status:** aprovado
+- **Status:** em-andamento
 - **Criada em:** 2026-11-27
 - **Aprovada em:** 2026-11-27
 - **Responsável pela aprovação:** usuário

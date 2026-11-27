@@ -1,9 +1,9 @@
 # Tasks 007 — Trocar o segredo do webhook de uma conexão
 
-- **Status:** rascunho
+- **Status:** em-andamento
 - **Plan:** `specs/007-trocar-segredo-webhook/plan.md` (aprovado em 2026-11-27)
 - **Branch:** `feat/007-trocar-segredo-webhook` (saindo da `dev`)
-- **Aprovado em:** —
+- **Aprovado em:** 2026-11-27
 
 Uma tarefa por vez, em ordem. Marque `[x]` ao concluir. Commit: `feat(007): descrição (T01)`.
 Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tarefas de tela).
@@ -11,28 +11,28 @@ Sem migration nesta spec. Nada é lido nem impresso de segredos; os testes usam 
 
 ## Servidor
 
-- [ ] T01 — Escrever **antes** os testes de `server/__tests__/connectionSecrets.test.ts` e registrá-los em `scripts/run-tests.ts`
+- [x] T01 — Escrever **antes** os testes de `server/__tests__/connectionSecrets.test.ts` e registrá-los em `scripts/run-tests.ts`
   (suíte "Troca do segredo do webhook (spec 007)"): cifra e decifra com o tenant certo e falha com outro; 7 caracteres, vazio, só espaços e valor não textual são recusados; espaços nas pontas são removidos;
   para Asaas, Mercado Pago, Stripe e JSON customizado, assinatura com o segredo **antigo** passa antes da troca e é **recusada** depois, e a do **novo** é aceita; a conexão apresentada não contém o segredo.
   **Pronto quando:** os testes existem e falham só porque `prepareSigningSecretChange` ainda não existe. (CA1, CA2, CA3)
 
-- [ ] T02 — Criar `server/integrations/connectionSecrets.ts` com `prepareSigningSecretChange(raw, tenantId)` e fazer o `PATCH /api/integrations/connections/:id` usá-la
+- [x] T02 — Criar `server/integrations/connectionSecrets.ts` com `prepareSigningSecretChange(raw, tenantId)` e fazer o `PATCH /api/integrations/connections/:id` usá-la
   (mensagem de erro igual à da criação: mínimo de 8 caracteres). Incluir o teste de que a auditoria do `PATCH` lista `signing_secret` em `fields` e não contém o valor.
   **Pronto quando:** `npx tsc --noEmit && npm test` passam, incluindo os testes antigos do webhook sem alterar suas expectativas. (CA1, CA2, CA3, CA4)
 
 ## Tela
 
-- [ ] T03 — Em `IntegrationsHubView.tsx`: botão **"Trocar segredo do webhook"** ao lado de "Trocar chave de API" (todas as conexões com segredo, menos `google`) e diálogo no desenho do diálogo da chave:
+- [x] T03 — Em `IntegrationsHubView.tsx`: botão **"Trocar segredo do webhook"** ao lado de "Trocar chave de API" (todas as conexões com segredo, menos `google`) e diálogo no desenho do diálogo da chave:
   campo de senha sempre vazio, `autoComplete="off"`, ajuda do provedor (`PROVIDER_SECRET_HELP`), aviso "O segredo anterior deixa de valer imediatamente. Atualize o mesmo valor no painel do {provedor}, ou os avisos dele serão recusados." **visível antes** do botão,
   botão "Trocar segredo" só com 8+ caracteres, cancelar não chama a API, confirmação "Segredo da conexão "{nome}" trocado. Ele foi cifrado e não será exibido novamente." sem data.
   **Pronto quando:** `npm run build` passa e, no navegador local (modo sandbox), o diálogo abre vazio, mostra o aviso, recusa menos de 8 caracteres, cancelar não altera nada e salvar mostra a confirmação. (CA1, CA3, CA6)
 
-- [ ] T04 — Na criação de conexão, acrescentar a frase "Você pode trocar este segredo depois, na própria conexão." sob o campo de segredo.
+- [x] T04 — Na criação de conexão, acrescentar a frase "Você pode trocar este segredo depois, na própria conexão." sob o campo de segredo.
   **Pronto quando:** a frase aparece no diálogo de criação de todos os provedores e `npm run build` passa. (CA6)
 
 ## Documentação e publicação
 
-- [ ] T05 — `docs/architecture.md`: uma linha na seção de webhooks sobre a troca de segredo; `specs/README.md`: spec 007 `em-andamento`.
+- [x] T05 — `docs/architecture.md`: uma linha na seção de webhooks sobre a troca de segredo; `specs/README.md`: spec 007 `em-andamento`.
   **Pronto quando:** as duas linhas existem. (—)
 
 - [ ] T06 — Publicar: `npx tsc --noEmit && npm test && npm run build` verdes, PR de `feat/007-trocar-segredo-webhook` para `dev`, merge, promoção `dev` → `main` (autorizada) e deploy da `main` acompanhado até o fim.
@@ -44,4 +44,6 @@ Sem migration nesta spec. Nada é lido nem impresso de segredos; os testes usam 
   **Pronto quando:** o "Registro de verificação" da spec tem cada CA com resultado, evidência e data; spec, plan e tasks `concluído`. (CA1–CA6)
 
 ## Notas de execução
-(decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec)
+- **T03:** o "Pronto quando" pedia conferir o diálogo no navegador local em modo sandbox. Não é viável: as rotas de conexão do servidor exigem Supabase e a chave de cifra, que o servidor local sem Supabase não tem. Ficou só `tsc` + `build` verdes; o comportamento da tela (campo vazio, aviso antes de confirmar, cancelar sem efeito, confirmação) é conferido no cfo, na T07.
+- **T02:** a criação de conexão passou a usar a mesma constante de tamanho mínimo (`MIN_SIGNING_SECRET_LENGTH`); a mensagem é a mesma de antes.
+- `buildTestRequest` passou a ser exportada de `webhookRoutes.ts` para os testes montarem requisições assinadas como o botão "Testar".

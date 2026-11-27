@@ -1,4 +1,4 @@
-import { Check, Copy, Download, FlaskConical, KeyRound, Pause, Play, Plug, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, Copy, Download, FlaskConical, KeyRound, Lock, Pause, Play, Plug, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
@@ -98,6 +98,11 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
   const [keyValue, setKeyValue] = useState('');
   const [keyError, setKeyError] = useState<string | null>(null);
   const [keySaving, setKeySaving] = useState(false);
+  // Segredo de assinatura do webhook de uma conexão existente (o valor atual nunca volta do servidor; o campo sempre abre vazio)
+  const [secretDialog, setSecretDialog] = useState<IntegrationConnection | null>(null);
+  const [secretValue, setSecretValue] = useState('');
+  const [secretError, setSecretError] = useState<string | null>(null);
+  const [secretSaving, setSecretSaving] = useState(false);
 
   const companyAccounts = useMemo(() => accounts.filter((a) => a.company_id === companyId), [accounts, companyId]);
   const companyProducts = useMemo(
@@ -206,6 +211,30 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
       setKeyError(err instanceof Error ? err.message : 'Falha ao salvar a chave de API.');
     } finally {
       setKeySaving(false);
+    }
+  };
+
+  const openSecretDialog = (c: IntegrationConnection) => {
+    setSecretDialog(c);
+    setSecretValue('');
+    setSecretError(null);
+  };
+
+  const handleSaveSecret = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!secretDialog) return;
+    setSecretError(null);
+    setSecretSaving(true);
+    try {
+      await updateConnection(secretDialog.id, { signing_secret: secretValue.trim() });
+      setSecretDialog(null);
+      setSecretValue('');
+      setFeedback({ tone: 'success', text: `Segredo da conexão "${secretDialog.label}" trocado. Ele foi cifrado e não será exibido novamente.` });
+      await load();
+    } catch (err) {
+      setSecretError(err instanceof Error ? err.message : 'Falha ao trocar o segredo do webhook.');
+    } finally {
+      setSecretSaving(false);
     }
   };
 
@@ -363,6 +392,10 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
                   <Button size="sm" variant="outline" disabled={busyId === c.id || c.provider === 'mercadopago'} onClick={() => void handleTest(c)} title={c.provider === 'mercadopago' ? 'Use “Simular notificação” no painel do Mercado Pago' : 'Envia um evento assinado com o segredo real'}>
                     <FlaskConical className="h-3.5 w-3.5" />
                     Testar
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={busyId === c.id} onClick={() => openSecretDialog(c)} title="Troca o segredo usado para validar os avisos que o provedor envia">
+                    <Lock className="h-3.5 w-3.5" />
+                    Trocar segredo do webhook
                   </Button>
                   {supportsApiKey(c.provider) && (
                     <Button size="sm" variant="outline" disabled={busyId === c.id} onClick={() => openKeyDialog(c)}>
@@ -542,6 +575,7 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
               <Label htmlFor="int-secret">Segredo de assinatura *</Label>
               <Input id="int-secret" type="password" autoComplete="off" required value={signingSecret} onChange={(e) => setSigningSecret(e.target.value)} />
               <p className="text-[11px] text-[#72787D]">{PROVIDER_SECRET_HELP[provider]}</p>
+              <p className="text-[11px] text-[#72787D]">Você pode trocar este segredo depois, na própria conexão.</p>
             </div>
 
             {provider === 'mercadopago' && (
@@ -632,6 +666,44 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
         onClose={() => setHistoryConn(null)}
         onFinished={() => void Promise.all([load(), onRefresh()])}
       />
+
+      {/* Dialog do segredo de assinatura do webhook de uma conexão existente */}
+      <Dialog open={secretDialog !== null} onOpenChange={(open) => !open && setSecretDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Segredo do webhook — {secretDialog?.label}</DialogTitle>
+            <DialogDescription>
+              O segredo valida os avisos que o {secretDialog ? PROVIDER_LABELS[secretDialog.provider] : 'provedor'} envia. O valor fica cifrado no servidor e não é exibido novamente.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => void handleSaveSecret(e)} className="mt-4 space-y-4">
+            {secretError && <Notice tone="error">{secretError}</Notice>}
+            <Notice tone="info">
+              O segredo anterior deixa de valer imediatamente. Atualize o mesmo valor no painel do {secretDialog ? PROVIDER_LABELS[secretDialog.provider] : 'provedor'}, ou os avisos dele serão recusados.
+            </Notice>
+            <div className="space-y-1.5">
+              <Label htmlFor="int-secret-edit">Novo segredo de assinatura</Label>
+              <Input
+                id="int-secret-edit"
+                type="password"
+                autoComplete="off"
+                required
+                value={secretValue}
+                onChange={(e) => setSecretValue(e.target.value)}
+              />
+              {secretDialog && <p className="text-[11px] text-[#72787D]">{PROVIDER_SECRET_HELP[secretDialog.provider]}</p>}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setSecretDialog(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={secretSaving || secretValue.trim().length < 8}>
+                {secretSaving ? 'Trocando…' : 'Trocar segredo'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog da chave de API de uma conexão existente */}
       <Dialog open={keyDialog !== null} onOpenChange={(open) => !open && setKeyDialog(null)}>

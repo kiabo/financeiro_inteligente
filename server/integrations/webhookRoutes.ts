@@ -1,5 +1,6 @@
 import express, { type Request, type Response } from 'express';
 import { getAuthUser, requireUser } from '../authMiddleware.ts';
+import { prepareSigningSecretChange, auditFieldsFor, MIN_SIGNING_SECRET_LENGTH } from './connectionSecrets.ts';
 import { encryptSecret, hmacSecretForTest, isCredentialsKeyConfigured, randomHex } from './routeHelpers.ts';
 import { getSupabaseAdmin, isServerSupabaseConfigured } from '../supabaseAdmin.ts';
 import { getPaymentAdapter, listPaymentAdapters } from './webhooks/adapters/index.ts';
@@ -116,7 +117,7 @@ function ensureReady(res: Response): boolean {
 }
 
 /** Monta um evento de teste assinado com o segredo real da conexão (não disponível para Mercado Pago). */
-function buildTestRequest(
+export function buildTestRequest(
   provider: WebhookProviderId,
   signingSecret: string,
   config: ConnectionConfig,
@@ -272,7 +273,7 @@ export function createWebhookRouter(): express.Router {
       const accountId = String(body.account_id ?? '');
       if (!companyId || !accountId) throw new Error('Selecione a empresa e a conta de destino dos lançamentos.');
       const signingSecret = String(body.signing_secret ?? '').trim();
-      if (signingSecret.length < 8) throw new Error('Informe o segredo de assinatura do webhook (mínimo 8 caracteres).');
+      if (signingSecret.length < MIN_SIGNING_SECRET_LENGTH) throw new Error(`Informe o segredo de assinatura do webhook (mínimo ${MIN_SIGNING_SECRET_LENGTH} caracteres).`);
       const apiAccessToken = String(body.api_access_token ?? '').trim();
       if (provider === 'mercadopago' && !apiAccessToken) {
         throw new Error('Mercado Pago exige o Access Token para consultar os pagamentos (o corpo do webhook não é assinado).');
@@ -339,8 +340,7 @@ export function createWebhookRouter(): express.Router {
       if (typeof body.account_id === 'string' && body.account_id) patch.account_id = body.account_id;
       if (body.config !== undefined) patch.config = sanitizeConfig(current.provider, { ...current.config, ...(body.config as object) });
       if (typeof body.signing_secret === 'string' && body.signing_secret.trim()) {
-        if (body.signing_secret.trim().length < 8) throw new Error('Segredo muito curto.');
-        patch.signing_secret_encrypted = encryptSecret(body.signing_secret.trim(), user.id);
+        patch.signing_secret_encrypted = prepareSigningSecretChange(body.signing_secret, user.id).encrypted;
       }
       if (typeof body.api_access_token === 'string' && body.api_access_token.trim()) {
         if (body.api_access_token.trim().length < 8) throw new Error('Chave de API muito curta.');
@@ -363,7 +363,7 @@ export function createWebhookRouter(): express.Router {
         action: 'integration.updated',
         entity_type: 'integration_connection',
         entity_id: current.id,
-        metadata: { fields: Object.keys(patch).map((k) => k.replace(/_encrypted$/, '')) },
+        metadata: { fields: auditFieldsFor(patch) },
       });
       const baseUrl = resolvePublicBaseUrl(req);
       res.json({ connection: presentConnection(data as unknown as Parameters<typeof presentConnection>[0], baseUrl) });

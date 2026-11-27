@@ -1,4 +1,4 @@
-import { Check, Copy, FlaskConical, KeyRound, Pause, Play, Plug, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, Copy, Download, FlaskConical, KeyRound, Pause, Play, Plug, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
@@ -8,6 +8,7 @@ import { StatusChip } from '../../components/ui/status-chip';
 import { formatCurrencyBRL, formatDateTimeBR } from '../../lib/utils';
 import type { AuthSessionState, Category, Company, FinancialAccount, ProductService } from '../core/types';
 import { isSupabaseConfigured } from '../core/supabase';
+import { HistoryImportModal } from './components/HistoryImportModal';
 import { ModuleHeader, NativeSelect, Notice, SandboxGate, Toggle } from './components/moduleUi';
 import {
   createConnection,
@@ -91,6 +92,8 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
   const [saving, setSaving] = useState(false);
 
   // Chave de API de uma conexão existente (a chave nunca volta do servidor)
+  const [historyConn, setHistoryConn] = useState<IntegrationConnection | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<'' | 'api' | 'webhook'>('');
   const [keyDialog, setKeyDialog] = useState<IntegrationConnection | null>(null);
   const [keyValue, setKeyValue] = useState('');
   const [keyError, setKeyError] = useState<string | null>(null);
@@ -112,7 +115,7 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
     if (!isSupabaseConfigured) return;
     setLoading(true);
     try {
-      const [conn, ev] = await Promise.all([fetchConnections(), fetchWebhookEvents()]);
+      const [conn, ev] = await Promise.all([fetchConnections(), fetchWebhookEvents(undefined, sourceFilter || undefined)]);
       setConnections(conn.connections);
       setEvents(ev);
     } catch (err) {
@@ -120,7 +123,7 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sourceFilter]);
 
   useEffect(() => {
     void load();
@@ -367,6 +370,18 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
                       {c.api_key_configured ? 'Trocar chave de API' : 'Chave de API'}
                     </Button>
                   )}
+                  {supportsApiKey(c.provider) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busyId === c.id || !c.api_key_configured}
+                      title={c.api_key_configured ? 'Traz do provedor o histórico de cobranças de um período' : 'Configure a chave de API para importar o histórico'}
+                      onClick={() => setHistoryConn(c)}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Importar histórico
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" disabled={busyId === c.id} onClick={() => void handleToggleStatus(c)}>
                     {c.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
                     {c.status === 'paused' ? 'Reativar' : 'Pausar'}
@@ -395,8 +410,20 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
                 <CardTitle>Log de eventos recebidos</CardTitle>
                 <CardDescription>Fila com idempotência: reenvios do provedor aparecem uma única vez. Falhas podem ser reprocessadas.</CardDescription>
               </div>
-              <div className="w-full sm:w-64">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                 <NativeSelect
+                  aria-label="Filtrar por origem"
+                  className="sm:w-44"
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value as '' | 'api' | 'webhook')}
+                  placeholder="Todas as origens"
+                  options={[
+                    { value: 'webhook', label: 'Webhook' },
+                    { value: 'api', label: 'Importação por API' },
+                  ]}
+                />
+                <NativeSelect
+                  className="sm:w-64"
                   aria-label="Filtrar por conexão"
                   value={eventFilter}
                   onChange={(e) => setEventFilter(e.target.value)}
@@ -429,7 +456,10 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
                         <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatDateTimeBR(ev.received_at)}</td>
                         <td className="px-3 py-2">
                           <p className="font-mono text-[11px]">{ev.external_event_id}</p>
-                          <p className="text-[#72787D]">{ev.event_type}</p>
+                          <p className="flex items-center gap-1.5 text-[#72787D]">
+                            {ev.event_type}
+                            {ev.source === 'api' && <StatusChip variant="primary">API</StatusChip>}
+                          </p>
                         </td>
                         <td className="px-3 py-2">{ev.normalized?.kind ?? '—'}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{ev.normalized ? formatCurrencyBRL(ev.normalized.grossAmount) : '—'}</td>
@@ -595,6 +625,13 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
           </form>
         </DialogContent>
       </Dialog>
+
+      <HistoryImportModal
+        connection={historyConn}
+        accounts={historyConn ? accounts.filter((a) => a.company_id === historyConn.company_id) : []}
+        onClose={() => setHistoryConn(null)}
+        onFinished={() => void Promise.all([load(), onRefresh()])}
+      />
 
       {/* Dialog da chave de API de uma conexão existente */}
       <Dialog open={keyDialog !== null} onOpenChange={(open) => !open && setKeyDialog(null)}>

@@ -76,7 +76,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 - [x] T13 — `IntegrationsHubView.tsx`: campo "Chave de API" na criação e na edição (Mercado Pago passa a usar este mesmo campo no lugar de "Access Token"), chip "Chave configurada", troca exige digitar de novo; a chave nunca é exibida.
   **Pronto quando:** `tsc`/`build` passam e, no `npm run dev`, salvar a chave mostra só o chip e recarregar a página não a exibe em lugar nenhum (Rede/DOM). (CA1)
 
-- [ ] T14 — `components/HistoryImportModal.tsx` + botão "Importar histórico" (desabilitado sem chave): atalhos 3/6/12 meses e datas, **"Conta de destino" sem valor pré-selecionado** e só com contas da empresa da conexão, barra "mês N de M",
+- [x] T14 — `components/HistoryImportModal.tsx` + botão "Importar histórico" (desabilitado sem chave): atalhos 3/6/12 meses e datas, **"Conta de destino" sem valor pré-selecionado** e só com contas da empresa da conexão, barra "mês N de M",
   contadores (importados, atualizados, ignorados, cancelados/estornados, erros), Cancelar e **Retomar**, mensagens claras de chave inválida e período inválido; selo "API" e filtro de origem nos eventos.
   **Pronto quando:** `tsc`/`build` passam; `noModuleLabels.test.ts` segue verde (nenhum "Módulo N"); no `npm run dev` com o servidor de testes/fakes, o modal bloqueia o início sem conta e com período > 12 meses. (CA7, CA8, CA10, CA13)
 
@@ -99,6 +99,12 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T14 — Modal "Importar histórico" (2026-11-27)
+- `components/HistoryImportModal.tsx` + botão "Importar histórico" (desabilitado sem chave) em cada conexão Asaas/Mercado Pago + selo "API" e filtro de origem (Webhook / Importação por API) no log de eventos.
+- Modal: atalhos "Últimos 3/6/12 meses" (regra `presetPeriod`, testada para os dois provedores em dias limite) e datas; **"Conta de destino" sem valor pré-selecionado**, só contas da empresa da conexão; período inválido mostra a mensagem da regra compartilhada e bloqueia o botão; barra "Mês N de M" (ou "Preparando a lista de clientes…"); contadores Importados · Atualizados · Ignorados · Cancelados/estornados · Erros; Cancelar importação; **Retomar** (também ao reabrir, via `fetchLatestHistoryImport`); lista de pagamentos com erro (só o id). Fechar o modal pausa o lote (a execução fica retomável).
+- **Verificação visual real (página temporária, já removida):** montei o modal com um servidor simulado no Chrome. Confirmado: sem conta o botão fica desabilitado; o corpo do `start` leva só `period_start`, `period_end` e `account_id` (a conta escolhida, não a da conexão); os lotes rodam em sequência; a falha simulada deixa "Interrompida" com a mensagem e "Retomar"; ao retomar conclui, mostra contadores e dispara a atualização (`onFinished`). Sem erros de execução. Nada da página de teste foi commitado.
+- `tsc`, 165 testes e build passam.
 
 ### T13 — Campo "Chave de API" (2026-11-27)
 - `IntegrationsHubView.tsx`: na criação, Mercado Pago ("Chave de API (Access Token de produção) *", mesmo campo de antes) e Asaas ("Chave de API (opcional)"); em cada conexão com Asaas/Mercado Pago, chip "Chave configurada"/"Sem chave de API" e botão "Chave de API"/"Trocar chave de API" que abre um Dialog (campo de senha, sempre vazio, nunca preenchido com a chave; salvar substitui). A tela só usa `api_key_configured`.

@@ -49,7 +49,7 @@ export function addMonthsISO(iso: string, months: number): string {
   return toISO(y, m, Math.min(p.d, daysInMonth(y, m)));
 }
 
-function addDaysISO(iso: string, days: number): string {
+export function addDaysISO(iso: string, days: number): string {
   const p = parseISO(iso);
   if (!p) throw new Error(`Data inválida: ${iso}`);
   const d = new Date(Date.UTC(p.y, p.m - 1, p.d + days));
@@ -110,4 +110,9 @@ export function buildMonthlyWindows(start: string, end: string): HistoryWindow[]
     cursor = addDaysISO(windowEnd, 1);
   }
   return windows;
+}
+
+/** Atalho "Últimos N meses": termina hoje e começa no dia seguinte a (hoje − N meses), para caber no limite de 12 meses. */
+export function presetPeriod(months: number, today: string): { start: string; end: string } {
+  return { start: addDaysISO(addMonthsISO(today, -months), 1), end: today };
 }

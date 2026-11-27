@@ -1,5 +1,5 @@
 import { assert, assertEqual, runCases, type TestCase, type TestCaseResult } from '../../../../scripts/testHarness.ts';
-import { addMonthsISO, buildMonthlyWindows, validateHistoryPeriod } from '../historyPeriod.ts';
+import { addMonthsISO, buildMonthlyWindows, presetPeriod, validateHistoryPeriod } from '../historyPeriod.ts';
 
 const TODAY = '2026-11-27';
 
@@ -75,6 +75,18 @@ const cases: TestCase[] = [
   ['janelas: um dia e fevereiro bissexto', () => {
     assertEqual(JSON.stringify(buildMonthlyWindows('2026-05-10', '2026-05-10')), JSON.stringify([{ start: '2026-05-10', end: '2026-05-10' }]), 'um dia');
     assertEqual(buildMonthlyWindows('2024-02-01', '2024-02-29')[0]!.end, '2024-02-29', 'bissexto');
+  }],
+  ['atalhos "Últimos 3/6/12 meses" sempre cabem no limite, nos dois provedores, em qualquer dia do mês (CA8)', () => {
+    for (const today of ['2026-11-27', '2026-03-31', '2026-02-28', '2024-02-29', '2026-01-01', '2026-12-31']) {
+      for (const months of [3, 6, 12]) {
+        const { start, end } = presetPeriod(months, today);
+        assertEqual(end, today, 'termina hoje');
+        for (const provider of ['asaas', 'mercadopago'] as const) {
+          const r = validateHistoryPeriod({ start, end, today, provider });
+          assert(r.ok, `${months} meses a partir de ${today} (${provider}): ${r.ok ? '' : r.message}`);
+        }
+      }
+    }
   }],
   ['janelas: intervalo inválido devolve lista vazia', () => {
     assertEqual(buildMonthlyWindows('2026-03-10', '2026-03-09').length, 0, 'invertido');

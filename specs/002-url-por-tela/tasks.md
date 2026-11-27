@@ -30,7 +30,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
   `server/__tests__/module6Server.test.ts` atualizado se cobrir os redirects.
   **Pronto quando:** testes verdes e o redirect aponta para o novo caminho. (CA6)
 
-- [ ] T06 — `LoginScreen.tsx`: `redirectTo` do login com Google passa a `origin + pathname`.
+- [x] T06 — `LoginScreen.tsx`: `redirectTo` do login com Google passa a `origin + pathname`.
   **Pronto quando:** `tsc` passa; no teste manual, o deep link sobrevive ao login com Google quando aplicável. (CA4)
 
 - [ ] T07 — `vite.config.ts`: `workbox.navigateFallbackDenylist: [/^\/api\//]`.

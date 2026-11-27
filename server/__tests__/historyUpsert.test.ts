@@ -1,6 +1,10 @@
 import { assert, assertEqual, runCases, type TestCase, type TestCaseResult } from '../../scripts/testHarness.ts';
 import { upsertPayment, type PlannedPaymentRow, type UpsertIntent } from '../integrations/history/paymentUpsert.ts';
 import { MemoryTransactionStore } from './helpers/memoryStore.ts';
+import { applyNormalizedEvent, planTransactionsForEvent, type IntegrationConnectionRow } from '../integrations/webhooks/webhookCore.ts';
+import type { NormalizedPaymentEvent } from '../integrations/webhooks/types.ts';
+import { mapAsaasPayment } from '../integrations/history/mappers.ts';
+import { loadFixture } from './history.test.ts';
 
 const T = 'tenant-1';
 const SRC = 'asaas';
@@ -27,6 +31,16 @@ const refundRow = (amount: number, over: Partial<PlannedPaymentRow> = {}): Plann
 
 const run = (store: MemoryTransactionStore, intent: UpsertIntent, planned: PlannedPaymentRow[]) =>
   upsertPayment(store, { tenantId: T, source: SRC, ref: REF, intent, planned });
+
+const NOW = new Date('2026-11-26T15:00:00Z');
+const CONN_B: IntegrationConnectionRow = {
+  id: 'conn-b', tenant_id: T, provider: SRC, label: 'Asaas', company_id: 'comp-1', account_id: ACC_B,
+  webhook_secret_id: null, signing_secret_encrypted: null, credentials_encrypted: null, config: { fee_pct: 2.66 }, status: 'active',
+};
+const webhookEvent = (kind: NormalizedPaymentEvent['kind']): NormalizedPaymentEvent => ({
+  kind, paymentRef: REF, grossAmount: 150, feeAmount: 3.99, netAmount: null, currency: 'BRL',
+  competenceDate: '2026-02-09', settlementDate: '2026-02-09', description: 'Mensalidade', productHint: null,
+});
 
 const cases: TestCase[] = [
   ['pagamento novo em aberto cria receita e taxa na conta escolhida (CA2, CA10)', async () => {
@@ -189,6 +203,55 @@ const cases: TestCase[] = [
     await run(store, 'open', [income(), fee()]);
     const other = await upsertPayment(store, { tenantId: T, source: 'mercadopago', ref: REF, intent: 'open', planned: [income(), fee()] });
     assertEqual(other.action, 'created', 'provedor diferente cria');
+  }],
+  // ---------------------------------------------------------------- Pelo caminho do webhook (applyNormalizedEvent)
+  ['webhook: PAYMENT_CONFIRMED repetido e pendente → liquidado usam as mesmas linhas (CA5)', async () => {
+    const store = new MemoryTransactionStore();
+    const catalog = { categories: [], products: [] };
+    const first = await applyNormalizedEvent(CONN_B, webhookEvent('payment_pending'), 'ev1', NOW, { store, catalog });
+    assertEqual(first.length, 2, 'receita + taxa');
+    const repeated = await applyNormalizedEvent(CONN_B, webhookEvent('payment_pending'), 'ev2', NOW, { store, catalog });
+    assertEqual(repeated.length, 0, 'repetição não grava');
+    assertEqual(store.rows.length, 2, 'sem duplicar');
+    const settled = await applyNormalizedEvent(CONN_B, webhookEvent('payment_settled'), 'ev3', NOW, { store, catalog });
+    assertEqual(settled.length, 2, 'atualizou as duas');
+    assert(store.rows.every((r) => r.status === 'paid'), 'liquidadas');
+    assertEqual(store.rows.length, 2, 'ainda 2 linhas');
+  }],
+  ['webhook: pagamento importado em outra conta não duplica nem muda de conta nem de valor (CA4, CA12)', async () => {
+    const store = new MemoryTransactionStore();
+    const catalog = { categories: [], products: [] };
+    // Importação (conta A) já gravou o pagamento como pendente
+    const asaas = loadFixture<{ data: Record<string, unknown>[] }>('asaas-payments-page1.json').data[0]!;
+    const imported = mapAsaasPayment({ ...asaas, status: 'PENDING', paymentDate: null, creditDate: null }, 'Maria Souza Teste', NOW);
+    const plannedImport = planTransactionsForEvent({
+      connection: CONN_B, providerName: 'Asaas', normalized: imported.normalized, categories: [], products: [], todayISO: '2026-11-26', accountId: ACC_A,
+    });
+    await upsertPayment(store, { tenantId: T, source: SRC, ref: REF, intent: 'open', planned: plannedImport.map((r) => ({ ...r })) });
+    assertEqual(store.rows.length, 2, 'importou 2 linhas na conta A');
+    // Webhook da conexão (conta B) liquida o mesmo pagamento, com valor ligeiramente diferente
+    const out = await applyNormalizedEvent(CONN_B, { ...webhookEvent('payment_settled'), paymentRef: 'pay_0001', grossAmount: 150.5 }, 'ev', NOW, { store, catalog });
+    assertEqual(out.length, 2, 'atualizou as linhas existentes');
+    assertEqual(store.rows.length, 2, 'sem duplicar');
+    assert(store.rows.every((r) => r.account_id === ACC_A), 'continuam na conta da importação');
+    assertEqual(store.rows.find((r) => r.role === 'income')!.amount, 150, 'valor da importação preservado');
+    assertEqual(store.rows.find((r) => r.role === 'income')!.status, 'paid', 'liquidada pelo webhook');
+  }],
+  ['webhook: estorno depois da receita marcada como cancelada pela importação não cria linha (CA13)', async () => {
+    const store = new MemoryTransactionStore();
+    const catalog = { categories: [], products: [] };
+    await upsertPayment(store, { tenantId: T, source: SRC, ref: REF, intent: 'void', planned: [canceledIncome()] });
+    const out = await applyNormalizedEvent(CONN_B, webhookEvent('refund'), 'ev', NOW, { store, catalog });
+    assertEqual(out.length, 0, 'nada criado');
+    assertEqual(store.rows.length, 1, 'só a receita cancelada');
+  }],
+  ['webhook: estorno sobre receita paga continua criando a saída de estorno', async () => {
+    const store = new MemoryTransactionStore();
+    const catalog = { categories: [], products: [] };
+    await applyNormalizedEvent(CONN_B, webhookEvent('payment_settled'), 'ev1', NOW, { store, catalog });
+    const out = await applyNormalizedEvent(CONN_B, webhookEvent('refund'), 'ev2', NOW, { store, catalog });
+    assertEqual(out.length, 1, 'uma linha de estorno');
+    assertEqual(store.rows.filter((r) => r.role === 'refund').length, 1, 'estorno gravado');
   }],
 ];
 

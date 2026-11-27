@@ -51,7 +51,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
   (conta de destino por parâmetro, ciclo cancelado/estornado "[Cancelado]/[Estornado]" sem taxa e sem estorno, colunas `external_*`, contraparte).
   **Pronto quando:** os testes da T07 passam e a suíte inteira do servidor continua verde. (CA3, CA5, CA10, CA11, CA12, CA13)
 
-- [ ] T09 — Webhook usa o upsert: `applyNormalizedEvent` em `webhookCore.ts` substitui a busca por `webhook_events` (fica o fallback por `notes`); `PAYMENT_CONFIRMED` repetido não insere;
+- [x] T09 — Webhook usa o upsert: `applyNormalizedEvent` em `webhookCore.ts` substitui a busca por `webhook_events` (fica o fallback por `notes`); `PAYMENT_CONFIRMED` repetido não insere;
   estorno não cria linha se a receita foi marcada `canceled`; violação `23505` vira "já existe".
   **Pronto quando:** testes novos passam: webhook do mesmo pagamento em conexão/conta diferente atualiza a mesma linha sem duplicar nem alterar o valor; os testes antigos do webhook seguem verdes. (CA4, CA5, CA12, CA13)
 
@@ -99,6 +99,11 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T09 — Webhook usa o upsert por pagamento (2026-11-27)
+- `applyNormalizedEvent` agora planeja e chama `upsertPayment` (intenção `open|settled|refund`); a busca por `webhook_events.normalized->>paymentRef` foi removida. Recebe `deps` opcional (armazenamento e catálogo) para teste.
+- Efeitos: `PAYMENT_CONFIRMED` repetido não insere de novo; pendente → liquidado reaproveita as linhas de qualquer conta/conexão; evento repetido já liquidado retorna 0 lançamentos (antes devolvia os ids); estorno sobre receita cancelada pela importação não cria linha.
+- 4 testes novos pelo caminho do webhook; `npm test`: 141/141.
 
 ### T08 — Upsert por pagamento e planejador (2026-11-27)
 - `paymentUpsert.ts` implementado: decisão por intenção (`open|settled|void|refund`), adoção de linhas antigas pelo marcador em `notes`, e releitura quando outro processo grava o mesmo pagamento no meio do caminho (3 tentativas). Pendente e vencido contam como o mesmo estado (evita "atualizado" a cada reimportação).

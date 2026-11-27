@@ -1591,6 +1591,19 @@ export async function updateFinancialAccount(
   return data as FinancialAccount;
 }
 
+export const ACCOUNT_HAS_TRANSACTIONS_MESSAGE = 'Esta conta tem lançamentos; apague ou mova os lançamentos antes.';
+
+/**
+ * Traduz o erro do banco ao excluir uma conta. A chave estrangeira de `transactions` (código 23503) impede
+ * excluir conta com lançamentos; o texto cru do Postgres não diz nada ao usuário.
+ */
+export function friendlyDeleteAccountError(error: { code?: string; message: string }): Error {
+  if (error.code === '23503' || /transactions_(destination_)?account_id_fkey/.test(error.message)) {
+    return new Error(ACCOUNT_HAS_TRANSACTIONS_MESSAGE);
+  }
+  return new Error(error.message);
+}
+
 export async function deleteFinancialAccount(
   tenantId: string,
   userEmail: string,
@@ -1605,9 +1618,7 @@ export async function deleteFinancialAccount(
         (t) => t.account_id === accountId || t.destination_account_id === accountId
       )
     ) {
-      throw new Error(
-        'Não é possível excluir uma conta que possui lançamentos vinculados. Exclua ou cancele os lançamentos antes.'
-      );
+      throw new Error(ACCOUNT_HAS_TRANSACTIONS_MESSAGE);
     }
     store.accounts = store.accounts.filter((a) => a.id !== accountId);
     store.vault = store.vault.map((v) =>
@@ -1625,7 +1636,7 @@ export async function deleteFinancialAccount(
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error('Cliente Supabase indisponível.');
   const { error } = await supabase.from('financial_accounts').delete().eq('id', accountId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDeleteAccountError(error);
 }
 
 // ============================================================================

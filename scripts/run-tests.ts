@@ -3,6 +3,7 @@
  * (as suítes dos Módulos 1–5 mantêm seu formato original e também são exibidas na UI).
  */
 import { runAccountBalancesTests } from '../src/modules/core/__tests__/accountBalances.test.ts';
+import { runAccountDeletionTests } from '../src/modules/core/__tests__/accountDeletion.test.ts';
 import { runRoutesTests } from '../src/modules/core/__tests__/routes.test.ts';
 import { runRolesTests } from '../src/modules/core/__tests__/roles.test.ts';
 import { runNoModuleLabelsTests } from '../src/modules/core/__tests__/noModuleLabels.test.ts';
@@ -35,6 +36,7 @@ const suites: Array<[string, () => Result[] | Promise<Result[]>]> = [
   ['Papéis e visibilidade do SQL (spec 001)', runRolesTests],
   ['Rotas por tela (spec 002)', runRoutesTests],
   ['Saldo inicial da conta (spec 003)', runAccountBalancesTests],
+  ['Excluir conta com lançamentos (mensagem)', runAccountDeletionTests],
   ['Importação de histórico · período (spec 004)', runHistoryPeriodTests],
   ['Importação de histórico por API (spec 004)', runHistoryTests],
   ['Importação de histórico · idempotência (spec 004)', runHistoryUpsertTests],

@@ -79,6 +79,19 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
   onRefresh,
 }) => {
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+
+  /** Executa uma exclusão e mostra o motivo na tela quando ela é recusada (antes o clique falhava em silêncio). */
+  const runDelete = async (action: () => Promise<void>) => {
+    setFeedback(null);
+    try {
+      await action();
+      await onRefresh();
+    } catch (err) {
+      setFeedback({ type: 'error', text: err instanceof Error ? err.message : 'Não foi possível excluir.' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.querySelector('main')?.scrollTo?.({ top: 0, behavior: 'smooth' });
+    }
+  };
   const [submitting, setSubmitting] = useState(false);
 
   const [legalName, setLegalName] = useState('');
@@ -359,7 +372,7 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
 
       {feedback && (
         <div
-          role="status"
+          role={feedback.type === 'error' ? 'alert' : 'status'}
           className={
             feedback.type === 'error'
               ? 'rounded-[4px] border border-[#FECACA] bg-[#FEF2F2] px-4 py-2.5 text-[13px] font-medium text-[#991B1B] dark:border-[#7F1D1D] dark:bg-[#3B1219] dark:text-[#FCA5A5]'
@@ -542,10 +555,7 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
                               variant="destructive"
                               size="sm"
                               aria-label={`Remover ${c.legal_name}`}
-                              onClick={async () => {
-                                await deleteCompany(session.userId, session.email, c.id);
-                                await onRefresh();
-                              }}
+                              onClick={() => void runDelete(() => deleteCompany(session.userId, session.email, c.id))}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
@@ -760,10 +770,7 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
                                 variant="destructive"
                                 size="sm"
                                 aria-label={`Remover ${acc.name}`}
-                                onClick={async () => {
-                                  await deleteFinancialAccount(session.userId, session.email, acc.id);
-                                  await onRefresh();
-                                }}
+                                onClick={() => void runDelete(() => deleteFinancialAccount(session.userId, session.email, acc.id))}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -857,10 +864,7 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
                           variant="destructive"
                           size="sm"
                           aria-label={`Excluir grupo ${grp.name}`}
-                          onClick={async () => {
-                            await deleteBusinessGroup(session.userId, session.email, grp.id);
-                            await onRefresh();
-                          }}
+                          onClick={() => void runDelete(() => deleteBusinessGroup(session.userId, session.email, grp.id))}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>

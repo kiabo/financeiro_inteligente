@@ -1,6 +1,6 @@
 # Plan 001 — Remover referências a "Módulo N" da interface
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Spec:** `specs/001-remover-referencias-modulos/spec.md` (aprovada em 2026-11-27)
 - **Criado em:** 2026-11-27
 - **Aprovado em:** 2026-11-27

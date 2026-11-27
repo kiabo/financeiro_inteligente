@@ -1,6 +1,6 @@
 # Tasks 001 — Remover referências a "Módulo N" da interface
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Plan:** `specs/001-remover-referencias-modulos/plan.md` (aprovado em 2026-11-27)
 - **Branch:** `feat/001-remover-modulos` (saindo da `dev`)
 - **Aprovado em:** 2026-11-27
@@ -31,10 +31,10 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 - [x] T07 — Rodar tudo: `npx tsc --noEmit`, `npm test` (inclui o teste-guarda, agora verde) e `npm run build`; conferir que o `dist/` não tem literais "Módulo N" de interface.
   **Pronto quando:** os três comandos passam e a busca em `dist/` é limpa (exceto o SQL embutido, se houver). (CA2, CA3, CA4)
 
-- [ ] T08 — Subir a branch, abrir PR para a `dev`, merge e aguardar o deploy no h-cfo. **(usuário: confirmar o merge)**
+- [x] T08 — Subir a branch, abrir PR para a `dev`, merge e aguardar o deploy no h-cfo. **(usuário: confirmar o merge)**
   **Pronto quando:** workflow verde e h-cfo respondendo 200.
 
-- [ ] T09 — Verificação final no h-cfo contra todos os critérios de aceite, claro e escuro, incluindo largura mobile:
+- [x] T09 — Verificação final no h-cfo contra todos os critérios de aceite, claro e escuro, incluindo largura mobile:
   percorrer as 15 seções; abrir Segurança & SQL como owner; conferir título da aba, manifesto PWA e mensagens.
   Registrar o resultado em "Registro de verificação" da spec (`/sdd-verify 001`). **(usuário entra no h-cfo; senha/TOTP são dele)**
   **Pronto quando:** CA1–CA4 marcados `[x]` na spec com evidência.
@@ -44,3 +44,5 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec)
 - T02: exceção ao "nome do item de menu": em AutomationCenterView a etiqueta ficaria idêntica ao título ("Alertas, Agenda & Backup"); usado "Automação & Continuidade" (texto original sem o prefixo).
 - T07: `tsc`, 51/51 testes e build OK. No `dist/` restam 11 ocorrências, todas dentro de comentários do SQL das migrations embutido via `?raw` (permitido pela spec); 0 fora do SQL.
+- T08: PR #1 mergeado na `dev` em 2026-11-27; deploy verde; h-cfo saudável.
+- T09: verificação registrada na spec. Itens não verificados manualmente listados lá.

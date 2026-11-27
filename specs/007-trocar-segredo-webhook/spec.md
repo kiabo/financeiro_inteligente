@@ -1,8 +1,8 @@
 # Spec 007 — Trocar o segredo do webhook de uma conexão
 
-- **Status:** rascunho
+- **Status:** em-andamento
 - **Criada em:** 2026-11-27
-- **Aprovada em:** —
+- **Aprovada em:** 2026-11-27
 - **Responsável pela aprovação:** usuário
 
 ## Problema
@@ -20,7 +20,7 @@ Depois não há como trocá-lo: só apagando e recriando a conexão (o que apaga
 - Abre um diálogo com um campo de senha, sempre vazio, nunca preenchido com o segredo atual. O texto explica: "O segredo anterior deixa de valer imediatamente.
   Atualize o mesmo valor no painel do {provedor}, ou os avisos dele serão recusados." e mostra a ajuda de onde obter o segredo naquele provedor (a mesma ajuda da criação).
 - Mínimo de 8 caracteres (mesma regra de hoje). O valor é cifrado no servidor e **nunca** volta em nenhuma resposta.
-- Depois de salvar, a tela mostra confirmação e a data da última troca ("Segredo trocado em …"), sem exibir o segredo.
+- Depois de salvar, a tela mostra só a confirmação ("Segredo trocado"), sem exibir o segredo nem guardar a data da troca (sem coluna nova).
 - Fica registro de auditoria da troca (sem o valor).
 - O histórico de eventos, a URL do webhook e os lançamentos da conexão não mudam.
 - A tela de criação de conexão passa a dizer que o segredo pode ser trocado depois.
@@ -42,7 +42,10 @@ Depois não há como trocá-lo: só apagando e recriando a conexão (o que apaga
 - Constituição nº 3 (segredos nunca no cliente nem voltam em respostas), nº 2 (tenant do JWT). Sem migration prevista: a coluna cifrada já existe.
 
 ## Perguntas abertas
-- Mostrar a data da última troca exige uma coluna nova (migration). Prefere só a confirmação no momento da troca (sem coluna nova)?
+- Nenhuma. (Resolvida: só a confirmação no momento da troca, sem coluna nova.)
+
+## Respostas do usuário
+- **Data da última troca:** não guardar; só a confirmação na hora, sem coluna nova (2026-11-27).
 
 ## Registro de verificação
 —

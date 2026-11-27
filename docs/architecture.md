@@ -31,6 +31,7 @@ integrações (webhooks, importações, alertas, backup). Saldo de conta = soma 
 `POST /api/webhooks/:provedor/:segredo` → adaptador normaliza (`NormalizedPaymentEvent`) →
 `applyNormalizedEvent` cria ou liquida lançamentos de forma idempotente. A URL pública exibida usa `APP_URL`.
 Credenciais por conexão ficam em `integration_connections.credentials_encrypted` (cifradas).
+O segredo de assinatura (`signing_secret_encrypted`) pode ser trocado depois pela tela da conexão (`PATCH` com `signing_secret`, validado por `connectionSecrets.ts`); o valor antigo deixa de valer na hora, nada do segredo volta em resposta e a auditoria registra só o nome do campo.
 
 **Idempotência por pagamento (spec 004).** O mesmo pagamento pode chegar por webhook ou por importação, em contas diferentes.
 A chave de deduplicação fica em `transactions` (`external_source`, `external_ref`, `external_role` = income | fee | refund)

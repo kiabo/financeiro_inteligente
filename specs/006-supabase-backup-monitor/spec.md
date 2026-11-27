@@ -1,8 +1,8 @@
 # Spec 006 — Supabase Free com backup e monitor de uso
 
-- **Status:** rascunho
+- **Status:** aprovado
 - **Criada em:** 2026-11-26
-- **Aprovada em:** —
+- **Aprovada em:** 2026-11-27
 - **Responsável pela aprovação:** usuário
 
 ## Problema
@@ -16,13 +16,14 @@ e pausa projetos inativos por 7 dias.
 - Como titular, quero saber o caminho para migrar para o Supabase self-hosted no futuro.
 
 ## Comportamento esperado
-- Todo dia, um job no VPS faz `pg_dump` do banco do Supabase, cifra com a chave de backup e guarda em
+- Todo dia às **03:00** (America/Sao_Paulo), um job no VPS faz `pg_dump` do banco do Supabase, cifra com a chave de backup e guarda em
   `/opt/financeiro-inteligente/backups`, mantendo os últimos 14 dias.
+- A mesma cópia cifrada também é enviada ao **Google Drive** do titular (pasta própria, retenção própria de 14 arquivos), em paralelo ao backup lógico do app.
 - Há um comando/rotina de **teste de restauração** num Postgres temporário, comparando contagens das tabelas principais.
 - Em Segurança & SQL, painel "Uso do plano": tamanho do banco (de 500 MB) e do Storage (de 1 GB), com aviso a partir de 70%.
 - Alerta (e-mail/WhatsApp, já existentes) quando o backup diário falhar ou o uso passar de 70%.
 - Documento `docs/supabase-self-host.md` descrevendo o caminho de migração (recursos, passos, riscos), sem executá-lo.
-- O backup criptografado atual no Google Drive continua existindo.
+- O backup criptografado atual no Google Drive (o lógico do app) continua existindo, com o seu horário e retenção atuais.
 
 ## Critérios de aceite
 - [ ] CA1: após 24 h existe um arquivo cifrado novo por dia, e arquivos com mais de 14 dias são removidos.
@@ -31,6 +32,7 @@ e pausa projetos inativos por 7 dias.
 - [ ] CA4: o painel mostra tamanho do banco e do Storage corretos (conferir com o painel do Supabase).
 - [ ] CA5: com uso simulado acima de 70%, o aviso aparece na tela e o alerta é enviado.
 - [ ] CA6: falha forçada do backup gera alerta.
+- [ ] CA8: depois do backup diário, o arquivo cifrado do `pg_dump` aparece no Drive, na pasta própria, e arquivos além dos 14 mais recentes são removidos de lá.
 - [ ] CA7: a senha do banco (connection string) não aparece em logs, repositório nem imagem Docker; fica só no env do VPS.
 
 ## Fora de escopo
@@ -42,10 +44,11 @@ e pausa projetos inativos por 7 dias.
 - Constituição nº 3 (segredos), nº 9 (reversível). O usuário fornece a connection string do banco no env do VPS.
 
 ## Perguntas abertas
-- **Backup do VPS também no Google Drive?** Você perguntou se dá para guardar backup no Drive. Resposta: **sim**. O backup lógico cifrado do app **já vai** para o seu Drive e funciona (conferido em 2026-11-27: backups agendado e manual com sucesso, um deles verificado). O `pg_dump` cifrado do VPS também pode ir ao Drive, reaproveitando a conexão Google já feita. Proposta: manter os dois (o do app e o `pg_dump`), cada um com a sua retenção. Confirma? **sim, confirmo**
+- Nenhuma. (Resolvida: o `pg_dump` cifrado também vai ao Drive, mantendo os dois backups, cada um com a sua retenção.)
 
 ## Respostas do usuário
 - **Horário do backup diário:** 03:00 (America/Sao_Paulo), conforme a proposta (2026-11-27: "às 3 serve sim").
+- **Backup do VPS também no Drive:** sim, mantendo o backup lógico do app e o `pg_dump`, cada um com a sua retenção (2026-11-27: "sim, confirmo").
 
 ## Registro de verificação
 —

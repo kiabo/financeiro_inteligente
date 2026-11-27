@@ -1,6 +1,6 @@
 # Spec 007 — Trocar o segredo do webhook de uma conexão
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Criada em:** 2026-11-27
 - **Aprovada em:** 2026-11-27
 - **Responsável pela aprovação:** usuário
@@ -26,12 +26,12 @@ Depois não há como trocá-lo: só apagando e recriando a conexão (o que apaga
 - A tela de criação de conexão passa a dizer que o segredo pode ser trocado depois.
 
 ## Critérios de aceite
-- [ ] CA1: trocar o segredo não o exibe em nenhuma tela nem resposta da API; o campo do diálogo sempre abre vazio.
-- [ ] CA2: depois da troca, um webhook assinado com o segredo **antigo** é recusado e um assinado com o **novo** é aceito (verificável com "Testar", nos provedores que têm o teste interno, e por teste automático nos demais).
-- [ ] CA3: segredo com menos de 8 caracteres é recusado com mensagem clara; cancelar o diálogo não altera nada.
-- [ ] CA4: a troca fica na auditoria sem o valor do segredo; a URL do webhook e o histórico de eventos permanecem.
-- [ ] CA5: outro tenant não consegue trocar o segredo de uma conexão que não é dele.
-- [ ] CA6: o aviso de que o provedor precisa ser atualizado aparece antes de confirmar.
+- [x] CA1: trocar o segredo não o exibe em nenhuma tela nem resposta da API; o campo do diálogo sempre abre vazio.
+- [x] CA2: depois da troca, um webhook assinado com o segredo **antigo** é recusado e um assinado com o **novo** é aceito (verificável com "Testar", nos provedores que têm o teste interno, e por teste automático nos demais).
+- [x] CA3: segredo com menos de 8 caracteres é recusado com mensagem clara; cancelar o diálogo não altera nada.
+- [x] CA4: a troca fica na auditoria sem o valor do segredo; a URL do webhook e o histórico de eventos permanecem.
+- [x] CA5: outro tenant não consegue trocar o segredo de uma conexão que não é dele.
+- [x] CA6: o aviso de que o provedor precisa ser atualizado aparece antes de confirmar.
 
 ## Fora de escopo
 - Gerar o segredo no próprio sistema (quem define o segredo é o provedor ou o usuário).
@@ -48,4 +48,15 @@ Depois não há como trocá-lo: só apagando e recriando a conexão (o que apaga
 - **Data da última troca:** não guardar; só a confirmação na hora, sem coluna nova (2026-11-27).
 
 ## Registro de verificação
-—
+Verificado em produção (https://cfo.cqtl.pro), 2026-11-27, usuário logado com TOTP (aal2), deploy da `main` com o PR #11. Conexão de teste "ZZ Teste 007" (JSON customizado → conta C6), criada e **removida** ao fim; as conexões reais (Asaas e Mercado Pago) só tiveram o diálogo aberto e cancelado, **nenhum segredo real foi alterado**.
+
+| CA | Resultado | Evidência |
+|---|---|---|
+| CA1 | ok | O campo do diálogo abre sempre vazio (aberto 3 vezes, inclusive depois de cancelar). A confirmação na tela e a auditoria não mostram o valor. Teste automático: a resposta da conexão não contém o segredo nem o texto cifrado |
+| CA2 | ok (automático) | Testes `connectionSecrets`: para Asaas, Mercado Pago, Stripe e JSON customizado, o segredo antigo passa antes da troca, é recusado depois e o novo é aceito. **Não** foi exercitado com um webhook real no cfo (o botão "Testar" criaria lançamentos na conta real) |
+| CA3 | ok | 7 caracteres deixa o botão "Trocar segredo" desabilitado; cancelar fecha sem chamar a API (nada mudou); o servidor recusa menos de 8 caracteres (teste automático) |
+| CA4 | ok | Auditoria no cfo: `integration.updated` com `{"fields":["signing_secret"]}`, sem o valor; a URL do webhook da conexão não mudou |
+| CA5 | ok (leitura de código e teste) | O `PATCH` filtra por `tenant_id` do JWT e devolve 404 para conexão de outro titular. Não foi testado com um segundo usuário (só existe um) |
+| CA6 | ok | O aviso "O segredo anterior deixa de valer imediatamente. Atualize o mesmo valor no painel do {provedor}…" aparece no diálogo antes do botão de confirmar; a criação traz "Você pode trocar este segredo depois, na própria conexão." |
+
+Notas: a confirmação de excluir conexão é uma janela nativa do navegador, que travou a automação; foi aceita com Enter. A troca com sucesso mostrou "Segredo da conexão "ZZ Teste 007" trocado. Ele foi cifrado e não será exibido novamente."

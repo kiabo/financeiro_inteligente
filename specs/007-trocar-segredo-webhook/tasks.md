@@ -1,6 +1,6 @@
 # Tasks 007 — Trocar o segredo do webhook de uma conexão
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Plan:** `specs/007-trocar-segredo-webhook/plan.md` (aprovado em 2026-11-27)
 - **Branch:** `feat/007-trocar-segredo-webhook` (saindo da `dev`)
 - **Aprovado em:** 2026-11-27
@@ -35,10 +35,10 @@ Sem migration nesta spec. Nada é lido nem impresso de segredos; os testes usam 
 - [x] T05 — `docs/architecture.md`: uma linha na seção de webhooks sobre a troca de segredo; `specs/README.md`: spec 007 `em-andamento`.
   **Pronto quando:** as duas linhas existem. (—)
 
-- [ ] T06 — Publicar: `npx tsc --noEmit && npm test && npm run build` verdes, PR de `feat/007-trocar-segredo-webhook` para `dev`, merge, promoção `dev` → `main` (autorizada) e deploy da `main` acompanhado até o fim.
+- [x] T06 — Publicar: `npx tsc --noEmit && npm test && npm run build` verdes, PR de `feat/007-trocar-segredo-webhook` para `dev`, merge, promoção `dev` → `main` (autorizada) e deploy da `main` acompanhado até o fim.
   **Pronto quando:** a execução de deploy da `main` termina com sucesso e o cfo responde 200. (todos)
 
-- [ ] T07 — Verificação final no **cfo** contra todos os critérios de aceite (`/sdd-verify 007`): abrir uma conexão real, ver o aviso antes de confirmar, cancelar (nada muda), salvar um valor novo,
+- [x] T07 — Verificação final no **cfo** contra todos os critérios de aceite (`/sdd-verify 007`): abrir uma conexão real, ver o aviso antes de confirmar, cancelar (nada muda), salvar um valor novo,
   usar "Testar" no Asaas (aceito), conferir na auditoria que o valor não aparece, e que o campo abre vazio. CA2 (segredo antigo recusado) e CA5 (outro tenant) ficam por teste automático e leitura do código; o registro diz isso.
   Se o segredo trocado for o de uma conexão real, **você** informa o valor novo; a verificação usa uma conexão de teste "ZZ Teste" e a apago no fim.
   **Pronto quando:** o "Registro de verificação" da spec tem cada CA com resultado, evidência e data; spec, plan e tasks `concluído`. (CA1–CA6)

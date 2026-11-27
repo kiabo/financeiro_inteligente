@@ -294,6 +294,26 @@ export async function ensureDriveFolder(tenantId: string, knownFolderId: string 
   return created.id;
 }
 
+/**
+ * Acha uma pasta pelo nome (criada por este app) ou cria. Diferente de `ensureDriveFolder`, não depende de um id guardado
+ * em outro lugar e não cria uma pasta nova a cada chamada (spec 006: pasta própria dos backups do banco).
+ */
+export async function findOrCreateDriveFolderByName(tenantId: string, folderName: string, description: string): Promise<string> {
+  const q = encodeURIComponent(`name = '${folderName.replace(/['\\]/g, '')}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`);
+  const found = await googleApi<{ files?: Array<{ id: string }> }>(
+    tenantId,
+    `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=createdTime&pageSize=5&fields=files(id)`
+  );
+  const existing = found.files?.[0]?.id;
+  if (existing) return existing;
+  const created = await googleApi<{ id: string }>(tenantId, 'https://www.googleapis.com/drive/v3/files?fields=id', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder', description }),
+  });
+  return created.id;
+}
+
 export async function uploadDriveFile(
   tenantId: string,
   folderId: string,

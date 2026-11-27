@@ -35,11 +35,11 @@ Regras duras: a connection string e a senha do banco nunca são lidas, impressas
 
 ## Backup
 
-- [ ] T06 — `server/integrations/dbBackup/dbBackupService.ts`: `pg_dump` → cifrar → gravar em `/backups` como `financeiro-db-AAAAMMDD-HHMMSS.vtxdb` → retenção de 14 → `status.json` → trava (memória e `.lock`) → guarda de 150 MB para o Drive.
+- [x] T06 — `server/integrations/dbBackup/dbBackupService.ts`: `pg_dump` → cifrar → gravar em `/backups` como `financeiro-db-AAAAMMDD-HHMMSS.vtxdb` → retenção de 14 → `status.json` → trava (memória e `.lock`) → guarda de 150 MB para o Drive.
   Testes **antes**, com `pg_dump` simulado: um arquivo por dia sem duplicar, 16 datas sobram 14, arquivos de outro nome não são tocados, conteúdo claro não aparece no arquivo e só decifra com a chave certa, falha deixa `status: failed` e nenhum arquivo parcial.
   **Pronto quando:** todos esses testes passam. (CA1, CA3, CA6)
 
-- [ ] T07 — Drive: `findDriveFolderByName` em `google/googleClient.ts` e, no serviço, envio à pasta "Backups do banco (cifrados)" com retenção de 14 só dos arquivos `financeiro-db-*.vtxdb`; testes com Drive simulado (usa a pasta certa, remove só o excedente, falha do Drive não apaga o backup local e gera alerta).
+- [x] T07 — Drive: `findDriveFolderByName` em `google/googleClient.ts` e, no serviço, envio à pasta "Backups do banco (cifrados)" com retenção de 14 só dos arquivos `financeiro-db-*.vtxdb`; testes com Drive simulado (usa a pasta certa, remove só o excedente, falha do Drive não apaga o backup local e gera alerta).
   **Pronto quando:** os testes passam. (CA8)
 
 - [ ] T08 — Autorização e alertas: `server/integrations/authz.ts` (`requireAdminRole`: `owner` e `admin`), `NotificationKind` com `backup_failed` e `usage_high`, mensagens e dedupe (`backup_failed:AAAA-MM-DD`, `usage_high:{db|storage}:{warn|critical}:AAAA-Www`) em `dbBackupAlerts.ts`; testes **antes**.

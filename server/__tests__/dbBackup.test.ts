@@ -18,6 +18,7 @@ import {
   runDbBackup,
   type DbBackupDeps,
 } from '../integrations/dbBackup/dbBackupService.ts';
+import { DB_BACKUP_DRIVE_FOLDER, createDbBackupDrive, type DriveApi } from '../integrations/dbBackup/dbBackupDrive.ts';
 import { decryptBackupBytes, decryptBackupPayload, encryptBackupPayload, readBackupHeader } from '../crypto/backupCrypto.ts';
 
 const NOW = new Date('2026-11-27T06:00:00Z');
@@ -302,6 +303,54 @@ const cases: TestCase[] = [
     await runDbBackup(failing('2026-11-27T07:20:00Z'), 'cron');
     assert(!isDbBackupDue(await readStatus(dir), new Date('2026-11-27T12:00:00Z'), 3), 'após 3 falhas não insiste no mesmo dia');
     assert(isDbBackupDue(await readStatus(dir), new Date('2026-11-28T06:00:00Z'), 3), 'no outro dia tenta');
+  }],
+
+  // ---------------------------------------------------------------- T07 · Drive
+  ['Drive: envia à pasta própria e a retenção remove só o excedente com o nosso prefixo (CA8)', async () => {
+    const calls = { folders: [] as string[], uploads: [] as string[], removed: [] as string[] };
+    const existing = Array.from({ length: 16 }, (_, i) => ({
+      id: `id${i}`, name: `financeiro-db-202611${String(i + 1).padStart(2, '0')}-030000.vtxdb`, createdTime: `2026-11-${String(i + 1).padStart(2, '0')}T06:00:00Z`,
+    }));
+    existing.push({ id: 'outro1', name: 'foto-de-ferias.jpg', createdTime: '2020-01-01T00:00:00Z' });
+    existing.push({ id: 'outro2', name: 'financeiro-db-20261101-030000.vtxdb.bak', createdTime: '2020-01-02T00:00:00Z' });
+    const api: DriveApi = {
+      findOrCreateFolder: async (name) => { calls.folders.push(name); return 'pasta-db'; },
+      upload: async (folderId, name) => { calls.uploads.push(`${folderId}:${name}`); return { id: 'novo' }; },
+      list: async () => existing,
+      remove: async (id) => { calls.removed.push(id); },
+    };
+    const dir = await tempDir();
+    const run = await runDbBackup(makeDeps(dir, { drive: createDbBackupDrive(api) }), 'cron');
+    assertEqual(run.status, 'success', 'sucesso');
+    assertEqual(run.driveUploaded, true, 'enviado ao Drive');
+    assertEqual(JSON.stringify(calls.folders), JSON.stringify([DB_BACKUP_DRIVE_FOLDER]), 'pasta própria, procurada uma vez');
+    assertEqual(calls.uploads.length, 1, 'um envio');
+    assert(calls.uploads[0]!.startsWith('pasta-db:financeiro-db-20261127-060000'), `envio: ${calls.uploads[0]}`);
+    assertEqual(JSON.stringify(calls.removed.sort()), JSON.stringify(['id0', 'id1']), 'remove só os 2 mais antigos além dos 14');
+  }],
+  ['Drive: falha no envio mantém o backup local e gera alerta; não apaga nada no Drive (CA8)', async () => {
+    const removed: string[] = [];
+    const api: DriveApi = {
+      findOrCreateFolder: async () => 'pasta',
+      upload: async () => { throw new Error(`Google respondeu 500 ${FAKE_URL}`); },
+      list: async () => [{ id: 'a', name: 'financeiro-db-20260101-030000.vtxdb', createdTime: '2026-01-01T00:00:00Z' }],
+      remove: async (id) => { removed.push(id); },
+    };
+    const alerts: string[] = [];
+    const dir = await tempDir();
+    const run = await runDbBackup(makeDeps(dir, { drive: createDbBackupDrive(api), onFailure: async (m) => { alerts.push(m); } }), 'cron');
+    assertEqual(run.status, 'success', 'o backup local é um sucesso');
+    assertEqual(run.driveUploaded, false, 'não foi ao Drive');
+    assert(/Drive/.test(run.driveError ?? '') || /Google/.test(run.driveError ?? ''), `erro do Drive: ${run.driveError}`);
+    assert(!(run.driveError ?? '').includes('postgresql://'), 'URL removida');
+    assertEqual(alerts.length, 1, 'um alerta');
+    assertEqual(removed.length, 0, 'nada removido do Drive');
+    assertEqual((await listLocalBackups(dir)).length, 1, 'cópia local mantida');
+  }],
+  ['Drive: sem Drive configurado o backup local segue sem erro (CA8)', async () => {
+    const dir = await tempDir();
+    const run = await runDbBackup(makeDeps(dir, { drive: null }), 'cron');
+    assert(run.status === 'success' && !run.driveUploaded && !run.driveError, 'só local');
   }],
 ];
 

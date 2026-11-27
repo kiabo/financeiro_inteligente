@@ -18,6 +18,7 @@ import {
 import { requireUser } from './server/authMiddleware.ts';
 import { createAutomationRouter } from './server/integrations/automationRoutes.ts';
 import { startInternalScheduler } from './server/integrations/dailyJobs.ts';
+import { createHistoryRouter } from './server/integrations/historyRoutes.ts';
 import { createWebhookRouter } from './server/integrations/webhookRoutes.ts';
 import { isServerSandboxMode, isServerSupabaseConfigured } from './server/supabaseAdmin.ts';
 import type { AnonymizedFinancialContext } from './src/modules/ai-cfo/aiContextBuilder.ts';
@@ -172,6 +173,7 @@ async function startServer(): Promise<void> {
 
   // Módulo 6: webhooks adaptáveis, integrações, Google, alertas, backup e OCR
   app.use('/api', createWebhookRouter());
+  app.use('/api', createHistoryRouter());
   app.use('/api', createAutomationRouter());
 
   // Endpoint Oficial do Servidor MCP (JSON-RPC Streamable HTTP + SSE)

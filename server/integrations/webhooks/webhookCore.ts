@@ -247,7 +247,7 @@ export function decryptConnectionSecrets(connection: IntegrationConnectionRow): 
   return { signingSecret, apiAccessToken };
 }
 
-async function loadTenantCatalog(tenantId: string): Promise<{ categories: Category[]; products: ProductService[] }> {
+export async function loadTenantCatalog(tenantId: string): Promise<{ categories: Category[]; products: ProductService[] }> {
   const admin = getSupabaseAdmin();
   const [cats, prods] = await Promise.all([
     admin.from('categories').select('*').eq('tenant_id', tenantId),

@@ -63,7 +63,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
   **Pronto quando:** testes provam: importar 3 meses das fixtures cria o esperado; repetir resulta em 0 criados; falha na página 2 mantém a página 1 e retoma da página 2; cancelar mantém o importado;
   segunda execução ativa da mesma conexão é recusada; conta de outra empresa/tenant ou ausente é recusada. (CA2, CA3, CA6, CA8, CA10)
 
-- [ ] T11 — Rotas: `server/integrations/historyRoutes.ts` (`start`, `step`, `get`, `cancel`) montada em `server.ts`; em `webhookRoutes.ts`: `api_key_configured` na lista de conexões, `api_access_token` aceito também para Asaas no `POST`,
+- [x] T11 — Rotas: `server/integrations/historyRoutes.ts` (`start`, `step`, `get`, `cancel`) montada em `server.ts`; em `webhookRoutes.ts`: `api_key_configured` na lista de conexões, `api_access_token` aceito também para Asaas no `POST`,
   `source` no `GET /integrations/events`. Tenant sempre do JWT; `start` valida período, conta e testa a chave com 1 consulta.
   **Pronto quando:** testes de rota/serviço provam: chave de exemplo não aparece em nenhuma resposta nem em `last_error`/`errors`; `credentials_encrypted` é `v1:…`; chave inválida devolve mensagem clara sem travar;
   período acima de 12 meses é recusado com mensagem legível. (CA1, CA7, CA8, CA10)
@@ -99,6 +99,14 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T11 — Rotas, serviço e visão pública da conexão (2026-11-27)
+- `historyStores.ts` (Supabase: `import_runs`, log de eventos com `source = 'api'`, conta, auditoria, decifrar a chave), `historyService.ts` (casos de uso sem Express, testáveis) e `historyRoutes.ts` (montada em `server.ts`): `POST /integrations/connections/:id/history/start`, `POST /integrations/history/:runId/step`, `GET /integrations/history/:runId`, `POST …/cancel`.
+- **Rota adicional ao plan:** `GET /integrations/connections/:id/history/latest` — devolve a execução mais recente da conexão para a tela oferecer "Retomar" ao ser reaberta (o plan já previa o "Retomar", mas sem listar este endpoint).
+- `webhookRoutes.ts`: `presentConnection` (remove campos cifrados, acrescenta `api_key_configured` e `webhook_url`) usada em listar/criar/editar; `GET /integrations/events` devolve `source` e aceita `?source=api|webhook`; chave de API nova com menos de 8 caracteres é recusada. `api_access_token` já era aceito para qualquer provedor (Asaas inclusive) na criação e na edição.
+- Erros inesperados devolvem mensagem genérica (detalhe só no log do servidor, sem corpo do provedor).
+- 7 testes novos (`historyService.test.ts`): a chave é usada no provedor mas não aparece em nenhuma resposta; isolamento por tenant (404). `npm test`: 164/164. Módulo de rotas carrega sob `tsx`.
+- **Atenção à ordem de deploy:** agora o servidor lê `webhook_events.source` e `import_runs`; sem a migration 0008 aplicada, a listagem de eventos falha. Reforça a T16 antes do push.
 
 ### T10 — Executor em lotes (2026-11-27)
 - `server/integrations/history/historyRunner.ts`: `startRun`, `stepRun`, `cancelRun`, `getRun`, `createHistorySource`, `toPublicRun`; dependências injetáveis (`HistoryDeps`). Cursor `{janela, offset, customersOffset}`; Asaas passa pela fase "clientes" (uma página por passo) antes dos pagamentos.

@@ -14,6 +14,27 @@ import {
 
 const PUBLIC_CONNECTION_COLUMNS =
   'id, tenant_id, provider, label, company_id, account_id, webhook_secret_id, config, status, last_event_at, last_error, created_at, updated_at';
+/** Mesmas colunas + a cifrada, lida só para saber SE há chave de API (o conteúdo nunca sai do servidor). */
+const CONNECTION_COLUMNS_WITH_KEY_FLAG = `${PUBLIC_CONNECTION_COLUMNS}, credentials_encrypted`;
+
+/**
+ * Visão da conexão devolvida ao navegador: remove qualquer campo cifrado e acrescenta
+ * `api_key_configured` (a chave de API nunca volta em nenhuma resposta) e `webhook_url`.
+ */
+export function presentConnection(
+  row: Record<string, unknown> & { provider: string; webhook_secret_id?: string | null; credentials_encrypted?: string | null },
+  baseUrl: string
+): Record<string, unknown> {
+  const { credentials_encrypted, signing_secret_encrypted: _signing, ...rest } = row as Record<string, unknown> & {
+    credentials_encrypted?: string | null;
+    signing_secret_encrypted?: string | null;
+  };
+  return {
+    ...rest,
+    api_key_configured: Boolean(credentials_encrypted),
+    webhook_url: row.webhook_secret_id ? `${baseUrl}/api/webhooks/${row.provider}/${row.webhook_secret_id}` : null,
+  };
+}
 
 export function resolvePublicBaseUrl(req: Request): string {
   const configured = (process.env.APP_URL ?? '').trim().replace(/\/+$/, '');
@@ -223,7 +244,7 @@ export function createWebhookRouter(): express.Router {
       const user = getAuthUser(req);
       const { data, error } = await getSupabaseAdmin()
         .from('integration_connections')
-        .select(PUBLIC_CONNECTION_COLUMNS)
+        .select(CONNECTION_COLUMNS_WITH_KEY_FLAG)
         .eq('tenant_id', user.id)
         .neq('provider', 'google')
         .order('created_at', { ascending: true });
@@ -231,10 +252,7 @@ export function createWebhookRouter(): express.Router {
       const baseUrl = resolvePublicBaseUrl(req);
       res.json({
         baseUrl,
-        connections: (data ?? []).map((c) => ({
-          ...c,
-          webhook_url: c.webhook_secret_id ? `${baseUrl}/api/webhooks/${c.provider}/${c.webhook_secret_id}` : null,
-        })),
+        connections: ((data ?? []) as unknown as Array<Parameters<typeof presentConnection>[0]>).map((c) => presentConnection(c, baseUrl)),
       });
     } catch (err) {
       sendError(res, err, 500);
@@ -275,7 +293,7 @@ export function createWebhookRouter(): express.Router {
         status: 'active',
       };
       const admin = getSupabaseAdmin();
-      const { data, error } = await admin.from('integration_connections').insert(row).select(PUBLIC_CONNECTION_COLUMNS).single();
+      const { data, error } = await admin.from('integration_connections').insert(row).select(CONNECTION_COLUMNS_WITH_KEY_FLAG).single();
       if (error) throw new Error(error.message);
       await admin.from('audit_logs').insert({
         tenant_id: user.id,
@@ -286,9 +304,7 @@ export function createWebhookRouter(): express.Router {
         metadata: { provider },
       });
       const baseUrl = resolvePublicBaseUrl(req);
-      res.status(201).json({
-        connection: { ...data, webhook_url: `${baseUrl}/api/webhooks/${provider}/${row.webhook_secret_id}` },
-      });
+      res.status(201).json({ connection: presentConnection(data as unknown as Parameters<typeof presentConnection>[0], baseUrl) });
     } catch (err) {
       sendError(res, err);
     }
@@ -327,6 +343,7 @@ export function createWebhookRouter(): express.Router {
         patch.signing_secret_encrypted = encryptSecret(body.signing_secret.trim(), user.id);
       }
       if (typeof body.api_access_token === 'string' && body.api_access_token.trim()) {
+        if (body.api_access_token.trim().length < 8) throw new Error('Chave de API muito curta.');
         patch.credentials_encrypted = encryptSecret(JSON.stringify({ api_access_token: body.api_access_token.trim() }), user.id);
       }
       if (body.rotate_url === true) patch.webhook_secret_id = randomHex(16);
@@ -337,7 +354,7 @@ export function createWebhookRouter(): express.Router {
         .update(patch)
         .eq('id', current.id)
         .eq('tenant_id', user.id)
-        .select(PUBLIC_CONNECTION_COLUMNS)
+        .select(CONNECTION_COLUMNS_WITH_KEY_FLAG)
         .single();
       if (error) throw new Error(error.message);
       await admin.from('audit_logs').insert({
@@ -348,14 +365,8 @@ export function createWebhookRouter(): express.Router {
         entity_id: current.id,
         metadata: { fields: Object.keys(patch).map((k) => k.replace(/_encrypted$/, '')) },
       });
-      const conn = data as { provider: string; webhook_secret_id: string | null };
       const baseUrl = resolvePublicBaseUrl(req);
-      res.json({
-        connection: {
-          ...data,
-          webhook_url: conn.webhook_secret_id ? `${baseUrl}/api/webhooks/${conn.provider}/${conn.webhook_secret_id}` : null,
-        },
-      });
+      res.json({ connection: presentConnection(data as unknown as Parameters<typeof presentConnection>[0], baseUrl) });
     } catch (err) {
       sendError(res, err);
     }
@@ -403,12 +414,15 @@ export function createWebhookRouter(): express.Router {
       const user = getAuthUser(req);
       let query = getSupabaseAdmin()
         .from('webhook_events')
-        .select('id, connection_id, provider, external_event_id, event_type, status, normalized, error_message, attempts, transaction_ids, received_at, processed_at')
+        .select('id, connection_id, provider, external_event_id, event_type, status, source, normalized, error_message, attempts, transaction_ids, received_at, processed_at')
         .eq('tenant_id', user.id)
         .order('received_at', { ascending: false })
         .limit(Math.min(200, Math.max(1, Number(req.query.limit ?? 50) || 50)));
       if (typeof req.query.connection_id === 'string' && req.query.connection_id) {
         query = query.eq('connection_id', req.query.connection_id);
+      }
+      if (req.query.source === 'api' || req.query.source === 'webhook') {
+        query = query.eq('source', req.query.source);
       }
       const { data, error } = await query;
       if (error) throw new Error(error.message);

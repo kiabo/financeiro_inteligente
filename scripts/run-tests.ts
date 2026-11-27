@@ -15,6 +15,7 @@ import { runHistoryPeriodTests } from '../src/modules/integrations/__tests__/his
 import { runHistoryTests } from '../server/__tests__/history.test.ts';
 import { runHistoryUpsertTests } from '../server/__tests__/historyUpsert.test.ts';
 import { runHistoryRunnerTests } from '../server/__tests__/historyRunner.test.ts';
+import { runHistoryServiceTests } from '../server/__tests__/historyService.test.ts';
 import { runModule6ServerTests } from '../server/__tests__/module6Server.test.ts';
 
 interface Result {
@@ -38,6 +39,7 @@ const suites: Array<[string, () => Result[] | Promise<Result[]>]> = [
   ['Importação de histórico por API (spec 004)', runHistoryTests],
   ['Importação de histórico · idempotência (spec 004)', runHistoryUpsertTests],
   ['Importação de histórico · execução em lotes (spec 004)', runHistoryRunnerTests],
+  ['Importação de histórico · serviço e chave de API (spec 004)', runHistoryServiceTests],
 ];
 
 let failures = 0;

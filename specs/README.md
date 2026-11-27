@@ -19,5 +19,6 @@ Ordem sugerida: 001 → 002 → 003 (rápidas), depois 004, 005 e 006.
 - **004:** respostas às perguntas abertas registradas na própria spec; **aguarda a aprovação do usuário** ("aprovo a spec 004") para gerar o plan.
 - **005 e 006:** rascunhos; perguntas abertas ainda sem resposta.
 - Pendências fora das specs: conectar o Google no **cfo** (backup no Drive e agenda); criar o webhook do Asaas apontando para o cfo quando houver pagamentos reais
-  (sem mexer no webhook "Gestão Comoequetalá"); `ENABLE_INTERNAL_SCHEDULER=true` no `.env` **local** e no servidor da porta 3000 (risco de alertas/backup em duplicidade com o cfo).
+  (sem mexer no webhook "Gestão Comoequetalá").
+  (Resolvido em 2026-11-27: o `.env` local passou a `ENABLE_INTERNAL_SCHEDULER=false` e o servidor local foi reiniciado; só o cfo roda as rotinas diárias.)
 - Fluxo de cada spec: `/sdd-plan`, `/sdd-tasks`, `/sdd-implement`, `/sdd-verify` (Claude) ou `/sdd:plan` etc. (Gemini); promoção `dev` → `main` só com o "sim" do usuário.

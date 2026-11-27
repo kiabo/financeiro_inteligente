@@ -11,6 +11,7 @@ import { runHealthEngineUnitTests } from '../src/modules/health/__tests__/health
 import { runModule6ClientTests } from '../src/modules/integrations/__tests__/module6Client.test.ts';
 import { runProjectCalculatorUnitTests } from '../src/modules/projects/__tests__/projectCalculator.test.ts';
 import { runAnonymizerUnitTests } from '../src/modules/vault/__tests__/anonymizer.test.ts';
+import { runHistoryPeriodTests } from '../src/modules/integrations/__tests__/historyPeriod.test.ts';
 import { runModule6ServerTests } from '../server/__tests__/module6Server.test.ts';
 
 interface Result {
@@ -30,6 +31,7 @@ const suites: Array<[string, () => Result[] | Promise<Result[]>]> = [
   ['Papéis e visibilidade do SQL (spec 001)', runRolesTests],
   ['Rotas por tela (spec 002)', runRoutesTests],
   ['Saldo inicial da conta (spec 003)', runAccountBalancesTests],
+  ['Importação de histórico · período (spec 004)', runHistoryPeriodTests],
 ];
 
 let failures = 0;

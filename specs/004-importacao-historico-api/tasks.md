@@ -22,7 +22,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
   `REVOKE` de escrita, índice único de execução ativa por conexão, trigger `updated_at`), valor de auditoria `integration.history_imported` e bloco de rollback comentado.
   **Pronto quando:** o arquivo é idempotente (`IF NOT EXISTS`/`DO $$`), não usa o valor novo do enum na mesma transação e passa em leitura linha a linha contra `0006` e `0007`. (CA1, CA3, CA12)
 
-- [ ] T03 — `src/modules/integrations/historyPeriod.ts` (validação do período e janelas mensais) com testes escritos **antes** (registrados em `scripts/run-tests.ts`
+- [x] T03 — `src/modules/integrations/historyPeriod.ts` (validação do período e janelas mensais) com testes escritos **antes** (registrados em `scripts/run-tests.ts`
   na suíte "Importação de histórico por API (spec 004)").
   **Pronto quando:** `npm test` cobre 12 meses exatos (ok), 12 meses + 1 dia (recusa), fim no futuro, fim antes do início, janelas que cobrem o período sem sobreposição; todos passam. (CA8)
 

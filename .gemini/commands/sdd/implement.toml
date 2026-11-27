@@ -1,0 +1,6 @@
+description = "Implementa a próxima tarefa aprovada, uma por vez"
+prompt = """
+Siga exatamente as instruções de @{docs/sdd/prompts/implement.md} (fluxo SDD do projeto, regras em @{AGENTS.md}).
+
+Argumentos: {{args}}
+"""

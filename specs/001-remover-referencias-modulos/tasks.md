@@ -22,7 +22,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 - [x] T04 — Criar `fetchOwnRole(userId)` em `src/modules/core/repository.ts` (lê `user_profiles.role`, fallback `'analyst'`, log em erro) e um teste unitário do fallback/mapeamento.
   **Pronto quando:** a função está exportada, tipada e o teste passa. (CA1 — habilita o ocultamento)
 
-- [ ] T05 — Usar o papel real nas sessões Supabase: `src/App.tsx` (~134) e `LoginScreen.tsx` (~86 e ~207). Sandbox (~265) permanece `'owner'`.
+- [x] T05 — Usar o papel real nas sessões Supabase: `src/App.tsx` (~134) e `LoginScreen.tsx` (~86 e ~207). Sandbox (~265) permanece `'owner'`.
   **Pronto quando:** `tsc` passa e o rótulo do menu lateral mostra o papel lido do banco. (CA1)
 
 - [ ] T06 — Tela Segurança & SQL: títulos descritivos, botões "Copiar SQL", e `canSeeSql(role)` (owner/admin) condicionando os 5 blocos de migration; teste unitário de `canSeeSql`.

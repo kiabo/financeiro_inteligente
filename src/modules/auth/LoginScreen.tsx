@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input, Label } from '../../components/ui/input';
 import { StatusChip } from '../../components/ui/status-chip';
-import { recordSecurityEvent } from '../core/repository';
+import { fetchOwnRole, recordSecurityEvent } from '../core/repository';
 import { getSupabaseClient, isSupabaseConfigured } from '../core/supabase';
 import type { AuthSessionState } from '../core/types';
 import {
@@ -83,7 +83,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onAuthenticated }) => 
           (user.user_metadata?.full_name as string | undefined) ??
           user.email?.split('@')[0] ??
           'Titular',
-        role: 'owner',
+        role: await fetchOwnRole(user.id),
         mfaVerified: false,
         mfaEnrolled: Boolean(verifiedTotp),
         aal: 'aal1',
@@ -204,7 +204,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onAuthenticated }) => 
             (data.user.user_metadata?.full_name as string | undefined) ??
             trimmedEmail.split('@')[0] ??
             'Titular',
-          role: 'owner',
+          role: await fetchOwnRole(data.user.id),
           mfaVerified: aalData?.currentLevel === 'aal2',
           mfaEnrolled: Boolean(verifiedTotp),
           aal: (aalData?.currentLevel as 'aal1' | 'aal2') ?? 'aal1',

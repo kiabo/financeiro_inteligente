@@ -12,6 +12,7 @@ import {
 import { LoginScreen } from './modules/auth/LoginScreen';
 import { AppShell } from './modules/core/components/AppShell';
 import {
+  fetchOwnRole,
   fetchWorkspaceSnapshot,
   recordSecurityEvent,
   seedSandboxExampleStructure,
@@ -126,12 +127,14 @@ export default function App(): React.JSX.Element {
       const hasVerifiedTotp = Boolean(factorsData?.totp?.some((f) => f.status === 'verified'));
 
       if (mounted && hasVerifiedTotp && aalData?.currentLevel === 'aal2') {
+        const role = await fetchOwnRole(user.id);
+        if (!mounted) return;
         setSession({
           mode: 'supabase',
           userId: user.id,
           email: user.email ?? '',
           fullName: (user.user_metadata?.full_name as string | undefined) ?? 'Titular',
-          role: 'owner',
+          role,
           mfaEnrolled: true,
           mfaVerified: true,
           aal: 'aal2',

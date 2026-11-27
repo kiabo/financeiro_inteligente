@@ -36,7 +36,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
   + fixtures `server/__tests__/fixtures/asaas-*.json` e `mercadopago-*.json` (com `hasMore`, pendente, vencido, pago, cancelado, estornado, cliente ausente), testes escritos **antes**.
   **Pronto quando:** os testes de mapeamento passam: valores e taxa corretos, status desconhecido vira "ignorado" com motivo, nome do cliente só em `counterpartyName`, sem e-mail/CPF. (CA2, CA6, CA9, CA11, CA13)
 
-- [ ] T06 — `server/integrations/history/providerClients.ts`: `AsaasClient` e `MercadoPagoClient` só com `GET`, `fetch` injetável, espaçamento mínimo, `429` com `RateLimit-Reset`/`Retry-After` (teto 30 s, 3 tentativas),
+- [x] T06 — `server/integrations/history/providerClients.ts`: `AsaasClient` e `MercadoPagoClient` só com `GET`, `fetch` injetável, espaçamento mínimo, `429` com `RateLimit-Reset`/`Retry-After` (teto 30 s, 3 tentativas),
   `401/403` → `ProviderAuthError`, timeout de 10 s, listagem de clientes do Asaas; testes com `fetch` falso.
   **Pronto quando:** testes provam: só método `GET`; paginação percorre todas as páginas das fixtures; `429` espera e continua; esgotadas as tentativas devolve erro retomável;
   `401` devolve mensagem clara; a chave de exemplo **não** aparece em nenhuma mensagem de erro. (CA1, CA7, CA8)
@@ -99,6 +99,12 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T06 — Clientes HTTP (2026-11-27)
+- `server/integrations/history/providerClients.ts`: `AsaasClient` (`listPayments`, `listCustomers` reduzido a id/nome/removido, `verifyKey`) e `MercadoPagoClient` (`searchPayments`, `verifyKey`); só `GET`, sem corpo. Erros: `ProviderAuthError` (não retomável), `ProviderRateLimitError` e `ProviderRequestError` (retomáveis, exceto 4xx genérico).
+- 429: espera `RateLimit-Reset` (ou `Retry-After`), teto 30 s, 3 repetições; sem cabeçalho, espera progressiva. `403` com `Retry-After` = bloqueio temporário (espera); sem ele = chave recusada. Intervalo mínimo entre chamadas 250 ms (~4/s, bem abaixo dos 50 `GET` simultâneos; a importação é sequencial).
+- Páginas: Asaas 100, Mercado Pago 50. Chaves `$aact_hmlg_` usam a URL de sandbox; as demais, produção. O `verifyKey` do Mercado Pago usa `begin_date=NOW-30DAYS` como no exemplo da documentação (formato real a confirmar na T18).
+- Mensagens de erro são fixas (sem URL, sem corpo da resposta, sem chave); testes confirmam.
 
 ### T05 — Mapeadores e fixtures (2026-11-27)
 - `server/integrations/history/mappers.ts`: `mapAsaasPayment`, `mapMercadoPagoPayment`, `toHistoryLogPayload` (payload reduzido do log: sem nome, e-mail, documento, id do cliente nem descrição livre) e `ASAAS_KNOWN_STATUSES`.

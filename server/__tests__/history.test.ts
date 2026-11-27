@@ -3,6 +3,7 @@ import {
   assert,
   assertClose,
   assertEqual,
+  assertRejects,
   runCases,
   type TestCase,
   type TestCaseResult,
@@ -13,6 +14,14 @@ import {
   mapMercadoPagoPayment,
   toHistoryLogPayload,
 } from '../integrations/history/mappers.ts';
+import {
+  AsaasClient,
+  MercadoPagoClient,
+  ProviderAuthError,
+  ProviderRateLimitError,
+  ProviderRequestError,
+  asaasBaseUrl,
+} from '../integrations/history/providerClients.ts';
 
 type Obj = Record<string, unknown>;
 
@@ -30,6 +39,46 @@ const byId = (list: Obj[], id: string | number): Obj => {
   if (!found) throw new Error(`fixture sem ${id}`);
   return found;
 };
+
+
+// ---------------------------------------------------------------- Cliente HTTP (fetch falso)
+const SECRET_KEY = '$aact_prod_CHAVE_DE_EXEMPLO_123';
+
+interface Call {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  hasBody: boolean;
+}
+type Reply = { status?: number; body?: unknown; headers?: Record<string, string>; throws?: boolean };
+
+/** Fetch falso: responde na ordem de `replies` (a última se repete) e registra cada chamada. */
+function fakeHttp(replies: Reply[]) {
+  const calls: Call[] = [];
+  const sleeps: number[] = [];
+  let clock = 1_000_000;
+  const options = {
+    fetchImpl: async (url: string, init: { method: 'GET'; headers: Record<string, string>; signal?: AbortSignal }) => {
+      calls.push({ url, method: init.method, headers: init.headers, hasBody: 'body' in init });
+      const reply = replies[Math.min(calls.length - 1, replies.length - 1)]!;
+      if (reply.throws) throw new Error(`falha de rede em ${url} com ${SECRET_KEY}`);
+      return new Response(JSON.stringify(reply.body ?? {}), { status: reply.status ?? 200, headers: reply.headers });
+    },
+    sleep: async (ms: number) => {
+      sleeps.push(ms);
+      clock += ms;
+    },
+    nowMs: () => clock,
+    minIntervalMs: 250,
+    maxRetries: 3,
+  };
+  return { calls, sleeps, options, advance: (ms: number) => { clock += ms; } };
+}
+const asaasP1 = loadFixture('asaas-payments-page1.json');
+const asaasP2 = loadFixture('asaas-payments-page2.json');
+const asaasCustomers = loadFixture('asaas-customers.json');
+const mpP1 = loadFixture('mercadopago-search-page1.json');
+const mpP2 = loadFixture('mercadopago-search-page2.json');
 
 const cases: TestCase[] = [
   // ---------------------------------------------------------------- Asaas
@@ -157,6 +206,149 @@ const cases: TestCase[] = [
     assertEqual(count('open'), 2, 'abertas');
     assertEqual(count('refunded'), 1, 'estornadas');
     assertEqual(count('canceled'), 2, 'canceladas');
+  }],
+
+  // ---------------------------------------------------------------- Cliente HTTP
+  ['cliente: toda chamada é GET, sem corpo, nos dois provedores (só leitura)', async () => {
+    const http = fakeHttp([{ body: asaasP1 }, { body: asaasCustomers }, { body: mpP1 }]);
+    const asaas = new AsaasClient(SECRET_KEY, http.options);
+    await asaas.listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 });
+    await asaas.listCustomers({ offset: 0 });
+    await new MercadoPagoClient('APP_USR_TOKEN_EXEMPLO', http.options).searchPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 });
+    assertEqual(http.calls.length, 3, 'chamadas');
+    for (const c of http.calls) {
+      assertEqual(c.method, 'GET', `método de ${c.url}`);
+      assert(!c.hasBody, 'sem corpo');
+    }
+  }],
+  ['cliente Asaas: pagina as 2 páginas de exemplo (hasMore) com filtro por data de criação e cabeçalho access_token (CA2, CA8)', async () => {
+    const http = fakeHttp([{ body: asaasP1 }, { body: asaasP2 }]);
+    const client = new AsaasClient(SECRET_KEY, http.options);
+    const first = await client.listPayments({ start: '2026-01-01', end: '2026-02-28', offset: 0, limit: 3 });
+    assertEqual(first.hasMore, true, 'página 1 tem mais');
+    assertEqual(first.items.length, 3, 'itens da página 1');
+    assertEqual(first.totalCount, 6, 'totalCount');
+    const second = await client.listPayments({ start: '2026-01-01', end: '2026-02-28', offset: 3, limit: 3 });
+    assertEqual(second.hasMore, false, 'página 2 é a última');
+    assertEqual(first.items.length + second.items.length, 6, 'todas as cobranças');
+    const url = decodeURIComponent(http.calls[0]!.url);
+    assert(url.startsWith('https://api.asaas.com/v3/payments?'), `URL de produção: ${url}`);
+    assert(url.includes('dateCreated[ge]=2026-01-01') && url.includes('dateCreated[le]=2026-02-28'), 'filtro de datas');
+    assert(url.includes('offset=0') && url.includes('limit=3'), 'paginação');
+    assertEqual(http.calls[0]!.headers.access_token, SECRET_KEY, 'chave só no cabeçalho');
+    assert(!http.calls[0]!.url.includes('CHAVE_DE_EXEMPLO'), 'chave fora da URL');
+    assert(decodeURIComponent(http.calls[1]!.url).includes('offset=3'), 'segunda página usa offset 3');
+  }],
+  ['cliente Asaas: chave de sandbox usa a URL de sandbox; a lista de clientes devolve só id, nome e removido (CA11)', async () => {
+    assertEqual(asaasBaseUrl('$aact_hmlg_abc'), 'https://api-sandbox.asaas.com/v3', 'sandbox');
+    assertEqual(asaasBaseUrl('$aact_prod_abc'), 'https://api.asaas.com/v3', 'produção');
+    assertEqual(asaasBaseUrl('qualquer'), 'https://api.asaas.com/v3', 'desconhecida usa produção');
+    const http = fakeHttp([{ body: asaasCustomers }]);
+    const res = await new AsaasClient(SECRET_KEY, http.options).listCustomers({ offset: 0 });
+    assertEqual(res.items.length, 3, 'clientes');
+    assertEqual(res.items[0]!.name, 'Maria Souza Teste', 'nome');
+    assertEqual(res.items[2]!.deleted, true, 'removido');
+    const dump = JSON.stringify(res);
+    for (const forbidden of ['example.com', 'cpfCnpj', '00000000000']) assert(!dump.includes(forbidden), `vazou "${forbidden}"`);
+  }],
+  ['cliente Mercado Pago: pagina pelo paging.total e envia janela de datas em Brasília (CA6, CA8)', async () => {
+    const http = fakeHttp([{ body: mpP1 }, { body: mpP2 }]);
+    const client = new MercadoPagoClient('APP_USR_TOKEN_EXEMPLO', http.options);
+    const first = await client.searchPayments({ start: '2026-01-01', end: '2026-02-28', offset: 0, limit: 3 });
+    assertEqual(first.hasMore, true, 'tem mais');
+    assertEqual(first.total, 6, 'total');
+    const second = await client.searchPayments({ start: '2026-01-01', end: '2026-02-28', offset: 3, limit: 3 });
+    assertEqual(second.hasMore, false, 'fim');
+    const url = decodeURIComponent(http.calls[0]!.url);
+    assert(url.startsWith('https://api.mercadopago.com/v1/payments/search?'), url);
+    assert(url.includes('range=date_created') && url.includes('sort=date_created') && url.includes('criteria=asc'), 'ordenação/range');
+    assert(url.includes('begin_date=2026-01-01T00:00:00.000-03:00') && url.includes('end_date=2026-02-28T23:59:59.999-03:00'), 'datas');
+    assertEqual(http.calls[0]!.headers.Authorization, 'Bearer APP_USR_TOKEN_EXEMPLO', 'token no cabeçalho');
+  }],
+  ['cliente: 429 espera o RateLimit-Reset (sem repetir de imediato) e continua (CA8)', async () => {
+    const http = fakeHttp([{ status: 429, headers: { 'RateLimit-Reset': '2' } }, { body: asaasP1 }]);
+    const res = await new AsaasClient(SECRET_KEY, http.options).listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 });
+    assertEqual(res.items.length, 3, 'depois da espera, traz a página');
+    assertEqual(http.calls.length, 2, 'duas tentativas');
+    assert(http.sleeps.includes(2000), `esperou 2 s: ${http.sleeps.join(',')}`);
+  }],
+  ['cliente: 429 sem cabeçalho usa espera progressiva; Retry-After também é respeitado e o teto é 30 s', async () => {
+    const noHeader = fakeHttp([{ status: 429 }, { body: asaasP1 }]);
+    await new AsaasClient(SECRET_KEY, noHeader.options).listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 });
+    assert(noHeader.sleeps.some((ms) => ms >= 2000), 'espera progressiva');
+    const retryAfter = fakeHttp([{ status: 429, headers: { 'Retry-After': '120' } }, { body: asaasP1 }]);
+    await new AsaasClient(SECRET_KEY, retryAfter.options).listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 });
+    assert(retryAfter.sleeps.includes(30_000), `teto de 30 s: ${retryAfter.sleeps.join(',')}`);
+  }],
+  ['cliente: 429 esgotadas as tentativas → erro retomável, sem chave na mensagem (CA1, CA8)', async () => {
+    const http = fakeHttp([{ status: 429, headers: { 'RateLimit-Reset': '1' } }]);
+    const client = new AsaasClient(SECRET_KEY, http.options);
+    try {
+      await client.listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 });
+      throw new Error('era esperado erro');
+    } catch (err) {
+      assert(err instanceof ProviderRateLimitError, `tipo: ${String(err)}`);
+      assertEqual((err as ProviderRateLimitError).resumable, true, 'retomável');
+      assert(!String((err as Error).message).includes('CHAVE_DE_EXEMPLO'), 'sem chave');
+      assert(/Retomar/.test((err as Error).message), 'orienta a retomar');
+    }
+    assertEqual(http.calls.length, 4, '1 tentativa + 3 repetições');
+  }],
+  ['cliente: 401 e 403 viram ProviderAuthError com mensagem clara, sem repetir e sem a chave (CA1, CA7)', async () => {
+    for (const status of [401, 403]) {
+      const http = fakeHttp([{ status, body: { errors: [{ code: 'invalid_access_token' }] } }]);
+      try {
+        await new AsaasClient(SECRET_KEY, http.options).verifyKey();
+        throw new Error('era esperado erro');
+      } catch (err) {
+        assert(err instanceof ProviderAuthError, `tipo para ${status}: ${String(err)}`);
+        const message = (err as Error).message;
+        assert(/chave de API/.test(message) && !message.includes('CHAVE_DE_EXEMPLO'), `mensagem: ${message}`);
+        assertEqual((err as ProviderAuthError).resumable, false, 'não retomável sem trocar a chave');
+      }
+      assertEqual(http.calls.length, 1, `sem repetição no ${status}`);
+    }
+    const mp = fakeHttp([{ status: 401 }]);
+    await assertRejects(() => new MercadoPagoClient('APP_USR_TOKEN_EXEMPLO', mp.options).verifyKey(), /Mercado Pago recusou o access token/, 'MP 401');
+  }],
+  ['cliente: 403 com Retry-After é bloqueio temporário (espera), não chave inválida', async () => {
+    const http = fakeHttp([{ status: 403, headers: { 'Retry-After': '5' } }, { body: asaasP1 }]);
+    const res = await new AsaasClient(SECRET_KEY, http.options).listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 });
+    assertEqual(res.items.length, 3, 'continuou');
+    assert(http.sleeps.includes(5000), 'esperou 5 s');
+  }],
+  ['cliente: 5xx e falha de rede são repetidos; esgotado vira erro retomável sem vazar a chave (CA7)', async () => {
+    const recovers = fakeHttp([{ status: 503 }, { body: asaasP1 }]);
+    const ok = await new AsaasClient(SECRET_KEY, recovers.options).listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 });
+    assertEqual(ok.items.length, 3, 'recuperou');
+    const down = fakeHttp([{ throws: true }]);
+    try {
+      await new AsaasClient(SECRET_KEY, down.options).listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 });
+      throw new Error('era esperado erro');
+    } catch (err) {
+      assert(err instanceof ProviderRequestError && (err as ProviderRequestError).resumable, `tipo: ${String(err)}`);
+      assert(!(err as Error).message.includes('CHAVE_DE_EXEMPLO') && !(err as Error).message.includes('http'), 'mensagem sem URL nem chave');
+    }
+    assertEqual(down.calls.length, 4, 'tentativas');
+  }],
+  ['cliente: erro 4xx que não é de chave não é repetido e não é retomável; corpo inesperado é erro claro', async () => {
+    const bad = fakeHttp([{ status: 400 }]);
+    try {
+      await new AsaasClient(SECRET_KEY, bad.options).listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 });
+      throw new Error('era esperado erro');
+    } catch (err) {
+      assert(err instanceof ProviderRequestError && !(err as ProviderRequestError).resumable, 'tipo');
+    }
+    assertEqual(bad.calls.length, 1, 'sem repetição');
+    const weird = fakeHttp([{ body: { qualquer: 'coisa' } }]);
+    await assertRejects(() => new AsaasClient(SECRET_KEY, weird.options).listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 }), /Resposta inesperada/, 'corpo');
+  }],
+  ['cliente: espaçamento mínimo entre chamadas consecutivas', async () => {
+    const http = fakeHttp([{ body: asaasP1 }]);
+    const client = new AsaasClient(SECRET_KEY, http.options);
+    await client.listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 0 });
+    await client.listPayments({ start: '2026-01-01', end: '2026-01-31', offset: 3 });
+    assert(http.sleeps.some((ms) => ms > 0 && ms <= 250), `esperou o intervalo entre chamadas: ${http.sleeps.join(',')}`);
   }],
 
   // ---------------------------------------------------------------- Privacidade do log

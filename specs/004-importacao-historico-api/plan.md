@@ -1,9 +1,9 @@
 # Plan 004 — Importação de histórico por API (Asaas e Mercado Pago)
 
-- **Status:** rascunho
+- **Status:** aprovado
 - **Spec:** `specs/004-importacao-historico-api/spec.md` (aprovada em 2026-11-27)
 - **Criado em:** 2026-11-27
-- **Aprovado em:** —
+- **Aprovado em:** 2026-11-27
 
 ## Abordagem
 A importação **reaproveita o núcleo do webhook**: o pagamento do provedor vira o mesmo `NormalizedPaymentEvent`, passa pelo mesmo

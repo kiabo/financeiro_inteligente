@@ -1,9 +1,13 @@
 import crypto from 'crypto';
 import { assert, assertEqual, assertRejects, runCases, type TestCase, type TestCaseResult } from '../../scripts/testHarness.ts';
+import { parsePgUrl, pgArgsFor, pgEnvFor, redactConnectionError } from '../integrations/dbBackup/pgConnection.ts';
 import { decryptBackupBytes, decryptBackupPayload, encryptBackupPayload, readBackupHeader } from '../crypto/backupCrypto.ts';
 
 const NOW = new Date('2026-11-27T06:00:00Z');
 const PASS = 'senha-muito-longa-para-backup-1234';
+
+const FAKE_PASSWORD = 'S3nh@-Fict1cia/9z';
+const FAKE_URL = `postgresql://postgres.abcdefgh:${encodeURIComponent(FAKE_PASSWORD)}@aws-0-sa-east-1.pooler.supabase.com:5432/postgres`;
 
 const cases: TestCase[] = [
   // ---------------------------------------------------------------- T03 · cifra de dump binário
@@ -28,6 +32,45 @@ const cases: TestCase[] = [
     const pkg = encryptBackupPayload(json, PASS, 'ref', NOW);
     assertEqual(readBackupHeader(pkg).header.v, 1, 'versão do formato');
     assertEqual(decryptBackupPayload(pkg, PASS).json, json, 'roundtrip como texto');
+  }],
+
+  // ---------------------------------------------------------------- T04 · conexão e senha
+  ['conexão: separa host, porta, usuário, banco e senha (inclusive com caracteres especiais)', () => {
+    const c = parsePgUrl(FAKE_URL);
+    assertEqual(c.host, 'aws-0-sa-east-1.pooler.supabase.com', 'host');
+    assertEqual(c.port, '5432', 'porta');
+    assertEqual(c.user, 'postgres.abcdefgh', 'usuário');
+    assertEqual(c.database, 'postgres', 'banco');
+    assertEqual(c.password, FAKE_PASSWORD, 'senha decodificada');
+  }],
+  ['conexão: a senha só vai no ambiente do processo filho, nunca nos argumentos (CA7)', () => {
+    const c = parsePgUrl(FAKE_URL);
+    const args = pgArgsFor(c).join(' ');
+    assert(!args.includes(FAKE_PASSWORD) && !args.includes(encodeURIComponent(FAKE_PASSWORD)), 'senha nos argumentos');
+    assert(!args.includes('postgresql://'), 'URL nos argumentos');
+    const env = pgEnvFor(c, { PATH: '/usr/bin', HOME: '/home/node', SUPABASE_DB_URL: FAKE_URL, CREDENTIALS_ENCRYPTION_KEY: 'x' } as NodeJS.ProcessEnv);
+    assertEqual(env.PGPASSWORD, FAKE_PASSWORD, 'PGPASSWORD');
+    assert(!JSON.stringify(Object.keys(env)).includes('SUPABASE_DB_URL') && !('CREDENTIALS_ENCRYPTION_KEY' in env), 'o filho não herda os segredos do app');
+  }],
+  ['conexão: URL ausente, vazia ou inválida dá mensagem clara que não repete o valor recebido (CA7)', () => {
+    for (const bad of [undefined, '', '   ', 'isto-nao-e-url', 'mysql://u:p@h/db', 'postgresql://sem-senha@host/db']) {
+      try {
+        parsePgUrl(bad);
+        throw new Error(`deveria recusar ${String(bad)}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '';
+        assert(/SUPABASE_DB_URL/.test(msg), `mensagem clara para ${String(bad)}: ${msg}`);
+        if (typeof bad === 'string' && bad.length > 6) assert(!msg.includes(bad), 'não pode repetir o valor recebido');
+      }
+    }
+  }],
+  ['conexão: mensagens de erro têm a senha e as URLs removidas (CA7)', () => {
+    const c = parsePgUrl(FAKE_URL);
+    const raw = `pg_dump: error: connection to server at "host" failed: password authentication failed for user "x" (${FAKE_PASSWORD}) ${FAKE_URL} e ${encodeURIComponent(FAKE_PASSWORD)}`;
+    const clean = redactConnectionError(raw, c);
+    assert(!clean.includes(FAKE_PASSWORD) && !clean.includes(encodeURIComponent(FAKE_PASSWORD)), 'senha presente');
+    assert(!clean.includes('postgresql://'), 'URL presente');
+    assert(/password authentication failed/.test(clean), 'o diagnóstico útil permanece');
   }],
 ];
 

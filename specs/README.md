@@ -16,7 +16,7 @@ Ordem sugerida: 001 → 002 → 003 (rápidas), depois 004, 005 e 006.
 
 ## Estado atual (2026-11-27) e próximos passos
 - **001, 002 e 003: concluídas e em produção** (`dev` e `main` iguais; migration `0007` já aplicada no Supabase).
-- **004:** em andamento na branch `feat/004-importacao-historico-api` (T01–T16 prontas, 166 testes verdes). **T16 feita (migration 0008 aplicada em 2026-11-27)**; faltam T17 (PR/merge na `dev`, com o seu "sim") e T18 (verificação no h-cfo).
+- **004:** T01–T17 prontas (166 testes verdes). Migration 0008 aplicada e PR #4 mergeado na `dev` (deploy no h-cfo ok em 2026-11-27). **Falta a T18**: você cola a chave de API no h-cfo e eu verifico CA1–CA13, começando por 1 mês. `main` intocada.
 - **005 e 006:** rascunhos; perguntas abertas ainda sem resposta.
 - Pendências fora das specs: conectar o Google no **cfo** (backup no Drive e agenda); criar o webhook do Asaas apontando para o cfo quando houver pagamentos reais
   (sem mexer no webhook "Gestão Comoequetalá").

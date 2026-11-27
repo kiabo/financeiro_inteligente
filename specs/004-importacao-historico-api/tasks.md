@@ -90,7 +90,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
   Eu entrego o SQL pronto no chat. **Só depois disto** se faz o push/merge na `dev` (o código novo grava colunas que ainda não existiriam).
   **Pronto quando:** o usuário confirma e `select external_ref, external_role from transactions limit 1` e `select count(*) from import_runs` funcionam.
 
-- [ ] T17 — Subir a branch, abrir PR para a `dev`, merge e deploy no h-cfo. **(usuário: confirmar o merge)**
+- [x] T17 — Subir a branch, abrir PR para a `dev`, merge e deploy no h-cfo. **(usuário: confirmar o merge)**
   **Pronto quando:** o deploy do GitHub Actions termina verde e o h-cfo responde ao healthcheck.
 
 - [ ] T18 — **(usuário + verificação)** No h-cfo, o usuário cola a chave de API (Asaas e, se possível, Mercado Pago) e eu conduzo `/sdd-verify` contra **todos** os critérios CA1–CA13, **começando por 1 mês**
@@ -99,6 +99,10 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T17 — PR e deploy no h-cfo (2026-11-27)
+- O usuário enviou a branch (o push feito por mim foi bloqueado pelas permissões do Claude Code) e autorizou o merge. PR #4 (`feat/004-importacao-historico-api` → `dev`) mergeado às 06:41 UTC (merge `e2e8088`). Deploy do GitHub Actions concluído com sucesso; `https://h-cfo.cqtl.pro/` e `/api/health` respondem 200.
+- A produção (`main`) **não** foi tocada: a promoção só ocorre com pedido explícito, depois da T18.
 
 ### T16 — Migration 0008 aplicada (2026-11-27)
 - O usuário aplicou a `0008` no SQL Editor. Conferência: `select external_ref, external_role from transactions limit 1` devolveu `null` (as colunas existem; nenhum lançamento tem chave ainda — esperado, o banco ainda não tinha lançamentos de webhook) e `select count(*) from import_runs` devolveu `0` (tabela criada, vazia).

@@ -10,7 +10,7 @@ import {
 } from '../integrations/history/historyRunner.ts';
 import { ProviderAuthError, ProviderRequestError } from '../integrations/history/providerClients.ts';
 import type { IntegrationConnectionRow } from '../integrations/webhooks/webhookCore.ts';
-import { loadFixture } from './history.test.ts';
+import { MP_OWN_ID, loadFixture } from './history.test.ts';
 import { MemoryEventLog, MemoryRunStore } from './helpers/memoryRuns.ts';
 import { MemoryTransactionStore } from './helpers/memoryStore.ts';
 
@@ -43,6 +43,8 @@ class FakeSource implements HistorySource {
   verifyCalls = 0;
   failOnPaymentCall: { at: number; error: Error } | null = null;
   verifyError: Error | null = null;
+  identifyCalls = 0;
+  identifyError: Error | null = null;
 
   constructor(
     private readonly provider: 'asaas' | 'mercadopago',
@@ -53,6 +55,14 @@ class FakeSource implements HistorySource {
     this.verifyCalls += 1;
     if (this.verifyError) throw this.verifyError;
   }
+
+  identifyAccount = this.provider === 'mercadopago'
+    ? async () => {
+        this.identifyCalls += 1;
+        if (this.identifyError) throw this.identifyError;
+        return MP_OWN_ID;
+      }
+    : undefined;
 
   listCustomers = this.provider === 'asaas' ? async () => ({ items: asaasCustomers, hasMore: false }) : undefined;
 
@@ -309,22 +319,52 @@ const cases: TestCase[] = [
     assert(!json.includes('Maria') && !json.includes('customers') && !json.includes('cursor'), 'sem dados internos');
     assertEqual(run.window_total, 2, 'duas janelas mensais');
   }],
-  ['Mercado Pago: mesmo fluxo, sem fase de clientes; pendente sem taxa; cancelado/estornado à parte (CA6, CA13)', async () => {
-    const { deps, txStore } = makeDeps(new FakeSource('mercadopago', mpItems));
+  ['Mercado Pago: só recebimentos viram receita; a compra feita pela própria conta é ignorada; sem fase de clientes; pendente sem taxa (CA6, CA13)', async () => {
+    const source = new FakeSource('mercadopago', mpItems);
+    const { deps, txStore, runs, events } = makeDeps(source);
     const conn = connection('mercadopago');
     const started = await start(deps, conn, { accountId: ACC });
     assertEqual(started.phase, 'payments', 'MP vai direto aos pagamentos');
+    assertEqual(runs.runs[0]!.cursor.providerAccountId, MP_OWN_ID, 'guarda o id da conta dona do token');
     const { run } = await runToEnd(deps, conn, started.id);
     assertEqual(run.status, 'completed', 'concluída');
     assertEqual(run.counts.created, 3, 'aprovado + 2 em aberto');
     assertEqual(run.counts.marked_apart, 3, 'cancelado, rejeitado e estornado');
-    assertEqual(txStore.rows.length, 7, 'aprovado (receita+taxa) + 2 abertos + 3 marcados');
+    assertEqual(run.counts.ignored, 1, 'a compra da própria conta');
+    assertEqual(txStore.rows.length, 7, 'aprovado (receita+taxa) + 2 abertos + 3 marcados; a compra não gera nada');
     const fees = txStore.rows.filter((r) => r.role === 'fee');
     assertEqual(fees.length, 1, 'só o aprovado tem taxa');
     assertEqual(fees[0]!.amount, 5.99, 'taxa dos fee_details');
     assert(txStore.inserted.some((r) => r.counterparty_name === 'Carlos Pereira Teste'), 'pagador como contraparte');
+    assert(!txStore.inserted.some((r) => String(r.description).includes('compra feita por esta conta')), 'a compra não virou lançamento');
+    const ev = events.events.find((e) => e.external_event_id.startsWith('api:90000007'))!;
+    assertEqual(ev.status, 'ignored', 'registrada no log como ignorada');
+    assert(/não é recebimento/.test(ev.error_message ?? ''), 'com o motivo');
     const again = await runToEnd(deps, conn, (await start(deps, conn)).id);
     assertEqual(again.run.counts.created + again.run.counts.updated + again.run.counts.marked_apart, 0, 'reimportação sem efeitos (CA3 no MP)');
+    assertEqual(again.run.counts.ignored, 7, 'sete já tratados ou ignorados');
+  }],
+  ['Mercado Pago: se a conta dona do token não puder ser identificada, a importação não começa (não importa às cegas)', async () => {
+    const source = new FakeSource('mercadopago', mpItems);
+    source.identifyError = new ProviderRequestError('Não foi possível identificar a conta do Mercado Pago para separar recebimentos de compras.', false);
+    const { deps, runs, txStore } = makeDeps(source);
+    const err = await rejects(() => start(deps, connection('mercadopago')));
+    assert(/identificar a conta/.test(err.message), `mensagem: ${err.message}`);
+    assertEqual(runs.runs.length, 0, 'nenhuma execução');
+    assertEqual(txStore.rows.length, 0, 'nada gravado');
+  }],
+  ['Mercado Pago: execução sem id da conta guardado (antiga) identifica a conta antes de importar', async () => {
+    const source = new FakeSource('mercadopago', mpItems);
+    const { deps, runs, txStore } = makeDeps(source);
+    const conn = connection('mercadopago');
+    const started = await start(deps, conn);
+    delete runs.runs[0]!.cursor.providerAccountId;
+    const before = source.identifyCalls;
+    const { run } = await runToEnd(deps, conn, started.id);
+    assertEqual(run.status, 'completed', 'concluída');
+    assert(source.identifyCalls > before, 'identificou de novo');
+    assertEqual(runs.runs[0]!.cursor.providerAccountId, MP_OWN_ID, 'e guardou');
+    assertEqual(txStore.rows.length, 7, 'mesmo resultado');
   }],
 ];
 

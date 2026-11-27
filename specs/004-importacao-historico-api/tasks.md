@@ -1,6 +1,6 @@
 # Tasks 004 — Importação de histórico por API (Asaas e Mercado Pago)
 
-- **Status:** aprovado
+- **Status:** em-andamento
 - **Plan:** `specs/004-importacao-historico-api/plan.md` (aprovado em 2026-11-27)
 - **Branch:** `feat/004-importacao-historico-api` (saindo da `dev`)
 - **Aprovado em:** 2026-11-27

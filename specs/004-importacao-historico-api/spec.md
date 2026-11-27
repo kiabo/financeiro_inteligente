@@ -1,6 +1,6 @@
 # Spec 004 — Importação de histórico por API (Asaas e Mercado Pago)
 
-- **Status:** aprovado
+- **Status:** em-andamento
 - **Criada em:** 2026-11-26
 - **Aprovada em:** 2026-11-27
 - **Responsável pela aprovação:** usuário

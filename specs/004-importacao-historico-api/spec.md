@@ -1,6 +1,6 @@
 # Spec 004 — Importação de histórico por API (Asaas e Mercado Pago)
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Criada em:** 2026-11-26
 - **Aprovada em:** 2026-11-27
 - **Responsável pela aprovação:** usuário
@@ -74,10 +74,13 @@ Nenhuma. (Respondidas pelo usuário em 2026-11-27; ver abaixo.)
 | CA2 | ✅ conferido pelo usuário no painel do Asaas | Asaas, 28/10–27/11/2026: 41 cobranças → 41 receitas somando R$ 3.669,00 e 41 taxas somando R$ 129,67 (todas "previsto"). O usuário conferiu contagem e valores no painel do Asaas ("Asaas conferido"). |
 | CA3 | ✅ | Reimportar o mesmo período do Asaas: 0 importados, 0 atualizados, 41 ignorados; lançamentos inalterados. |
 | CA4, CA5, CA12 | ⏳ não exercitados com dados reais | Dependem de um webhook real chegando para um pagamento importado, ou de um pagamento mudar de status entre duas importações. Cobertos pelos testes automáticos. |
-| CA6 | ❌ **defeito encontrado** | Mercado Pago, 12 meses: 51 "pagamentos" importados como **receita** (R$ 4.964,72), mas pelas descrições ("Anthropic* claude sub", "Cloudflare", "Pago Bank Transfer Pix") e pela ausência de pagador, tudo indica que são **compras feitas pela própria conta**, não recebimentos. A busca do Mercado Pago devolve também pagamentos em que a conta é a pagadora; o importador não separava. **Corrigido** na branch `fix/004-mercadopago-recebimentos` (só entram pagamentos cujo recebedor é a conta dona do token); a reverificação no cfo está pendente. |
+| CA6 | ❌ **defeito encontrado** | Mercado Pago, 12 meses: 51 "pagamentos" importados como **receita** (R$ 4.964,72), mas pelas descrições ("Anthropic* claude sub", "Cloudflare", "Pago Bank Transfer Pix") e pela ausência de pagador, tudo indica que são **compras feitas pela própria conta**, não recebimentos. A busca do Mercado Pago devolve também pagamentos em que a conta é a pagadora; o importador não separava. **Corrigido** na branch `fix/004-mercadopago-recebimentos` (só entram pagamentos cujo recebedor é a conta dona do token); reverificado no cfo depois do deploy: Mercado Pago, últimos 12 meses → **0 importados, 46 ignorados** ("pagamento feito por esta conta (não é recebimento)"), nenhum lançamento novo. **Não verificado:** que o id de `/users/me` coincide com o `collector_id` de um recebimento real — a conta não tem vendas no período, então só se confirma quando houver um recebimento. |
 | CA7 | ⏳ não exercitado | Trocar a chave por uma inválida apagaria a chave real; coberto por testes automáticos. |
 | CA8 | ✅ (tela) | Início 01/01/2025: mensagem "O período pode ter no máximo 12 meses por importação" e botão bloqueado. 12 meses no Mercado Pago aceitos (janelas por mês, 13 de 13). |
+| CA6 (cont.) | ⚠️ parcial | Paginação, mapeamento e filtro de recebimentos confirmados (testes + cfo). Importar um **recebimento** real do Mercado Pago só será visto quando a conta tiver uma venda. |
 | CA10 | ✅ | Asaas e Mercado Pago importados na conta ZZ, diferente da conta fixa de cada conexão (Asaas / Mercado Pago). |
 | CA11 | ✅ no Asaas, ❌ no Mercado Pago | Asaas: 41 de 41 receitas com nome do cliente na contraparte. Mercado Pago: 0 de 51 com contraparte (consistente com o defeito acima). A tokenização na IA tem teste automático. |
 | CA13 | ⏳ sem dados | Nenhum cancelado/estornado no período importado do Asaas; MP sem casos. Coberto por testes automáticos. |
 
+
+**Situação em 2026-11-27 (fim da verificação):** a funcionalidade e a correção do Mercado Pago estão na `dev` e na `main` (PRs #4, #5, #6, #7). O usuário vai apagar os dados de teste e recomeçar limpo; a conta "ZZ Teste Importação" e os 41 lançamentos do Asaas e 51 do Mercado Pago importados nela são dados de teste.

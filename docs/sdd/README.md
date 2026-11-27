@@ -5,7 +5,7 @@
 
 ```
 spec.md (o quê/porquê) → plan.md (como) → tasks.md (ordem) → código → verificação → promoção
-   ✋ aprova                ✋ aprova         ✋ aprova                      ✋ valida no h-cfo
+   ✋ aprova                ✋ aprova         ✋ aprova                      ✋ valida no cfo
 ```
 
 ## Passo a passo
@@ -14,8 +14,8 @@ spec.md (o quê/porquê) → plan.md (como) → tasks.md (ordem) → código →
 2. **Plan** — `/sdd-plan NNN`. Só roda com a spec `aprovado`.
 3. **Tasks** — `/sdd-tasks NNN`. Só roda com o plan `aprovado`.
 4. **Implement** — `/sdd-implement NNN`. Só roda com as tasks `aprovado`. Faz uma tarefa por vez, marca `[x]`.
-5. **Verify** — `/sdd-verify NNN`. Confere cada critério de aceite no h-cfo e registra o resultado na spec.
-6. **Promover** — PR de `feat/NNN-slug` para `dev` → validar no h-cfo → `dev` para `main`.
+5. **Verify** — `/sdd-verify NNN`. Confere cada critério de aceite no cfo (produção) e registra o resultado na spec.
+6. **Promover** — PR de `feat/NNN-slug` para `dev` → `dev` para `main` (o agente promove sozinho se tsc/testes/build passam e não há migration pendente) → validar no cfo.
 
 ## Status dos arquivos
 `rascunho` → `aprovado` → `em-andamento` → `concluído`. Quem aprova é o usuário, dizendo no chat

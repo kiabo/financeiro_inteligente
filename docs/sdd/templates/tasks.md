@@ -9,7 +9,7 @@ Uma tarefa por vez, em ordem. Marque `[x]` ao concluir. Commit: `feat(NNN): desc
 
 - [ ] T01 — Descrição curta. **Pronto quando:** critério observável. (CA1)
 - [ ] T02 — …
-- [ ] T0N — Verificação final no h-cfo contra todos os critérios de aceite.
+- [ ] T0N — Verificação final no cfo contra todos os critérios de aceite.
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec)

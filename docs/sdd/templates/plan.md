@@ -25,4 +25,4 @@ Rotas, payloads, tipos TypeScript novos.
 Como desfazer (código e, se houver, migration).
 
 ## Estratégia de teste
-Testes automatizados a criar (`npm test`) e verificação manual no h-cfo, ligada aos critérios de aceite da spec.
+Testes automatizados a criar (`npm test`) e verificação manual no cfo, ligada aos critérios de aceite da spec.

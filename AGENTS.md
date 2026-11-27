@@ -26,7 +26,7 @@ Antes de qualquer commit: `npx tsc --noEmit && npm test && npm run build` precis
 ## Ambientes e deploy
 | Branch | URL | Observação |
 |---|---|---|
-| `dev` | https://h-cfo.cqtl.pro | homologação; **sem** agendador diário |
+| `dev` | https://h-cfo.cqtl.pro | degrau antes da `main`; **sem** agendador diário. Não é onde se verifica (mesmo banco da produção) |
 | `main` | https://cfo.cqtl.pro | produção; `ENABLE_INTERNAL_SCHEDULER=true` |
 
 - Push em `dev`/`main` dispara o GitHub Actions (`.github/workflows/deploy.yml`): verifica e envia o código por SSH ao VPS, que roda `deploy/receive.sh` (Docker, healthcheck, rollback automático).
@@ -61,7 +61,7 @@ Portões (o usuário aprova cada um):
 1. Sem `spec.md` **aprovada**, não se escreve `plan.md`.
 2. Sem `plan.md` **aprovado**, não se escreve `tasks.md`.
 3. Sem `tasks.md` **aprovado**, não se escreve código.
-4. Ao terminar, verificar cada critério de aceite da spec no h-cfo antes de promover para a `main`.
+4. Ao terminar, promover `dev` → `main` (autorizado pelo usuário em 2026-11-27, sem pedir a cada vez, **desde que** `tsc`, testes e build passem e nenhuma migration pendente dependa do usuário) e verificar cada critério de aceite da spec no **cfo** (produção, ainda sem outros usuários; h-cfo e cfo usam o mesmo banco).
 
 Regras durante a execução:
 - Marque `[x]` em cada tarefa ao concluí-la; mantenha o status do arquivo atualizado.

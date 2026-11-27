@@ -1,6 +1,6 @@
 # Tasks 004 — Importação de histórico por API (Asaas e Mercado Pago)
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Plan:** `specs/004-importacao-historico-api/plan.md` (aprovado em 2026-11-27)
 - **Branch:** `feat/004-importacao-historico-api` (saindo da `dev`)
 - **Aprovado em:** 2026-11-27
@@ -93,7 +93,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 - [x] T17 — Subir a branch, abrir PR para a `dev`, merge e deploy no h-cfo. **(usuário: confirmar o merge)**
   **Pronto quando:** o deploy do GitHub Actions termina verde e o h-cfo responde ao healthcheck.
 
-- [ ] T18 — **(usuário + verificação)** No h-cfo, o usuário cola a chave de API (Asaas e, se possível, Mercado Pago) e eu conduzo `/sdd-verify` contra **todos** os critérios CA1–CA13, **começando por 1 mês**
+- [x] T18 — **(usuário + verificação)** No h-cfo, o usuário cola a chave de API (Asaas e, se possível, Mercado Pago) e eu conduzo `/sdd-verify` contra **todos** os critérios CA1–CA13, **começando por 1 mês**
   e só depois 3 meses (os dados vão para o mesmo banco da produção). Registrar o resultado no "Registro de verificação" da spec; CA sem como testar (ex.: webhook real sem pagamento novo) fica como **parcial**, explicado.
   **Pronto quando:** cada CA tem resultado registrado; a promoção `dev` → `main` só acontece com o seu "sim".
 

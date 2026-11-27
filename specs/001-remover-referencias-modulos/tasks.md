@@ -25,7 +25,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 - [x] T05 — Usar o papel real nas sessões Supabase: `src/App.tsx` (~134) e `LoginScreen.tsx` (~86 e ~207). Sandbox (~265) permanece `'owner'`.
   **Pronto quando:** `tsc` passa e o rótulo do menu lateral mostra o papel lido do banco. (CA1)
 
-- [ ] T06 — Tela Segurança & SQL: títulos descritivos, botões "Copiar SQL", e `canSeeSql(role)` (owner/admin) condicionando os 5 blocos de migration; teste unitário de `canSeeSql`.
+- [x] T06 — Tela Segurança & SQL: títulos descritivos, botões "Copiar SQL", e `canSeeSql(role)` (owner/admin) condicionando os 5 blocos de migration; teste unitário de `canSeeSql`.
   **Pronto quando:** com `owner` os blocos aparecem com títulos sem "Módulo"; com `analyst` não aparecem; testes passam. (CA1, CA4)
 
 - [ ] T07 — Rodar tudo: `npx tsc --noEmit`, `npm test` (inclui o teste-guarda, agora verde) e `npm run build`; conferir que o `dist/` não tem literais "Módulo N" de interface.

@@ -43,7 +43,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Idempotência e persistência
 
-- [ ] T07 — Testes primeiro: `server/__tests__/history.test.ts` com um `TransactionStore` **em memória que simula o índice único**, cobrindo toda a tabela "Upsert por pagamento" do plan
+- [x] T07 — Testes primeiro: `server/__tests__/history.test.ts` com um `TransactionStore` **em memória que simula o índice único**, cobrindo toda a tabela "Upsert por pagamento" do plan
   (criar, pendente→pago, não regredir, mesmo estado, cancelar/estornar, estorno já existente, estorno parcial acumulado, fallback por `notes`) e os cenários CA3, CA4, CA5, CA12, CA13.
   **Pronto quando:** `npm test` roda a suíte e os casos que dependem de `paymentUpsert` **falham** (prova de que testam). (CA3, CA4, CA5, CA12, CA13)
 
@@ -99,6 +99,11 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T07 — Testes de idempotência primeiro (2026-11-27)
+- `server/__tests__/historyUpsert.test.ts` (17 casos) + `server/__tests__/helpers/memoryStore.ts` (armazenamento em memória que simula o índice único e o fallback por `notes`) + esqueleto `server/integrations/history/paymentUpsert.ts` com os tipos e a API (`upsertPayment`, `TransactionStore`, intenções `open|settled|void|refund`).
+- **Estado esperado: 17 testes vermelhos** ("upsertPayment ainda não implementado (T08)"). Resultado atual de `npm test`: 117/134. **Não fazer push da branch antes da T08** (o CI ficaria vermelho).
+- Contrato decidido aqui: `open` cria se não existe e nunca mexe no existente; `settled` só atualiza pendente/vencido (nunca regride, nunca troca valor nem conta); `void` marca receita e taxa como `canceled`; `refund` não cria linha se a receita já está `canceled`, e atualiza o valor acumulado do estorno parcial.
 
 ### T06 — Clientes HTTP (2026-11-27)
 - `server/integrations/history/providerClients.ts`: `AsaasClient` (`listPayments`, `listCustomers` reduzido a id/nome/removido, `verifyKey`) e `MercadoPagoClient` (`searchPayments`, `verifyKey`); só `GET`, sem corpo. Erros: `ProviderAuthError` (não retomável), `ProviderRateLimitError` e `ProviderRequestError` (retomáveis, exceto 4xx genérico).

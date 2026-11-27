@@ -39,6 +39,8 @@ export interface RunCursor {
   offset: number;
   /** Deslocamento na listagem de clientes (Asaas) */
   customersOffset: number;
+  /** Mercado Pago: id da conta dona do token, para separar recebimentos de compras */
+  providerAccountId?: string;
 }
 
 export interface RunError {
@@ -118,6 +120,8 @@ export interface EventLog {
 export interface HistorySource {
   readonly pageSize: number;
   verifyKey(): Promise<void>;
+  /** Só Mercado Pago: id da conta dona da chave */
+  identifyAccount?(): Promise<string>;
   /** Só Asaas: lista de clientes (id → nome) antes dos pagamentos */
   listCustomers?(offset: number): Promise<{ items: AsaasCustomerLite[]; hasMore: boolean }>;
   listPayments(window: HistoryWindow, offset: number): Promise<{ items: Obj[]; hasMore: boolean; total: number | null }>;
@@ -166,6 +170,7 @@ export function createHistorySource(provider: HistoryProvider, apiKey: string, o
   return {
     pageSize: 50,
     verifyKey: () => client.verifyKey(),
+    identifyAccount: () => client.identifyAccount(),
     listPayments: async (window, offset) => {
       const page = await client.searchPayments({ start: window.start, end: window.end, offset });
       return { items: page.items, hasMore: page.hasMore, total: page.total };
@@ -238,8 +243,10 @@ export async function startRun(
 
   // Testa a chave com 1 consulta (mensagem clara quando inválida)
   const source = deps.createSource(connection.provider, params.apiKey);
+  let providerAccountId: string | undefined;
   try {
     await source.verifyKey();
+    if (source.identifyAccount) providerAccountId = await source.identifyAccount();
   } catch (err) {
     if (err instanceof ProviderError) throw new HistoryRunError(err.message, err.resumable ? 502 : 400);
     throw err;
@@ -255,7 +262,7 @@ export async function startRun(
     period_end: period.end,
     status: 'running',
     phase: connection.provider === 'asaas' ? 'customers' : 'payments',
-    cursor: { window: 0, offset: 0, customersOffset: 0 },
+    cursor: { window: 0, offset: 0, customersOffset: 0, ...(providerAccountId ? { providerAccountId } : {}) },
     customers: {},
     count_created: 0,
     count_updated: 0,
@@ -275,12 +282,12 @@ const safeMessage = (err: unknown): string => {
   return text.replace(/\s+/g, ' ').slice(0, 200);
 };
 
-function mapPayment(run: RunRecord, raw: Obj, now: Date): HistoryPayment {
+function mapPayment(run: RunRecord, raw: Obj, now: Date, providerAccountId: string): HistoryPayment {
   if (run.provider === 'asaas') {
     const customerId = typeof raw.customer === 'string' ? raw.customer : '';
     return mapAsaasPayment(raw, customerId ? run.customers[customerId] ?? null : null, now);
   }
-  return mapMercadoPagoPayment(raw, now);
+  return mapMercadoPagoPayment(raw, now, providerAccountId);
 }
 
 const INTENT: Record<'settled' | 'open' | 'canceled' | 'refunded', UpsertIntent> = {
@@ -338,6 +345,14 @@ export async function stepRun(
     const window = windows[run.cursor.window];
     if (!window) return toPublicRun(await finish(deps, run));
 
+    // Mercado Pago: sem o id da conta não dá para separar recebimentos de compras — não importa nada às cegas
+    let providerAccountId = run.cursor.providerAccountId ?? '';
+    if (run.provider === 'mercadopago' && !providerAccountId) {
+      if (!source.identifyAccount) throw new ProviderError('Não foi possível identificar a conta do Mercado Pago.', false);
+      providerAccountId = await source.identifyAccount();
+      run = await deps.runs.update(tenantId, run.id, { cursor: { ...run.cursor, providerAccountId } });
+    }
+
     const page = await source.listPayments(window, run.cursor.offset);
     const { categories, products } = await deps.loadCatalog(tenantId);
     const adapterName = getPaymentAdapter(run.provider)?.displayName ?? run.provider;
@@ -347,7 +362,7 @@ export async function stepRun(
     const errors = [...run.errors];
 
     for (const raw of page.items) {
-      const mapped = mapPayment(run, raw, now);
+      const mapped = mapPayment(run, raw, now, providerAccountId);
       const ref = mapped.normalized.paymentRef;
       const eventBase = {
         tenant_id: tenantId,

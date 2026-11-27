@@ -100,6 +100,13 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
 
+### T18 — Defeito encontrado na verificação e correção (2026-11-27)
+- Verificação no cfo: o Mercado Pago importou 51 "pagamentos" como receita (R$ 4.964,72), mas eram compras feitas pela própria conta ("Anthropic* claude sub", "Cloudflare" etc.): a busca `/v1/payments/search` devolve também pagamentos em que a conta é a pagadora. Registro completo na spec (Registro de verificação).
+- **Correção** (`fix/004-mercadopago-recebimentos`): `MercadoPagoClient.identifyAccount()` (`GET /users/me`, com fallback pelo sufixo numérico do token) guarda o id da conta em `cursor.providerAccountId`; `mapMercadoPagoPayment` só aceita pagamentos cujo `collector_id` é essa conta — os demais viram "ignorado" com o motivo "pagamento feito por esta conta (não é recebimento)" e ficam no log. Se a conta não puder ser identificada, a importação **não começa** (não importa às cegas); execuções antigas sem o id o identificam no primeiro passo.
+- **Limite aceito:** compras feitas pela conta no Mercado Pago (despesas) não são importadas; seria outra funcionalidade (fora de escopo).
+- **Não verificado ainda:** que `/users/me` devolve o mesmo id que o `collector_id` dos recebimentos (não há dado real para comparar na documentação). A fixture assume isso; a reverificação no cfo confirma: se o id não bater, a importação mostrará tudo como "ignorado".
+- Fixtures do Mercado Pago ganharam `collector_id` e uma compra feita pela própria conta; +4 testes. `npm test`: 170/170.
+
 ### T17 — PR e deploy no h-cfo (2026-11-27)
 - O usuário enviou a branch (o push feito por mim foi bloqueado pelas permissões do Claude Code) e autorizou o merge. PR #4 (`feat/004-importacao-historico-api` → `dev`) mergeado às 06:41 UTC (merge `e2e8088`). Deploy do GitHub Actions concluído com sucesso; `https://h-cfo.cqtl.pro/` e `/api/health` respondem 200.
 - A produção (`main`) **não** foi tocada: a promoção só ocorre com pedido explícito, depois da T18.

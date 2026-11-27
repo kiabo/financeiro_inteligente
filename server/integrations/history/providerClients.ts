@@ -271,6 +271,25 @@ export class MercadoPagoClient extends ReadOnlyClient {
     );
   }
 
+  /**
+   * Id da conta dona do token (o `collector_id` dos pagamentos que ela RECEBE). A busca do Mercado Pago devolve
+   * também pagamentos em que a conta é a pagadora; só os que têm este id como recebedor são receitas.
+   * Primeiro `GET /users/me`; se falhar por outro motivo que não a chave, usa o sufixo numérico do token
+   * (formato `APP_USR-<app>-<data>-<hash>-<id da conta>`). Sem nenhum dos dois, falha em vez de importar errado.
+   */
+  async identifyAccount(): Promise<string> {
+    try {
+      const body = await this.getJson('https://api.mercadopago.com/users/me', { Authorization: `Bearer ${this.accessToken}` });
+      const id = isObj(body) ? body.id : undefined;
+      if ((typeof id === 'number' || typeof id === 'string') && String(id).trim()) return String(id).trim();
+    } catch (err) {
+      if (err instanceof ProviderAuthError) throw err;
+    }
+    const suffix = /-(\d{4,})$/.exec(this.accessToken)?.[1];
+    if (suffix) return suffix;
+    throw new ProviderRequestError('Não foi possível identificar a conta do Mercado Pago para separar recebimentos de compras.', false);
+  }
+
   /** Teste barato de token: 1 pagamento. Lança ProviderAuthError se o token for recusado. */
   async verifyKey(): Promise<void> {
     await this.search(

@@ -17,8 +17,12 @@ de cobranças no Asaas ou no Mercado Pago não consegue trazer o histórico. É 
 ## Comportamento esperado
 - Provedores nesta spec: **Asaas** e **Mercado Pago** (Stripe fica para depois).
 - Na conexão: campo "Chave de API" (guardada cifrada, nunca exibida de volta; mostra só "configurada").
-- Botão "Importar histórico": escolhe período (máx. 12 meses por execução) e mostra o resultado:
-  importados, atualizados, ignorados, erros.
+- Botão "Importar histórico": escolhe o **período** (máx. 12 meses por execução) e a **conta de destino daquela importação**
+  (campo obrigatório, escolhido a cada vez; não vem fixo da conexão) e mostra o resultado: importados, atualizados, ignorados, erros.
+  É o mesmo comportamento da Conciliação por arquivo, que já pergunta "Conta do extrato" a cada importação.
+- Status importados: pagos, confirmados, pendentes e vencidos. Cancelados e estornados entram marcados à parte (não somam no saldo).
+- **Cliente nos lançamentos:** o nome do cliente (Asaas: cliente da cobrança; Mercado Pago: pagador) é gravado como contraparte do lançamento.
+  Não se cria cadastro de clientes/contatos. O nome é dado identificável e segue as regras de anonimização (já tratado como termo sensível no contexto da IA).
 - Os pagamentos viram lançamentos com as mesmas regras do webhook (receita bruta e taxa separadas, produto casado
   por referência, pendente → liquidado quando pago).
 - Eventos importados aparecem no log de eventos marcados como origem "API".
@@ -35,6 +39,10 @@ de cobranças no Asaas ou no Mercado Pago não consegue trazer o histórico. É 
 - [ ] CA7: chave inválida ou expirada mostra mensagem clara, sem travar.
 - [ ] CA8: limites do provedor (rate limit/paginação) são respeitados; períodos acima de 12 meses são recusados.
 - [ ] CA9: testes automáticos cobrem mapeamento, idempotência e paginação com respostas de exemplo das duas APIs.
+- [ ] CA10: a conta de destino é escolhida em cada importação e é obrigatória; os lançamentos entram nessa conta, mesmo que seja diferente da conta fixa da conexão de webhook.
+- [ ] CA11: cada lançamento importado traz o nome do cliente como contraparte; esse nome continua tokenizado em qualquer envio para IA externa.
+- [ ] CA12: um pagamento já importado em uma conta e depois recebido por webhook (cuja conexão aponta para outra conta) **não** duplica: atualiza o mesmo lançamento pelo identificador do pagamento.
+- [ ] CA13: cancelados e estornados aparecem marcados à parte e não alteram o saldo das contas.
 
 ## Fora de escopo
 - Sincronização contínua/agendada por API (apenas importação sob demanda).
@@ -45,9 +53,17 @@ de cobranças no Asaas ou no Mercado Pago não consegue trazer o histórico. É 
 - Constituição nº 3 (segredos), nº 4 (idempotência), nº 5 (dinheiro), nº 6 (testes).
 
 ## Perguntas abertas
-- Importar quais status? Proposta: pagos, confirmados, pendentes e vencidos (cancelados/estornados marcados à parte).
-- A importação cria clientes/contatos ou só lançamentos?
-- Em qual conta o dinheiro entra? Proposta: a conta já configurada na conexão.
+Nenhuma. (Respondidas pelo usuário em 2026-11-27; ver abaixo.)
+
+## Respostas às perguntas abertas
+- **Quais status?** Conforme a proposta: pagos, confirmados, pendentes e vencidos; cancelados/estornados marcados à parte.
+- **Clientes?** A importação pode atribuir o cliente aos lançamentos (nome na contraparte; sem cadastro separado).
+- **Em qual conta entra?** Na hora de iniciar a importação (arquivo ou API) escolhe-se a conta daquela importação específica.
+
+## Pontos para o plan (não são perguntas ao usuário)
+- Asaas devolve só o id do cliente na cobrança: o nome exige consulta a `/v3/customers/{id}`; cache por importação e respeito ao rate limit.
+- Idempotência entre importação (conta escolhida) e webhook (conta da conexão): a chave é o identificador do pagamento do provedor, não a conta (ver CA12).
+- A Conciliação por arquivo já escolhe a conta a cada importação; nada a mudar lá.
 
 ## Registro de verificação
 —

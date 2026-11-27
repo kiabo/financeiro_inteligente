@@ -13,3 +13,11 @@ Status: `rascunho` → `aprovado` → `em-andamento` → `concluído`.
 | 006 | [Supabase Free: backup e monitor](006-supabase-backup-monitor/spec.md) | rascunho | — | — |
 
 Ordem sugerida: 001 → 002 → 003 (rápidas), depois 004, 005 e 006.
+
+## Estado atual (2026-11-27) e próximos passos
+- **001, 002 e 003: concluídas e em produção** (`dev` e `main` iguais; migration `0007` já aplicada no Supabase).
+- **004:** respostas às perguntas abertas registradas na própria spec; **aguarda a aprovação do usuário** ("aprovo a spec 004") para gerar o plan.
+- **005 e 006:** rascunhos; perguntas abertas ainda sem resposta.
+- Pendências fora das specs: conectar o Google no **cfo** (backup no Drive e agenda); criar o webhook do Asaas apontando para o cfo quando houver pagamentos reais
+  (sem mexer no webhook "Gestão Comoequetalá"); `ENABLE_INTERNAL_SCHEDULER=true` no `.env` **local** e no servidor da porta 3000 (risco de alertas/backup em duplicidade com o cfo).
+- Fluxo de cada spec: `/sdd-plan`, `/sdd-tasks`, `/sdd-implement`, `/sdd-verify` (Claude) ou `/sdd:plan` etc. (Gemini); promoção `dev` → `main` só com o "sim" do usuário.

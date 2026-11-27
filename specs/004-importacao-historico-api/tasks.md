@@ -86,7 +86,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
   Atualizar `docs/architecture.md` (importação de histórico, chave por pagamento, tabela `import_runs`). Rodar `npx tsc --noEmit && npm test && npm run build`.
   **Pronto quando:** os três comandos passam e o caso novo falha se `counterparty_name` deixar de ser tratado como sensível. (CA11)
 
-- [ ] T16 — **(usuário)** Aplicar `0008_importacao_historico_api.sql` no SQL Editor do Supabase (o mesmo banco serve h-cfo e cfo) e me avisar.
+- [x] T16 — **(usuário)** Aplicar `0008_importacao_historico_api.sql` no SQL Editor do Supabase (o mesmo banco serve h-cfo e cfo) e me avisar.
   Eu entrego o SQL pronto no chat. **Só depois disto** se faz o push/merge na `dev` (o código novo grava colunas que ainda não existiriam).
   **Pronto quando:** o usuário confirma e `select external_ref, external_role from transactions limit 1` e `select count(*) from import_runs` funcionam.
 
@@ -99,6 +99,9 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T16 — Migration 0008 aplicada (2026-11-27)
+- O usuário aplicou a `0008` no SQL Editor. Conferência: `select external_ref, external_role from transactions limit 1` devolveu `null` (as colunas existem; nenhum lançamento tem chave ainda — esperado, o banco ainda não tinha lançamentos de webhook) e `select count(*) from import_runs` devolveu `0` (tabela criada, vazia).
 
 ### T15 — Regressão de privacidade e documentação (2026-11-27)
 - `aiContextBuilder.test.ts`, caso 5: lançamentos importados (Asaas e Mercado Pago, com nome do cliente na contraparte **e** na descrição) não vazam no contexto enviado à IA, nem pela barreira Zero-Leak "crua" sem listar os nomes como termos sensíveis. **Mutação confirmada:** comentando `counterparty_name` em `COUNTERPARTY_KEYS` (`anonymizer.ts`) o caso 5 e o caso 7 falham (164/166); o arquivo foi restaurado e a suíte voltou a 166/166.

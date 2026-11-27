@@ -21,7 +21,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
   `setActiveSection` / `onNavigate={setActiveSection}` por `navigate`; logout navega para `/visao-geral` com replace.
   **Pronto quando:** `tsc` passa e não resta nenhum `setActiveSection` fora do próprio `navigate`/`popstate`. (CA1, CA2, CA3, CA5)
 
-- [ ] T04 — `App.tsx`: `document.title = "<Tela> · Vértice"` com sessão verificada (constante única para o nome),
+- [x] T04 — `App.tsx`: `document.title = "<Tela> · Vértice"` com sessão verificada (constante única para o nome),
   título padrão sem sessão.
   **Pronto quando:** `tsc` passa e a lógica usa `SECTION_TITLES`. (CA7)
 

@@ -19,7 +19,8 @@ import {
   type WorkspaceSnapshot,
 } from './modules/core/repository';
 import { getSupabaseClient, isSupabaseConfigured } from './modules/core/supabase';
-import { DEFAULT_SECTION, pathFromSection, sectionFromPath } from './modules/core/routes';
+import { APP_NAME } from './modules/core/brand';
+import { DEFAULT_SECTION, SECTION_TITLES, pathFromSection, sectionFromPath } from './modules/core/routes';
 import type { ActiveContext, AppSection, AuthSessionState } from './modules/core/types';
 import { CashFlowView } from './modules/core/views/CashFlowView';
 import { OverviewView } from './modules/core/views/OverviewView';
@@ -81,6 +82,12 @@ export default function App(): React.JSX.Element {
       else window.history.pushState(null, '', path);
     }
   }, []);
+  // Título da aba: "<Tela> · <Sistema>" com sessão verificada; sem sessão, o título padrão do index.html
+  const [defaultTitle] = useState(() => (typeof document === 'undefined' ? '' : document.title));
+  const authenticated = Boolean(session?.mfaVerified);
+  useEffect(() => {
+    document.title = authenticated ? `${SECTION_TITLES[activeSection]} · ${APP_NAME}` : defaultTitle;
+  }, [authenticated, activeSection, defaultTitle]);
   useEffect(() => {
     // `/` ou caminho desconhecido → Visão Geral, sem criar entrada extra no histórico
     if (!sectionFromPath(window.location.pathname)) {

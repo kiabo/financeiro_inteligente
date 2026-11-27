@@ -233,7 +233,7 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
   return (
     <div className="space-y-6">
       <ModuleHeader
-        eyebrow="Módulo 6 · Integrações"
+        eyebrow="Integrações & Webhooks"
         title="Central de Integrações & Webhooks"
         glossaryKey="webhook_idempotencia"
         description={

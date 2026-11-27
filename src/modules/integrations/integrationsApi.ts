@@ -21,7 +21,7 @@ import type {
 
 function requireSupabase() {
   if (!isSupabaseConfigured) {
-    throw new Error('Este recurso do Módulo 6 exige o Supabase configurado (modo sandbox não suporta).');
+    throw new Error('Este recurso exige o Supabase configurado (o modo sandbox não o suporta).');
   }
   const client = getSupabaseClient();
   if (!client) throw new Error('Cliente Supabase indisponível.');

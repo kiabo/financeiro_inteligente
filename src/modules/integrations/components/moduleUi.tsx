@@ -137,7 +137,7 @@ export function formatDateBR(iso: string | null | undefined): string {
 export const SandboxGate: React.FC<{ children: React.ReactNode; isSandbox: boolean }> = ({ children, isSandbox }) =>
   isSandbox ? (
     <Notice tone="warning">
-      Este recurso do Módulo 6 precisa do Supabase configurado (webhooks, conciliação persistente, comprovantes no Storage, alertas e
+      Este recurso precisa do Supabase configurado (webhooks, conciliação persistente, comprovantes no Storage, alertas e
       backup rodam no servidor com RLS). Configure <span className="font-mono">VITE_SUPABASE_URL</span> e as chaves no{' '}
       <span className="font-mono">.env</span> para habilitar.
     </Notice>

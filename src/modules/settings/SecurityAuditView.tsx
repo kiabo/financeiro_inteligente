@@ -19,6 +19,7 @@ import { StatusChip } from '../../components/ui/status-chip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { formatDateTimeBR } from '../../lib/utils';
 import { InfoTooltip } from '../core/components/InfoTooltip';
+import { canSeeSql } from '../core/roles';
 import { inviteUser, resetSandboxStore, revokeInvite } from '../core/repository';
 import { isSupabaseConfigured } from '../core/supabase';
 import type { AppRole, AuditLogEntry, AuthSessionState, InvitedUser } from '../core/types';
@@ -55,6 +56,8 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
       setError(err instanceof Error ? err.message : 'Erro ao registrar convite.');
     }
   };
+
+  const showSql = canSeeSql(session.role);
 
   const handleCopySql = async (target: 'm1' | 'm2' | 'm3' | 'm4' | 'm5') => {
     const content =
@@ -99,10 +102,12 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
             <History className="h-3.5 w-3.5" />
             <span>Auditoria ({auditLogs.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="sql" className="gap-1.5">
-            <Database className="h-3.5 w-3.5" />
-            <span>Esquema SQL &amp; .env</span>
-          </TabsTrigger>
+          {showSql && (
+            <TabsTrigger value="sql" className="gap-1.5">
+              <Database className="h-3.5 w-3.5" />
+              <span>Esquema SQL &amp; .env</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* TAB 1: INVITE-ONLY */}
@@ -264,6 +269,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
         </TabsContent>
 
         {/* TAB 3: SQL & ENV */}
+        {showSql && (
         <TabsContent value="sql" className="space-y-6">
           <Card>
             <CardHeader>
@@ -327,7 +333,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <div>
-                <CardTitle>Migração PostgreSQL · Módulo 1 (`0001_module1_foundation.sql`)</CardTitle>
+                <CardTitle>Migração SQL · Estrutura base</CardTitle>
                 <CardDescription>
                   Triggers de tokenização imutável, Invite-Only Gate e RLS forçado na fundação.
                 </CardDescription>
@@ -338,7 +344,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
-                <span>{copiedSql === 'm1' ? 'Copiado' : 'Copiar SQL M1'}</span>
+                <span>{copiedSql === 'm1' ? 'Copiado' : 'Copiar SQL'}</span>
               </Button>
             </CardHeader>
             <CardContent>
@@ -351,7 +357,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <div>
-                <CardTitle>Migração Incremental · Módulo 2 (`0002_module2_financial_core.sql`)</CardTitle>
+                <CardTitle>Migração SQL · Núcleo financeiro</CardTitle>
                 <CardDescription>
                   Catálogo de Produtos/Serviços (`PRD_XX`/`SRV_XX`), Plano de Contas, Lançamentos
                   Caixa/Competência, `project_id` preparado e cálculo seguro de saldos.
@@ -363,7 +369,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
-                <span>{copiedSql === 'm2' ? 'Copiado' : 'Copiar SQL M2'}</span>
+                <span>{copiedSql === 'm2' ? 'Copiado' : 'Copiar SQL'}</span>
               </Button>
             </CardHeader>
             <CardContent>
@@ -376,7 +382,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <div>
-                <CardTitle>Migração Incremental · Módulo 3 (`0003_module3_projects.sql`)</CardTitle>
+                <CardTitle>Migração SQL · Projetos</CardTitle>
                 <CardDescription>
                   Projetos (`PRJ_XX`), Premissas Futuras por Cenário, FK `transactions.project_id`
                   com validação de tenant/empresa e RLS forçado.
@@ -388,7 +394,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
-                <span>{copiedSql === 'm3' ? 'Copiado' : 'Copiar SQL M3'}</span>
+                <span>{copiedSql === 'm3' ? 'Copiado' : 'Copiar SQL'}</span>
               </Button>
             </CardHeader>
             <CardContent>
@@ -401,7 +407,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <div>
-                <CardTitle>Migração Incremental · Módulo 4 (`0004_module4_health_debts_taxes.sql`)</CardTitle>
+                <CardTitle>Migração SQL · Saúde, dívidas e impostos</CardTitle>
                 <CardDescription>
                   Dívidas (`CRD_XX`), Parcelas (`debt_installments`), Guias Fiscais (`tax_obligations`),
                   categorias <span className="font-mono">8.0/8.1/8.2</span>, funções SQL{' '}
@@ -415,7 +421,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
-                <span>{copiedSql === 'm4' ? 'Copiado' : 'Copiar SQL M4'}</span>
+                <span>{copiedSql === 'm4' ? 'Copiado' : 'Copiar SQL'}</span>
               </Button>
             </CardHeader>
             <CardContent>
@@ -428,7 +434,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <div>
-                <CardTitle>Migração Incremental · Módulo 5 (`0005_module5_ai_cfo_mcp.sql`)</CardTitle>
+                <CardTitle>Migração SQL · CFO virtual e MCP</CardTitle>
                 <CardDescription>
                   Recomendações do CFO Virtual (<span className="font-mono">ai_insights</span>),
                   chaves SHA-256 e escopos do Servidor MCP (<span className="font-mono">mcp_access_tokens</span>,{' '}
@@ -441,7 +447,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
-                <span>{copiedSql === 'm5' ? 'Copiado' : 'Copiar SQL M5'}</span>
+                <span>{copiedSql === 'm5' ? 'Copiado' : 'Copiar SQL'}</span>
               </Button>
             </CardHeader>
             <CardContent>
@@ -451,6 +457,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
             </CardContent>
           </Card>
         </TabsContent>
+        )}
       </Tabs>
     </div>
   );

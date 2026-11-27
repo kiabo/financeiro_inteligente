@@ -13,3 +13,8 @@ export function normalizeRole(value: unknown): AppRole {
 export function canSeeSql(role: AppRole): boolean {
   return role === 'owner' || role === 'admin';
 }
+
+/** Painel "Banco e backups" e (spec 005) a marca do sistema: só `owner` e `admin`. A trava real está no servidor. */
+export function canManageInstance(role: AppRole): boolean {
+  return role === 'owner' || role === 'admin';
+}

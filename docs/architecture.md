@@ -12,9 +12,9 @@
 | `src/modules/integrations/` | Central de webhooks, conciliação (OFX/CSV/PDF), OCR de recibos, alertas, agenda e backup |
 | `src/modules/settings/`, `vault/` | Empresas, contas e grupos; cofre de privacidade; segurança e SQL |
 | `server.ts`, `server/` | Express: `/api/cfo/*`, `/api/mcp`, webhooks, automação; `authMiddleware` valida o JWT |
-| `server/integrations/` | `webhookRoutes`, `webhooks/` (adaptadores Asaas, Mercado Pago, Stripe, JSON custom), `history/` + `historyRoutes` (importação de histórico por API), `alerts/`, `google/`, `backupService`, `dailyJobs` |
+| `server/integrations/` | `webhookRoutes`, `webhooks/` (adaptadores Asaas, Mercado Pago, Stripe, JSON custom), `history/` + `historyRoutes` (importação de histórico por API), `dbBackup/` (backup do banco e uso do plano), `authz.ts`, `alerts/`, `google/`, `backupService`, `dailyJobs` |
 | `server/crypto/secretBox.ts` | AES-256-GCM para credenciais e backups |
-| `supabase/migrations/` | `0001`…`0008`, aplicadas manualmente |
+| `supabase/migrations/` | `0001`…`0009`, aplicadas manualmente |
 | `deploy/receive.sh`, `Dockerfile`, `.github/workflows/deploy.yml` | Pipeline de deploy |
 | `scripts/` | Testes (`run-tests.ts`) e restauração de backup |
 
@@ -58,6 +58,15 @@ Asaas e Mercado Pago. A chave de API fica no mesmo campo cifrado da conexão (`c
 ## Rotinas diárias
 `server/integrations/dailyJobs.ts`, a partir das 7h (America/Sao_Paulo), só com `ENABLE_INTERNAL_SCHEDULER=true`
 (produção): alertas por e-mail (Resend) e WhatsApp (Evolution API), sincronização de agenda e backup cifrado no Drive.
+
+## Backup do banco e uso do plano (spec 006)
+`server/integrations/dbBackup/`. Todo dia às 03:00 (America/Sao_Paulo, `DB_BACKUP_HOUR`), só na produção (`ENABLE_INTERNAL_SCHEDULER=true`) e com `SUPABASE_DB_URL` definida,
+o agendador (`startDbBackupScheduler`) roda `pg_dump --format=custom` (schemas `public` e `auth`), cifra com a mesma `BACKUP_ENCRYPTION_KEY` do backup lógico (formato `.vtxbak`, extensão `.vtxdb`),
+grava em `/backups` (no VPS, `/opt/financeiro-inteligente/backups`, montada só no `main`; 14 arquivos) e envia uma cópia ao Drive do titular `OWNER_TENANT_ID` (pasta própria, 14 arquivos). O resultado fica em `status.json`.
+A senha do banco só existe em `PGPASSWORD` do processo filho (`pgConnection.ts`); erros passam por `redactConnectionError`. O mesmo job mede o uso (`pg_database_size` e soma de `storage.objects`)
+e dispara alertas (`backup_failed`, `usage_high`) pelos canais de e-mail/WhatsApp. A tela é a aba "Banco e backups" em Segurança & SQL (`GET /api/ops/db-status`, `POST /api/ops/db-backup/run`, só `owner`/`admin`, checado em `authz.ts`).
+Teste de restauração: `deploy/restore-test.sh` (decifra no contêiner, restaura num Postgres 17 descartável, compara contagens). A imagem instala o `postgresql-client-17` pelo repositório oficial do PostgreSQL
+(o cliente 15 do Debian da imagem não copia um servidor 17). Caminho para um Supabase próprio: `docs/supabase-self-host.md`.
 
 ## Deploy
 `push` em `dev`/`main` → GitHub Actions (tsc, testes, build) → tar por SSH ao usuário `deploy` do VPS →

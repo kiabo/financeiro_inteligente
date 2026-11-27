@@ -10,7 +10,7 @@ Status: `rascunho` → `aprovado` → `em-andamento` → `concluído`.
 | 003 | [Saldo inicial e edição de conta](003-saldo-inicial-conta/spec.md) | concluído | concluído | concluído |
 | 004 | [Importação de histórico por API](004-importacao-historico-api/spec.md) | concluído | concluído | concluído |
 | 005 | [Nome e marca do sistema](005-marca-e-temas/spec.md) | aprovado | aprovado | rascunho |
-| 006 | [Supabase Free: backup e monitor](006-supabase-backup-monitor/spec.md) | aprovado | aprovado | rascunho |
+| 006 | [Supabase Free: backup e monitor](006-supabase-backup-monitor/spec.md) | em-andamento | em-andamento | em-andamento |
 | 007 | [Trocar o segredo do webhook](007-trocar-segredo-webhook/spec.md) | concluído | concluído | concluído |
 | 008 | [Importação completa das operações financeiras](008-importacao-completa-operacoes/spec.md) | rascunho | — | — |
 

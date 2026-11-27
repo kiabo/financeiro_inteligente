@@ -53,10 +53,10 @@ Regras duras: a connection string e a senha do banco nunca são lidas, impressas
 - [x] T10 — `Dockerfile` (`postgresql-client`, listas do apt limpas), `deploy/receive.sh` (montagem `/backups` só no `main`), `.env.example` (nomes `SUPABASE_DB_URL`, `OWNER_TENANT_ID`, `DB_BACKUP_HOUR`, `PLAN_DB_LIMIT_MB`, `PLAN_STORAGE_LIMIT_MB`, sem valores), `scripts/decrypt-db-backup.ts` e `deploy/restore-test.sh` (decifra, sobe Postgres descartável, cria papéis e extensões, restaura, compara contagens das tabelas principais com o banco real).
   **Pronto quando:** `docker build` da imagem termina no VPS e `pg_dump --version` e `psql --version` respondem dentro dela (sem expor variáveis); `bash -n` passa nos scripts. (CA2, CA7)
 
-- [ ] T11 — Tela: `PlanUsagePanel.tsx` e aba **"Banco e backups"** em `SecurityAuditView.tsx` (só `owner`/`admin`): barras do banco e do Storage com aviso a partir de 70%, último backup (data, tamanho, SHA-256, enviado ao Drive), botão "Fazer backup do banco agora" com confirmação de resultado, aviso de que a `BACKUP_ENCRYPTION_KEY` precisa ficar guardada fora do servidor, e estado "não configurado" claro quando faltam variáveis.
+- [x] T11 — Tela: `PlanUsagePanel.tsx` e aba **"Banco e backups"** em `SecurityAuditView.tsx` (só `owner`/`admin`): barras do banco e do Storage com aviso a partir de 70%, último backup (data, tamanho, SHA-256, enviado ao Drive), botão "Fazer backup do banco agora" com confirmação de resultado, aviso de que a `BACKUP_ENCRYPTION_KEY` precisa ficar guardada fora do servidor, e estado "não configurado" claro quando faltam variáveis.
   **Pronto quando:** `npm run build` passa e, em modo sandbox, a aba mostra o estado "não configurado" sem erro. (CA4, CA5)
 
-- [ ] T12 — `docs/supabase-self-host.md` (recursos, passos, riscos; sem executar nada) e seção "Backup do banco e uso do plano" em `docs/architecture.md`; spec 006 `em-andamento` em `specs/README.md`.
+- [x] T12 — `docs/supabase-self-host.md` (recursos, passos, riscos; sem executar nada) e seção "Backup do banco e uso do plano" em `docs/architecture.md`; spec 006 `em-andamento` em `specs/README.md`.
   **Pronto quando:** os documentos existem e a lista de variáveis bate com o `.env.example`. (—)
 
 ## Publicação e verificação
@@ -72,6 +72,7 @@ Regras duras: a connection string e a senha do banco nunca são lidas, impressas
   **Pronto quando:** o "Registro de verificação" tem cada CA com resultado, evidência e data; spec, plan e tasks `concluído`. (CA1–CA8)
 
 ## Notas de execução
+- **T11:** a aba "Banco e backups" só aparece para `owner`/`admin` **com Supabase configurado no navegador**; no modo de demonstração ela some (não mostra erro nem "não configurado"). O texto da tela não cita nomes de variáveis de ambiente (constituição nº 8); os nomes ficam em `docs/` e `.env.example`.
 - **T09 (desvio do plano):** o agendador do backup do banco ficou num arquivo próprio (`startDbBackupScheduler` em `dbBackupContext.ts`, chamado em `server.ts` ao lado do `startInternalScheduler`) em vez de dentro do `dailyJobs.ts`. Evita dependência circular (`dailyJobs` ↔ alertas) e mantém o horário das 03:00 separado das rotinas das 07:00. O comportamento planejado é o mesmo.
 - **T10 (descoberta, plano ajustado):** o `node:24-slim` é Debian 12, cujo `postgresql-client` é o 15, que **não** copia um servidor 17. O Dockerfile instala o `postgresql-client-17` pelo repositório oficial do PostgreSQL (PGDG), com `curl`/`gnupg` só durante a instalação. Validado construindo a imagem completa no VPS (cliente 17.12, sem `curl`/`gpg` no fim, `/backups` inexistente de propósito: sem a pasta montada o backup falha alto em vez de gravar numa camada que some no próximo deploy). A pasta só é montada se existir no VPS.
 - **T10:** o teste de restauração ficou em `deploy/restore-test.sh` + `scripts/decrypt-db-backup.ts` + `scripts/restore-compare.ts`; a lógica de comparação é testada em `npm test`, e a execução real fica para a T15 (precisa de um backup de verdade).

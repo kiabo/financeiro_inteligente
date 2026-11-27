@@ -1,4 +1,4 @@
-import { Check, Copy, Database, History, RotateCcw, Shield, UserPlus, X } from 'lucide-react';
+import { Check, Copy, Database, HardDrive, History, RotateCcw, Shield, UserPlus, X } from 'lucide-react';
 import React, { useState } from 'react';
 import sqlMigrationRaw from '../../../supabase/migrations/0001_module1_foundation.sql?raw';
 import sqlMigrationModule2Raw from '../../../supabase/migrations/0002_module2_financial_core.sql?raw';
@@ -19,10 +19,11 @@ import { StatusChip } from '../../components/ui/status-chip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { formatDateTimeBR } from '../../lib/utils';
 import { InfoTooltip } from '../core/components/InfoTooltip';
-import { canSeeSql } from '../core/roles';
+import { canManageInstance, canSeeSql } from '../core/roles';
 import { inviteUser, resetSandboxStore, revokeInvite } from '../core/repository';
 import { isSupabaseConfigured } from '../core/supabase';
 import type { AppRole, AuditLogEntry, AuthSessionState, InvitedUser } from '../core/types';
+import { PlanUsagePanel } from './PlanUsagePanel';
 
 interface SecurityAuditViewProps {
   session: AuthSessionState;
@@ -58,6 +59,7 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
   };
 
   const showSql = canSeeSql(session.role);
+  const showOps = canManageInstance(session.role) && isSupabaseConfigured;
 
   const handleCopySql = async (target: 'm1' | 'm2' | 'm3' | 'm4' | 'm5') => {
     const content =
@@ -102,6 +104,12 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
             <History className="h-3.5 w-3.5" />
             <span>Auditoria ({auditLogs.length})</span>
           </TabsTrigger>
+          {showOps && (
+            <TabsTrigger value="ops" className="gap-1.5">
+              <HardDrive className="h-3.5 w-3.5" />
+              <span>Banco e backups</span>
+            </TabsTrigger>
+          )}
           {showSql && (
             <TabsTrigger value="sql" className="gap-1.5">
               <Database className="h-3.5 w-3.5" />
@@ -267,6 +275,13 @@ export const SecurityAuditView: React.FC<SecurityAuditViewProps> = ({
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* TAB: BANCO E BACKUPS (só owner/admin) */}
+        {showOps && (
+          <TabsContent value="ops">
+            <PlanUsagePanel />
+          </TabsContent>
+        )}
 
         {/* TAB 3: SQL & ENV */}
         {showSql && (

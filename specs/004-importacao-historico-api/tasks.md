@@ -73,7 +73,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 - [x] T12 — Cliente: tipos e funções em `integrationsApi.ts`/`types.ts` (`startHistoryImport`, `stepHistoryImport`, `cancelHistoryImport`, `getHistoryImport`, `source` nos eventos, `api_key_configured`).
   **Pronto quando:** `npx tsc --noEmit` passa e as funções têm lista explícita de campos no corpo das requisições. (CA1)
 
-- [ ] T13 — `IntegrationsHubView.tsx`: campo "Chave de API" na criação e na edição (Mercado Pago passa a usar este mesmo campo no lugar de "Access Token"), chip "Chave configurada", troca exige digitar de novo; a chave nunca é exibida.
+- [x] T13 — `IntegrationsHubView.tsx`: campo "Chave de API" na criação e na edição (Mercado Pago passa a usar este mesmo campo no lugar de "Access Token"), chip "Chave configurada", troca exige digitar de novo; a chave nunca é exibida.
   **Pronto quando:** `tsc`/`build` passam e, no `npm run dev`, salvar a chave mostra só o chip e recarregar a página não a exibe em lugar nenhum (Rede/DOM). (CA1)
 
 - [ ] T14 — `components/HistoryImportModal.tsx` + botão "Importar histórico" (desabilitado sem chave): atalhos 3/6/12 meses e datas, **"Conta de destino" sem valor pré-selecionado** e só com contas da empresa da conexão, barra "mês N de M",
@@ -99,6 +99,10 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T13 — Campo "Chave de API" (2026-11-27)
+- `IntegrationsHubView.tsx`: na criação, Mercado Pago ("Chave de API (Access Token de produção) *", mesmo campo de antes) e Asaas ("Chave de API (opcional)"); em cada conexão com Asaas/Mercado Pago, chip "Chave configurada"/"Sem chave de API" e botão "Chave de API"/"Trocar chave de API" que abre um Dialog (campo de senha, sempre vazio, nunca preenchido com a chave; salvar substitui). A tela só usa `api_key_configured`.
+- `tsc`, 164 testes e `npm run build` passam. **Limite da verificação local:** a Central de Integrações fica atrás do `SandboxGate` (exige Supabase), então não dá para abrir essa tela no `npm run dev` sem backend; a conferência visual (salvar a chave, só o chip, recarregar e a chave não aparece em Rede/DOM) fica para a **T18** no h-cfo.
 
 ### T12 — Cliente (2026-11-27)
 - `integrationsApi.ts`: `startHistoryImport`, `stepHistoryImport`, `cancelHistoryImport`, `fetchLatestHistoryImport`; `fetchWebhookEvents(connectionId?, source?)`. Todas enviam lista explícita de campos. Tipos `HistoryImportRun`, `WebhookEventRow.source`, `IntegrationConnection.api_key_configured` em `types.ts`.

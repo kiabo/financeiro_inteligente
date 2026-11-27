@@ -27,7 +27,7 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
 - [x] T04 — Implementar o cálculo: `computeAccountBalances` e `computePeriodMetrics` (com `openingBalanceTotal`) usando saldo inicial e data de caixa.
   **Pronto quando:** os testes da T03 passam e `npm test` inteiro continua verde (os saldos de contas sem saldo inicial não mudam). (CA1–CA6, CA11)
 
-- [ ] T05 — Cadastro e edição no repository: `CreateAccountInput` e `createFinancialAccount` (sandbox + Supabase) com os campos novos e validação;
+- [x] T05 — Cadastro e edição no repository: `CreateAccountInput` e `createFinancialAccount` (sandbox + Supabase) com os campos novos e validação;
   nova `updateFinancialAccount` com lista explícita de colunas; seed do sandbox com `0`/`null`.
   **Pronto quando:** `tsc` e `npm test` passam; testes do modo sandbox cobrem criar com saldo positivo/negativo e editar. (CA7, CA8, CA10)
 

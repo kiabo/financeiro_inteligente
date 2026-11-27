@@ -3,11 +3,27 @@
  */
 import type { Company, FinancialAccount, Transaction } from '../types';
 import {
+  buildAccountUpdate,
   computeAccountBalances,
   computePeriodMetrics,
+  createFinancialAccount,
   normalizeOpeningBalance,
   transactionCashDate,
+  updateFinancialAccount,
 } from '../repository';
+
+// Sandbox (isSupabaseConfigured = false nos testes) usa localStorage: simulação mínima em memória.
+if (typeof (globalThis as { localStorage?: unknown }).localStorage === 'undefined') {
+  const mem = new Map<string, string>();
+  (globalThis as unknown as { localStorage: Storage }).localStorage = {
+    getItem: (k: string) => mem.get(k) ?? null,
+    setItem: (k: string, v: string) => void mem.set(k, String(v)),
+    removeItem: (k: string) => void mem.delete(k),
+    clear: () => mem.clear(),
+    key: () => null,
+    length: 0,
+  } as unknown as Storage;
+}
 
 export interface AccountBalancesTestResult {
   name: string;
@@ -93,15 +109,18 @@ const TXS: Transaction[] = [
 
 const ALL = { scope: 'all_independent' } as const;
 
-export function runAccountBalancesTests(): AccountBalancesTestResult[] {
+export async function runAccountBalancesTests(): Promise<AccountBalancesTestResult[]> {
   const results: AccountBalancesTestResult[] = [];
-  const record = (name: string, fn: () => void) => {
+  const record = async (name: string, fn: () => void | Promise<void>) => {
     try {
-      fn();
+      await fn();
       results.push({ name, passed: true, details: 'ok' });
     } catch (err) {
       results.push({ name, passed: false, details: err instanceof Error ? err.message : String(err) });
     }
+  };
+  const assert = (cond: boolean, msg: string) => {
+    if (!cond) throw new Error(msg);
   };
   const assertEq = (actual: unknown, expected: unknown, msg: string) => {
     if (actual !== expected) throw new Error(`${msg}: esperado ${String(expected)}, obtido ${String(actual)}`);
@@ -122,65 +141,65 @@ export function runAccountBalancesTests(): AccountBalancesTestResult[] {
     return b;
   };
 
-  record('CA1: conta nova com saldo inicial 1.000 em 01/11 e sem lançamentos mostra 1.000', () => {
+  await record('CA1: conta nova com saldo inicial 1.000 em 01/11 e sem lançamentos mostra 1.000', () => {
     const [b] = computeAccountBalances([account('acc-x', 'CTA_09', 1000, '2026-11-01')], [], [COMPANY], ALL);
     assertEq(b!.current_balance, 1000, 'atual');
     assertEq(b!.projected_balance, 1000, 'previsto');
   });
 
-  record('CA2: despesa paga de 200 em 05/11 e transferência de 40 levam 1.000 a 760 (previsto 710)', () => {
+  await record('CA2: despesa paga de 200 em 05/11 e transferência de 40 levam 1.000 a 760 (previsto 710)', () => {
     const b = balanceOf('CTA_02');
     assertEq(b.current_balance, 760, 'atual');
     assertEq(b.projected_balance, 710, 'previsto (pendente de 50 entra só no previsto; cancelado nunca)');
   });
 
-  record('CA3: pagamento anterior à data do saldo (999 em 20/10) não entra na soma', () => {
+  await record('CA3: pagamento anterior à data do saldo (999 em 20/10) não entra na soma', () => {
     assertEq(balanceOf('CTA_02').current_balance, 760, 'não deve somar os 999');
   });
 
-  record('CA5: saldo inicial negativo: −500 + 100 + 40 de transferência = −360', () => {
+  await record('CA5: saldo inicial negativo: −500 + 100 + 40 de transferência = −360', () => {
     const b = balanceOf('CTA_03');
     assertEq(b.current_balance, -360, 'atual');
     assertEq(b.opening_balance, -500, 'expõe o saldo inicial');
     assertEq(b.opening_balance_date, '2026-11-01', 'expõe a data');
   });
 
-  record('CA6: conta antiga (sem saldo inicial) continua com a soma dos lançamentos', () => {
+  await record('CA6: conta antiga (sem saldo inicial) continua com a soma dos lançamentos', () => {
     const b = balanceOf('CTA_01');
     assertEq(b.current_balance, 300, 'atual');
     assertEq(b.opening_balance, 0, 'saldo inicial zero');
   });
 
-  record('movimento pendente usa a data de vencimento; pago usa a data de pagamento', () => {
+  await record('movimento pendente usa a data de vencimento; pago usa a data de pagamento', () => {
     assertEq(transactionCashDate({ status: 'pending', payment_date: null, due_date: '2026-12-01' }), '2026-12-01', 'pendente');
     assertEq(transactionCashDate({ status: 'paid', payment_date: '2026-11-05', due_date: '2026-11-30' }), '2026-11-05', 'pago');
     assertEq(transactionCashDate({ status: 'paid', payment_date: null, due_date: '2026-11-30' }), '2026-11-30', 'pago sem data');
   });
 
-  record('contexto por conta devolve só o saldo daquela conta', () => {
+  await record('contexto por conta devolve só o saldo daquela conta', () => {
     const only = computeAccountBalances(ACCOUNTS, TXS, [COMPANY], { scope: 'account', accountId: 'acc-b' });
     assertEq(only.length, 1, 'uma conta');
     assertEq(only[0]!.current_balance, 760, 'saldo de B');
   });
 
-  record('Saldo Anterior de novembro inclui os saldos iniciais (300 + 1.000 − 500 = 800)', () => {
+  await record('Saldo Anterior de novembro inclui os saldos iniciais (300 + 1.000 − 500 = 800)', () => {
     const m = computePeriodMetrics(TXS, [COMPANY], ACCOUNTS, ALL, 'cash', '2026-11-01', '2026-11-30', '2026-11-26');
     assertEq(m.previousBalance, 800, 'saldo anterior');
     assertEq(m.openingBalanceTotal, 500, 'total de saldos iniciais no período');
   });
 
-  record('Saldo Anterior de dezembro soma os movimentos pagos desde a data do saldo (300 + 760 − 360 = 700)', () => {
+  await record('Saldo Anterior de dezembro soma os movimentos pagos desde a data do saldo (300 + 760 − 360 = 700)', () => {
     const m = computePeriodMetrics(TXS, [COMPANY], ACCOUNTS, ALL, 'cash', '2026-12-01', '2026-12-31', '2026-12-05');
     assertEq(m.previousBalance, 700, 'saldo anterior');
   });
 
-  record('período que termina antes da data do saldo não inclui o saldo inicial', () => {
+  await record('período que termina antes da data do saldo não inclui o saldo inicial', () => {
     const m = computePeriodMetrics(TXS, [COMPANY], ACCOUNTS, ALL, 'cash', '2026-09-01', '2026-09-30', '2026-11-26');
     assertEq(m.previousBalance, 0, 'saldo anterior');
     assertEq(m.openingBalanceTotal, 0, 'sem saldo inicial no período');
   });
 
-  record('normalizeOpeningBalance: arredonda, aceita negativo e zera a data quando o saldo é 0', () => {
+  await record('normalizeOpeningBalance: arredonda, aceita negativo e zera a data quando o saldo é 0', () => {
     assertEq(normalizeOpeningBalance({ opening_balance: 1234.567, opening_balance_date: '2026-11-01' }, '2026-11-26').opening_balance, 1234.57, 'arredondamento');
     assertEq(normalizeOpeningBalance({ opening_balance: -50, opening_balance_date: '2026-11-01' }, '2026-11-26').opening_balance, -50, 'negativo');
     const zero = normalizeOpeningBalance({ opening_balance: 0, opening_balance_date: '2026-11-01' }, '2026-11-26');
@@ -188,12 +207,67 @@ export function runAccountBalancesTests(): AccountBalancesTestResult[] {
     assertEq(normalizeOpeningBalance({}, '2026-11-26').opening_balance, 0, 'vazio = 0');
   });
 
-  record('normalizeOpeningBalance: sem data usa hoje; data inválida, futura, NaN e acima do limite são recusados', () => {
+  await record('normalizeOpeningBalance: sem data usa hoje; data inválida, futura, NaN e acima do limite são recusados', () => {
     assertEq(normalizeOpeningBalance({ opening_balance: 10 }, '2026-11-26').opening_balance_date, '2026-11-26', 'padrão hoje');
     throws(() => normalizeOpeningBalance({ opening_balance: 10, opening_balance_date: '2026-02-30' }, '2026-11-26'), 'Data do saldo inválida');
     throws(() => normalizeOpeningBalance({ opening_balance: 10, opening_balance_date: '2026-12-01' }, '2026-11-26'), 'futura');
     throws(() => normalizeOpeningBalance({ opening_balance: Number.NaN }, '2026-11-26'), 'inválido');
     throws(() => normalizeOpeningBalance({ opening_balance: 1e13 }, '2026-11-26'), 'limite');
+  });
+
+  await record('buildAccountUpdate: só colunas da lista explícita; chaves estranhas são ignoradas', () => {
+    const cols = buildAccountUpdate({ name: '  Conta Nova ', is_active: false, tenant_id: 'x', analytical_token: 'HACK' } as never);
+    assertEq(JSON.stringify(Object.keys(cols).sort()), JSON.stringify(['is_active', 'name']), 'colunas');
+    assertEq(cols.name, 'Conta Nova', 'nome aparado');
+    throws(() => buildAccountUpdate({}), 'Nenhuma alteração');
+    throws(() => buildAccountUpdate({ name: 'x' }), 'ao menos 2');
+    throws(() => buildAccountUpdate({ last_four: '12' }), '4 números');
+  });
+
+  await record('buildAccountUpdate: saldo inicial e data precisam vir juntos', () => {
+    throws(() => buildAccountUpdate({ opening_balance: 10 }), 'juntos');
+    throws(() => buildAccountUpdate({ opening_balance_date: '2026-11-01' }), 'juntos');
+    const cols = buildAccountUpdate({ opening_balance: -20.5, opening_balance_date: '2026-11-01' }, '2026-11-26');
+    assertEq(cols.opening_balance, -20.5, 'valor');
+    assertEq(cols.opening_balance_date, '2026-11-01', 'data');
+    const zero = buildAccountUpdate({ opening_balance: 0, opening_balance_date: '2026-11-01' }, '2026-11-26');
+    assertEq(zero.opening_balance_date, null, 'zero limpa a data');
+  });
+
+  await record('sandbox: criar conta com saldo positivo e negativo, depois editar (com auditoria)', async () => {
+    const pos = await createFinancialAccount('t-sbx', 'a@b.c', {
+      company_id: 'comp-x', name: 'Caixa Positivo', account_type: 'checking', opening_balance: 1500.5, opening_balance_date: '2026-11-01',
+    });
+    assertEq(pos.opening_balance, 1500.5, 'positivo');
+    assertEq(pos.opening_balance_date, '2026-11-01', 'data');
+    const neg = await createFinancialAccount('t-sbx', 'a@b.c', {
+      company_id: 'comp-x', name: 'Cheque Especial', account_type: 'checking', opening_balance: -300, opening_balance_date: '2026-11-01',
+    });
+    assertEq(neg.opening_balance, -300, 'negativo');
+    const semSaldo = await createFinancialAccount('t-sbx', 'a@b.c', { company_id: 'comp-x', name: 'Sem Saldo', account_type: 'checking' });
+    assertEq(semSaldo.opening_balance, 0, 'padrão zero');
+    assertEq(semSaldo.opening_balance_date, null, 'sem data');
+
+    const edited = await updateFinancialAccount('t-sbx', 'a@b.c', pos.id, { opening_balance: 2000, opening_balance_date: '2026-10-15', name: 'Caixa Editado' });
+    assertEq(edited.opening_balance, 2000, 'novo saldo');
+    assertEq(edited.name, 'Caixa Editado', 'novo nome');
+    assertEq(edited.analytical_token, pos.analytical_token, 'token permanece');
+
+    const audit = JSON.parse(localStorage.getItem('vertice_module1_sandbox_v1') ?? '{}').auditLogs as Array<{ action: string; entity_id: string }>;
+    assert(audit.some((a) => a.action === 'entity.updated' && a.entity_id === pos.id), 'auditoria entity.updated registrada');
+  });
+
+  await record('sandbox: criar com saldo inválido ou editar conta inexistente é recusado', async () => {
+    let msg = '';
+    try {
+      await createFinancialAccount('t-sbx', 'a@b.c', { company_id: 'comp-x', name: 'Ruim', account_type: 'checking', opening_balance: Number.NaN });
+    } catch (e) { msg = e instanceof Error ? e.message : ''; }
+    assert(msg.includes('inválido'), `esperava erro de saldo inválido, obtido "${msg}"`);
+    msg = '';
+    try {
+      await updateFinancialAccount('t-sbx', 'a@b.c', 'nao-existe', { name: 'Qualquer' });
+    } catch (e) { msg = e instanceof Error ? e.message : ''; }
+    assert(msg.includes('não encontrada'), `esperava "não encontrada", obtido "${msg}"`);
   });
 
   return results;

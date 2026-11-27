@@ -85,7 +85,30 @@ export interface CreateAccountInput {
   institution_name?: string;
   currency?: string;
   last_four?: string;
+  /** Saldo que a conta já tinha na abertura (pode ser negativo). Padrão: 0. */
+  opening_balance?: number;
+  /** Data do saldo (AAAA-MM-DD). Padrão: hoje quando há saldo. */
+  opening_balance_date?: string;
 }
+
+/** Campos editáveis de uma conta (lista explícita: nada além disto é enviado ao banco). */
+export interface UpdateAccountInput {
+  name?: string;
+  account_type?: AccountType;
+  institution_name?: string | null;
+  last_four?: string | null;
+  /** Saldo inicial e data devem vir juntos. */
+  opening_balance?: number;
+  opening_balance_date?: string | null;
+  is_active?: boolean;
+}
+
+export type AccountUpdateColumns = Partial<
+  Pick<
+    FinancialAccount,
+    'name' | 'account_type' | 'institution_name' | 'last_four' | 'opening_balance' | 'opening_balance_date' | 'is_active'
+  >
+>;
 
 export interface UpsertProductServiceInput {
   company_id: string | null;
@@ -1412,6 +1435,7 @@ export async function createFinancialAccount(
   if (lastFour && lastFour.length !== 4) {
     throw new Error('Os últimos dígitos devem ter exatamente 4 números.');
   }
+  const opening = normalizeOpeningBalance(input);
 
   if (!isSupabaseConfigured) {
     const store = loadSandboxStore(tenantId, userEmail);
@@ -1430,8 +1454,8 @@ export async function createFinancialAccount(
       last_four: lastFour,
       analytical_token: token,
       is_active: true,
-      opening_balance: 0,
-      opening_balance_date: null,
+      opening_balance: opening.opening_balance,
+      opening_balance_date: opening.opening_balance_date,
       created_at: now,
       updated_at: now,
     };
@@ -1471,10 +1495,98 @@ export async function createFinancialAccount(
       currency: (input.currency ?? 'BRL').toUpperCase(),
       last_four: lastFour,
       analytical_token: 'PENDING',
+      opening_balance: opening.opening_balance,
+      opening_balance_date: opening.opening_balance_date,
     })
     .select()
     .single();
 
+  if (error) throw new Error(error.message);
+  return data as FinancialAccount;
+}
+
+/**
+ * Monta as colunas a atualizar a partir do patch (lista explícita e validada).
+ * Lança erro se o patch estiver vazio ou for inválido.
+ */
+export function buildAccountUpdate(
+  patch: UpdateAccountInput,
+  todayISO: string = getTodayISO()
+): AccountUpdateColumns {
+  const columns: AccountUpdateColumns = {};
+
+  if (patch.name !== undefined) {
+    const name = patch.name.trim();
+    if (name.length < 2) throw new Error('Nome da conta deve ter ao menos 2 caracteres.');
+    columns.name = name;
+  }
+  if (patch.account_type !== undefined) columns.account_type = patch.account_type;
+  if (patch.institution_name !== undefined) columns.institution_name = patch.institution_name?.trim() || null;
+  if (patch.last_four !== undefined) {
+    const lastFour = patch.last_four?.replace(/\D/g, '').slice(0, 4) || null;
+    if (lastFour && lastFour.length !== 4) throw new Error('Os últimos dígitos devem ter exatamente 4 números.');
+    columns.last_four = lastFour;
+  }
+  const hasBalance = patch.opening_balance !== undefined;
+  const hasDate = patch.opening_balance_date !== undefined;
+  if (hasBalance || hasDate) {
+    if (!(hasBalance && hasDate)) throw new Error('Informe o saldo inicial e a data do saldo juntos.');
+    const opening = normalizeOpeningBalance(patch, todayISO);
+    columns.opening_balance = opening.opening_balance;
+    columns.opening_balance_date = opening.opening_balance_date;
+  }
+  if (patch.is_active !== undefined) columns.is_active = Boolean(patch.is_active);
+
+  if (Object.keys(columns).length === 0) throw new Error('Nenhuma alteração informada.');
+  return columns;
+}
+
+export async function updateFinancialAccount(
+  tenantId: string,
+  userEmail: string,
+  accountId: string,
+  patch: UpdateAccountInput
+): Promise<FinancialAccount> {
+  const columns = buildAccountUpdate(patch);
+
+  if (!isSupabaseConfigured) {
+    const store = loadSandboxStore(tenantId, userEmail);
+    const index = store.accounts.findIndex((a) => a.id === accountId);
+    if (index === -1) throw new Error('Conta não encontrada.');
+    const updated: FinancialAccount = {
+      ...store.accounts[index]!,
+      ...columns,
+      updated_at: new Date().toISOString(),
+    };
+    store.accounts[index] = updated;
+    if (columns.name !== undefined || columns.last_four !== undefined || columns.institution_name !== undefined) {
+      store.vault = store.vault.map((v) =>
+        v.entity_type === 'account' && v.entity_id === accountId
+          ? {
+              ...v,
+              real_label: updated.name,
+              sensitive_identifier: updated.last_four,
+              secondary_aliases: updated.institution_name ? [updated.institution_name] : [],
+              updated_at: updated.updated_at,
+            }
+          : v
+      );
+    }
+    appendSandboxAudit(store, tenantId, 'entity.updated', 'account', accountId, updated.analytical_token, {
+      fields: Object.keys(columns),
+    });
+    saveSandboxStore(store);
+    return updated;
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Cliente Supabase indisponível.');
+  const { data, error } = await supabase
+    .from('financial_accounts')
+    .update(columns)
+    .eq('id', accountId)
+    .select()
+    .single();
   if (error) throw new Error(error.message);
   return data as FinancialAccount;
 }

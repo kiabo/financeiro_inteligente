@@ -661,6 +661,92 @@ export function runAiContextBuilderTests(): AiContextTestResult[] {
     });
   }
 
+  // 5. Lançamentos importados por API (spec 004): o nome do cliente/pagador é só contraparte e nunca sai em claro (CA11)
+  try {
+    const imported: Transaction[] = [
+      {
+        ...TRANSACTIONS[0]!,
+        id: 'tx-imp-1',
+        product_service_id: null,
+        project_id: null,
+        description: 'Asaas: Mensalidade fevereiro Maria Souza Teste',
+        counterparty_name: 'Maria Souza Teste',
+        notes: 'webhook:asaas:pay_0001:settled',
+        amount: 150,
+      },
+      {
+        ...TRANSACTIONS[0]!,
+        id: 'tx-imp-2',
+        product_service_id: null,
+        project_id: null,
+        description: 'Mercado Pago [Estornado]: Compra de Carlos Pereira Teste',
+        counterparty_name: 'Carlos Pereira Teste',
+        status: 'canceled',
+        notes: 'webhook:mercadopago:90000005:canceled',
+        amount: 120,
+      },
+    ];
+    const built = buildAnonymizedCfoContext({
+      groups: GROUPS,
+      companies: COMPANIES,
+      accounts: ACCOUNTS,
+      categories: CATEGORIES,
+      productsServices: PRODUCTS,
+      projects: PROJECTS,
+      projectForecastItems: FORECAST_ITEMS,
+      transactions: [...TRANSACTIONS, ...imported],
+      debts: DEBTS,
+      debtInstallments: DEBT_INSTALLMENTS,
+      taxObligations: TAXES,
+      vault: VAULT,
+      activeContext: ACTIVE_CONTEXT,
+      regime: 'cash',
+      todayISO: '2026-11-25',
+      referenceMonth: '2026-11',
+    });
+    for (const term of ['Maria Souza', 'Carlos Pereira', 'Maria', 'Carlos', 'Souza Teste', 'Pereira Teste']) {
+      expectEqual(
+        built.serializedJson.toLowerCase().includes(term.toLowerCase()),
+        false,
+        `Nome de cliente importado não pode ir à IA: ${term}`
+      );
+    }
+    expectEqual(built.sanitizationReport.zeroLeakageVerified, true, 'Zero-Leak deve continuar verdadeiro com lançamentos importados');
+
+    // O contexto agregado não carrega texto de lançamentos; por isso também passamos os lançamentos importados
+    // pela barreira Zero-Leak "crus" (como o OCR e o CFO fazem), SEM listar os nomes como termos sensíveis:
+    // só a chave `counterparty_name` pode denunciá-los.
+    const viaBarrier = assertZeroLeakagePayload({ transactions: imported }, VAULT, []);
+    for (const term of ['Maria Souza Teste', 'Carlos Pereira Teste', 'Maria', 'Carlos']) {
+      expectEqual(
+        viaBarrier.serializedJson.toLowerCase().includes(term.toLowerCase()),
+        false,
+        `Barreira Zero-Leak deixou passar o nome do cliente importado: ${term}`
+      );
+    }
+
+    // Controle: se o nome fosse enviado em claro o verificador tem que recusar (o teste não é vacuoso)
+    let blocked = false;
+    try {
+      assertZeroLeakagePayload({ cliente: 'Maria Souza Teste' }, VAULT, ['Maria Souza Teste'], { rejectIfUnsanitized: true });
+    } catch (e) {
+      blocked = e instanceof ZeroLeakViolationError;
+    }
+    expectTrue(blocked, 'o verificador deve recusar o nome do cliente em claro');
+
+    results.push({
+      name: '5. Nome do cliente de lançamento importado por API continua tokenizado (CA11)',
+      passed: true,
+      details: 'Contraparte e descrição com nome de cliente não aparecem no payload enviado à IA.',
+    });
+  } catch (err) {
+    results.push({
+      name: '5. Nome do cliente de lançamento importado por API continua tokenizado (CA11)',
+      passed: false,
+      details: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   return results;
 }
 

@@ -82,7 +82,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Fechamento
 
-- [ ] T15 — Regressão de privacidade (CA11): caso novo em `aiContextBuilder.test.ts` com `counterparty_name` de lançamento importado → o nome não aparece no contexto enviado à IA, só tokens.
+- [x] T15 — Regressão de privacidade (CA11): caso novo em `aiContextBuilder.test.ts` com `counterparty_name` de lançamento importado → o nome não aparece no contexto enviado à IA, só tokens.
   Atualizar `docs/architecture.md` (importação de histórico, chave por pagamento, tabela `import_runs`). Rodar `npx tsc --noEmit && npm test && npm run build`.
   **Pronto quando:** os três comandos passam e o caso novo falha se `counterparty_name` deixar de ser tratado como sensível. (CA11)
 
@@ -99,6 +99,12 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T15 — Regressão de privacidade e documentação (2026-11-27)
+- `aiContextBuilder.test.ts`, caso 5: lançamentos importados (Asaas e Mercado Pago, com nome do cliente na contraparte **e** na descrição) não vazam no contexto enviado à IA, nem pela barreira Zero-Leak "crua" sem listar os nomes como termos sensíveis. **Mutação confirmada:** comentando `counterparty_name` em `COUNTERPARTY_KEYS` (`anonymizer.ts`) o caso 5 e o caso 7 falham (164/166); o arquivo foi restaurado e a suíte voltou a 166/166.
+- Observação: o contexto agregado da IA não carrega texto de lançamentos; a proteção que de fato depende de `counterparty_name` é a barreira de anonimização usada em OCR/CFO, e é ela que o caso 5 exercita.
+- `docs/architecture.md`: pasta `history/`, migrations até a 0008, idempotência por pagamento e a seção "Importação de histórico por API".
+- `npx tsc --noEmit`, `npm test` (166/166) e `npm run build` passam.
 
 ### T14 — Modal "Importar histórico" (2026-11-27)
 - `components/HistoryImportModal.tsx` + botão "Importar histórico" (desabilitado sem chave) em cada conexão Asaas/Mercado Pago + selo "API" e filtro de origem (Webhook / Importação por API) no log de eventos.

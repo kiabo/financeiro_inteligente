@@ -72,11 +72,17 @@ Verificáveis nesta spec (o modelo e as regras); os de cada fonte ficam nas spec
 
 ## Perguntas abertas
 - **Objetivo principal:** é fazer o **saldo** bater com o do provedor, ou ter o **resultado (DRE)** completo, ou os dois? Isso muda a prioridade das fases.
+   - Os dois. É importante termos a integridade dos dados e o DRE correto
 - **Por onde começar:** Asaas, Mercado Pago ou arquivos OFX dos bancos (C6, Sicoob)? Sugestão: Asaas primeiro (já importamos as cobranças dele).
+   - Asaas, depois C6 e Sicoob
 - **Transferências entre as suas contas** (por exemplo Asaas → C6): devem sempre virar "transferência" (sem receita nem despesa)? Sugestão: sim.
+   - Sim
 - **Compras feitas com a conta** do Mercado Pago (hoje ignoradas na 004): entram como despesas? Em que categoria padrão?
+   - Na verdade é necessário analisar cada caso, entra como despesa, mas pode ser um pagamento de conta, uma assinatura, um insumo, reembolso, PL, etc
 - **Retroatividade:** importar de qualquer data ou manter o limite de 12 meses por execução da 004?
+   - Manter o limite de 12 meses por execução
 - **"Qualquer outro banco":** além de OFX/CSV, quer que eu avalie Open Finance (um agregador pago) como fonte? Isso envolve custo e termos de uso.
+   - Por enquanto não. 
 
 ## Registro de verificação
 —

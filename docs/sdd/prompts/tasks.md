@@ -8,5 +8,5 @@ Entrada: `NNN`.
 4. Quebre em tarefas pequenas (até ~2 h), ordenadas por dependência, cada uma com **"Pronto quando"**
    observável e referência ao critério de aceite (CA) que ela atende. Migrations e passos manuais do usuário
    viram tarefas próprias, marcadas `(usuário)`.
-5. A última tarefa é sempre a verificação final no h-cfo contra todos os critérios.
+5. A última tarefa é sempre a verificação final no cfo contra todos os critérios.
 6. Status: `rascunho`. Atualize `specs/README.md`. Peça aprovação. **Não** escreva código.

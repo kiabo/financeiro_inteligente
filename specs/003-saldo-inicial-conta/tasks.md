@@ -19,7 +19,7 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
   `transactionCashDate` e `normalizeOpeningBalance`; ajustar fixtures (`healthEngine.test.ts` e demais) para o `tsc` voltar a passar.
   **Pronto quando:** `npx tsc --noEmit` passa. (CA5, CA6)
 
-- [ ] T03 — Testes da regra em `src/modules/core/__tests__/accountBalances.test.ts` (registrar em `scripts/run-tests.ts`), escritos **antes**
+- [x] T03 — Testes da regra em `src/modules/core/__tests__/accountBalances.test.ts` (registrar em `scripts/run-tests.ts`), escritos **antes**
   da implementação do cálculo: CA1, CA2, CA3, negativo, transferência com datas diferentes, conta antiga igual a hoje, previsto,
   `previousBalance` com saldo inicial, `normalizeOpeningBalance`.
   **Pronto quando:** `npm test` roda a nova suíte e os casos que dependem do cálculo **falham** (prova de que testam). (CA1, CA2, CA3, CA5, CA11)
@@ -58,3 +58,4 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
 ## Notas de execução
 - T01: migration testada em um Postgres 16 **descartável** (container `--rm` no VPS, tabelas mínimas): cenários CA1/CA2/CA3, saldo negativo, transferência, cancelado ignorado, conta antiga inalterada, idempotência (2 execuções) e constraint. Resultado: conta com 1.000 em 01/11 → 760 atual/710 previsto; conta com −500 → −360; conta antiga igual a antes.
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec)
+- T03: commitada com 8 de 12 testes **falhando de propósito** (o cálculo ainda não usa o saldo inicial) e um erro de `tsc` por `openingBalanceTotal` (campo criado na T04). Sem push até ficar verde (T08).

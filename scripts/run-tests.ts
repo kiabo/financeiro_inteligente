@@ -17,6 +17,7 @@ import { runHistoryTests } from '../server/__tests__/history.test.ts';
 import { runHistoryUpsertTests } from '../server/__tests__/historyUpsert.test.ts';
 import { runHistoryRunnerTests } from '../server/__tests__/historyRunner.test.ts';
 import { runHistoryServiceTests } from '../server/__tests__/historyService.test.ts';
+import { runConnectionSecretsTests } from '../server/__tests__/connectionSecrets.test.ts';
 import { runModule6ServerTests } from '../server/__tests__/module6Server.test.ts';
 
 interface Result {
@@ -42,6 +43,7 @@ const suites: Array<[string, () => Result[] | Promise<Result[]>]> = [
   ['Importação de histórico · idempotência (spec 004)', runHistoryUpsertTests],
   ['Importação de histórico · execução em lotes (spec 004)', runHistoryRunnerTests],
   ['Importação de histórico · serviço e chave de API (spec 004)', runHistoryServiceTests],
+  ['Troca do segredo do webhook (spec 007)', runConnectionSecretsTests],
 ];
 
 let failures = 0;

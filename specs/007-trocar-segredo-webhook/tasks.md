@@ -1,9 +1,9 @@
 # Tasks 007 — Trocar o segredo do webhook de uma conexão
 
-- **Status:** rascunho
+- **Status:** em-andamento
 - **Plan:** `specs/007-trocar-segredo-webhook/plan.md` (aprovado em 2026-11-27)
 - **Branch:** `feat/007-trocar-segredo-webhook` (saindo da `dev`)
-- **Aprovado em:** —
+- **Aprovado em:** 2026-11-27
 
 Uma tarefa por vez, em ordem. Marque `[x]` ao concluir. Commit: `feat(007): descrição (T01)`.
 Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tarefas de tela).
@@ -11,12 +11,12 @@ Sem migration nesta spec. Nada é lido nem impresso de segredos; os testes usam 
 
 ## Servidor
 
-- [ ] T01 — Escrever **antes** os testes de `server/__tests__/connectionSecrets.test.ts` e registrá-los em `scripts/run-tests.ts`
+- [x] T01 — Escrever **antes** os testes de `server/__tests__/connectionSecrets.test.ts` e registrá-los em `scripts/run-tests.ts`
   (suíte "Troca do segredo do webhook (spec 007)"): cifra e decifra com o tenant certo e falha com outro; 7 caracteres, vazio, só espaços e valor não textual são recusados; espaços nas pontas são removidos;
   para Asaas, Mercado Pago, Stripe e JSON customizado, assinatura com o segredo **antigo** passa antes da troca e é **recusada** depois, e a do **novo** é aceita; a conexão apresentada não contém o segredo.
   **Pronto quando:** os testes existem e falham só porque `prepareSigningSecretChange` ainda não existe. (CA1, CA2, CA3)
 
-- [ ] T02 — Criar `server/integrations/connectionSecrets.ts` com `prepareSigningSecretChange(raw, tenantId)` e fazer o `PATCH /api/integrations/connections/:id` usá-la
+- [x] T02 — Criar `server/integrations/connectionSecrets.ts` com `prepareSigningSecretChange(raw, tenantId)` e fazer o `PATCH /api/integrations/connections/:id` usá-la
   (mensagem de erro igual à da criação: mínimo de 8 caracteres). Incluir o teste de que a auditoria do `PATCH` lista `signing_secret` em `fields` e não contém o valor.
   **Pronto quando:** `npx tsc --noEmit && npm test` passam, incluindo os testes antigos do webhook sem alterar suas expectativas. (CA1, CA2, CA3, CA4)
 

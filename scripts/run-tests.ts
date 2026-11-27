@@ -12,6 +12,7 @@ import { runModule6ClientTests } from '../src/modules/integrations/__tests__/mod
 import { runProjectCalculatorUnitTests } from '../src/modules/projects/__tests__/projectCalculator.test.ts';
 import { runAnonymizerUnitTests } from '../src/modules/vault/__tests__/anonymizer.test.ts';
 import { runHistoryPeriodTests } from '../src/modules/integrations/__tests__/historyPeriod.test.ts';
+import { runHistoryTests } from '../server/__tests__/history.test.ts';
 import { runModule6ServerTests } from '../server/__tests__/module6Server.test.ts';
 
 interface Result {
@@ -32,6 +33,7 @@ const suites: Array<[string, () => Result[] | Promise<Result[]>]> = [
   ['Rotas por tela (spec 002)', runRoutesTests],
   ['Saldo inicial da conta (spec 003)', runAccountBalancesTests],
   ['Importação de histórico · período (spec 004)', runHistoryPeriodTests],
+  ['Importação de histórico por API (spec 004)', runHistoryTests],
 ];
 
 let failures = 0;

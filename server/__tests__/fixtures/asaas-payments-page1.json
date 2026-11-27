@@ -1,0 +1,30 @@
+{
+  "object": "list",
+  "hasMore": true,
+  "totalCount": 6,
+  "limit": 3,
+  "offset": 0,
+  "data": [
+    {
+      "object": "payment", "id": "pay_0001", "dateCreated": "2026-02-02", "customer": "cus_0001",
+      "value": 150.00, "netValue": 146.01, "status": "RECEIVED", "billingType": "PIX",
+      "dueDate": "2026-02-10", "originalDueDate": "2026-02-10", "paymentDate": "2026-02-09",
+      "clientPaymentDate": "2026-02-09", "creditDate": "2026-02-09", "estimatedCreditDate": "2026-02-09",
+      "description": "Mensalidade fevereiro", "externalReference": "SRV_01", "deleted": false, "refunds": null
+    },
+    {
+      "object": "payment", "id": "pay_0002", "dateCreated": "2026-02-03", "customer": "cus_0002",
+      "value": 200.00, "netValue": 195.01, "status": "CONFIRMED", "billingType": "CREDIT_CARD",
+      "dueDate": "2026-02-12", "originalDueDate": "2026-02-12", "paymentDate": null,
+      "clientPaymentDate": "2026-02-11", "creditDate": null, "estimatedCreditDate": "2026-03-13",
+      "description": "Plano anual", "externalReference": null, "deleted": false, "refunds": null
+    },
+    {
+      "object": "payment", "id": "pay_0003", "dateCreated": "2026-02-04", "customer": "cus_0001",
+      "value": 80.50, "netValue": 77.51, "status": "PENDING", "billingType": "BOLETO",
+      "dueDate": "2099-12-31", "originalDueDate": "2099-12-31", "paymentDate": null,
+      "clientPaymentDate": null, "creditDate": null, "estimatedCreditDate": null,
+      "description": null, "externalReference": null, "deleted": false, "refunds": null
+    }
+  ]
+}

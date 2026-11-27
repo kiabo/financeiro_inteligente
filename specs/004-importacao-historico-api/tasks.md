@@ -32,7 +32,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
   o webhook passa a usar as funções extraídas.
   **Pronto quando:** `npx tsc --noEmit` passa e **todos** os testes existentes do webhook (suíte do servidor) continuam verdes sem alterar suas expectativas. (CA6)
 
-- [ ] T05 — `server/integrations/history/mappers.ts` (`mapAsaasPayment`, `mapMercadoPagoPayment`: status → `open|settled|canceled|refunded`, vencimento, taxa, cliente/pagador)
+- [x] T05 — `server/integrations/history/mappers.ts` (`mapAsaasPayment`, `mapMercadoPagoPayment`: status → `open|settled|canceled|refunded`, vencimento, taxa, cliente/pagador)
   + fixtures `server/__tests__/fixtures/asaas-*.json` e `mercadopago-*.json` (com `hasMore`, pendente, vencido, pago, cancelado, estornado, cliente ausente), testes escritos **antes**.
   **Pronto quando:** os testes de mapeamento passam: valores e taxa corretos, status desconhecido vira "ignorado" com motivo, nome do cliente só em `counterpartyName`, sem e-mail/CPF. (CA2, CA6, CA9, CA11, CA13)
 
@@ -99,6 +99,12 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T05 — Mapeadores e fixtures (2026-11-27)
+- `server/integrations/history/mappers.ts`: `mapAsaasPayment`, `mapMercadoPagoPayment`, `toHistoryLogPayload` (payload reduzido do log: sem nome, e-mail, documento, id do cliente nem descrição livre) e `ASAAS_KNOWN_STATUSES`.
+- Decisões de mapeamento: `AWAITING_CHARGEBACK_REVERSAL` conta como estornado (marcado à parte); `in_mediation` (MP) fica em aberto; `DUNNING_RECEIVED` = pago e `DUNNING_REQUESTED` = em aberto; cobrança `deleted` do Asaas = cancelada.
+- Para `canceled`/`refunded`, `normalized.kind` é `payment_pending` só como transporte do valor cheio; a T08 decide pelo `lifecycle`.
+- Fixtures com dados fictícios em `server/__tests__/fixtures/` (Asaas: 2 páginas + clientes; Mercado Pago: 2 páginas). As mesmas servirão à paginação (T06) e ao fluxo completo (T10).
 
 ### T04 — Normalização compartilhada (2026-11-27)
 - `asaasBaseFields` (Asaas) e `normalizeMercadoPagoPayment` + `mercadoPagoPayerName` (Mercado Pago) extraídos; o webhook usa as funções; os 14 testes de webhook existentes seguem verdes sem mudar expectativas.

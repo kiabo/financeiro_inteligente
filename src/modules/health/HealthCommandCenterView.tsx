@@ -383,7 +383,7 @@ export const HealthCommandCenterView: React.FC<HealthCommandCenterViewProps> = (
       <div className="space-y-6">
         <div className="space-y-1">
           <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
-            Módulo 4 · Diagnóstico Executivo
+            Saúde Financeira
           </span>
           <h1 className="font-display text-[24px] font-semibold leading-8 tracking-[-0.02em] text-[#0F172A] dark:text-[#EAF1FF]">
             Command Center de Saúde Financeira
@@ -418,7 +418,7 @@ export const HealthCommandCenterView: React.FC<HealthCommandCenterViewProps> = (
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
-              Módulo 4 · Command Center
+              Saúde Financeira
             </span>
             <StatusChip variant="primary">{contextLabel}</StatusChip>
           </div>

@@ -122,7 +122,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
     return {
       title: 'Estrutura Organizacional & Privacidade',
-      subtitle: 'Módulo 1 · Fundação Segura, Hierarquia Flexível e Cofre de Anonimização',
+      subtitle: 'Fundação segura, hierarquia flexível e cofre de anonimização',
       companies,
       accounts,
     };

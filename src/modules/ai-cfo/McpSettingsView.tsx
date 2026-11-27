@@ -297,7 +297,7 @@ export const McpSettingsView: React.FC<McpSettingsViewProps> = ({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
-              Módulo 5 · Conectividade Privada
+              Servidor MCP &amp; Chaves
             </span>
             <StatusChip variant="positive">Zero-Leak Verified</StatusChip>
           </div>

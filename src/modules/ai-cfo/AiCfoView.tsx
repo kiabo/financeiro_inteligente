@@ -285,7 +285,7 @@ export const AiCfoView: React.FC<AiCfoViewProps> = ({
       <div className="space-y-6">
         <div className="space-y-1">
           <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
-            Módulo 5 · Inteligência Financeira Zero-Leak
+            CFO Virtual (IA)
           </span>
           <h1 className="font-display text-[24px] font-semibold leading-8 tracking-[-0.02em] text-[#0F172A] dark:text-[#EAF1FF]">
             CFO Virtual &amp; Diagnóstico Estratégico
@@ -319,7 +319,7 @@ export const AiCfoView: React.FC<AiCfoViewProps> = ({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
-              Módulo 5 · Inteligência Financeira
+              CFO Virtual (IA)
             </span>
             <StatusChip variant="primary">{contextLabel}</StatusChip>
             {providerStatus && (

@@ -12,7 +12,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
   Varre `src/**/*.{ts,tsx}` (exceto `__tests__`), remove comentários e falha se sobrar `/m[óo]dulo\s*\d/i`.
   **Pronto quando:** `npm test` roda a nova suíte e ela **falha** listando as ocorrências atuais (prova de que detecta). (CA1, CA2)
 
-- [ ] T02 — Trocar as etiquetas de seção pelos nomes de menu nos 13 arquivos da tabela do plan
+- [x] T02 — Trocar as etiquetas de seção pelos nomes de menu nos 13 arquivos da tabela do plan
   (Projetos, CFO Virtual, Catálogo, MCP, Visão Geral, Fluxo, Automação, Conciliação, Integrações, Dívidas, Saúde, DRE, Login).
   **Pronto quando:** `grep -rniE "m[óo]dulo [0-9]" src` não retorna mais nenhum literal visível nesses arquivos e `npx tsc --noEmit` passa. (CA1, CA2)
 
@@ -42,3 +42,4 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 ## Notas de execução
 - T01 commitada com o teste-guarda **propositalmente falhando** (prova de detecção, 40 ocorrências). Não há push até ficar verde (T07); o CI só roda em `dev`/`main`.
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec)
+- T02: exceção ao "nome do item de menu": em AutomationCenterView a etiqueta ficaria idêntica ao título ("Alertas, Agenda & Backup"); usado "Automação & Continuidade" (texto original sem o prefixo).

@@ -439,7 +439,7 @@ export const DebtsTaxesView: React.FC<DebtsTaxesViewProps> = ({
       <div className="space-y-6">
         <div className="space-y-1">
           <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
-            Módulo 4 · Passivos &amp; Fiscal
+            Dívidas &amp; Impostos
           </span>
           <h1 className="font-display text-[24px] font-semibold leading-8 tracking-[-0.02em] text-[#0F172A] dark:text-[#EAF1FF]">
             Dívidas, Parcelamentos &amp; Impostos
@@ -469,7 +469,7 @@ export const DebtsTaxesView: React.FC<DebtsTaxesViewProps> = ({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
-            Módulo 4 · Passivos &amp; Obrigações Fiscais
+            Dívidas &amp; Impostos
           </span>
           <div className="flex items-center gap-2">
             <h1 className="font-display text-[24px] font-semibold leading-8 tracking-[-0.02em] text-[#0F172A] dark:text-[#EAF1FF]">

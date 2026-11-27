@@ -224,7 +224,7 @@ export const ReconciliationView: React.FC<ReconciliationViewProps> = ({
   return (
     <div className="space-y-6">
       <ModuleHeader
-        eyebrow="Módulo 6 · Conciliação"
+        eyebrow="Conciliação Bancária"
         title="Conciliação Bancária Inteligente"
         glossaryKey="conciliacao_bancaria"
         description="Importe o extrato (OFX, CSV ou PDF). O arquivo é lido no seu navegador e cruzado com os lançamentos por valor, data (±3 dias) e descrição."

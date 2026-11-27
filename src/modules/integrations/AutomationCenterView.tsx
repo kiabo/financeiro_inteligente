@@ -110,7 +110,7 @@ export const AutomationCenterView: React.FC<AutomationCenterViewProps> = ({ sess
   return (
     <div className="space-y-6">
       <ModuleHeader
-        eyebrow="Módulo 6 · Automação & Continuidade"
+        eyebrow="Automação & Continuidade"
         title="Alertas, Agenda & Backup"
         description="Vencimentos no Google Calendar, alertas por e-mail e WhatsApp (anonimizados por padrão) e backup diário criptografado no seu Google Drive."
         actions={

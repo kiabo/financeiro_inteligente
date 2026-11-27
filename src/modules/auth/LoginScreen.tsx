@@ -435,7 +435,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onAuthenticated }) => 
                   {isSupabaseConfigured ? 'Supabase RLS Ativo' : 'Sandbox Local'}
                 </StatusChip>
                 <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#72787D]">
-                  Módulo 1 · Acesso Restrito
+                  Acesso Restrito
                 </span>
               </div>
               <CardTitle className="pt-2 text-[20px] font-semibold leading-7 tracking-[-0.015em]">

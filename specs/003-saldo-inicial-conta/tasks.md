@@ -31,7 +31,7 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
   nova `updateFinancialAccount` com lista explícita de colunas; seed do sandbox com `0`/`null`.
   **Pronto quando:** `tsc` e `npm test` passam; testes do modo sandbox cobrem criar com saldo positivo/negativo e editar. (CA7, CA8, CA10)
 
-- [ ] T06 — Tela Empresas & Contas: campos "Saldo inicial" e "Data do saldo" no cadastro; botão "Editar" por conta (Dialog);
+- [x] T06 — Tela Empresas & Contas: campos "Saldo inicial" e "Data do saldo" no cadastro; botão "Editar" por conta (Dialog);
   **Dialog de confirmação** quando saldo/data mudam e a conta tem lançamentos (cancelar não grava); texto discreto sob o nome da conta;
   `App.tsx` repassa `transactions`.
   **Pronto quando:** `tsc` e `build` passam; no sandbox local (`npm run dev`) criar, editar, confirmar e cancelar funcionam. (CA7, CA8)
@@ -59,3 +59,5 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
 - T01: migration testada em um Postgres 16 **descartável** (container `--rm` no VPS, tabelas mínimas): cenários CA1/CA2/CA3, saldo negativo, transferência, cancelado ignorado, conta antiga inalterada, idempotência (2 execuções) e constraint. Resultado: conta com 1.000 em 01/11 → 760 atual/710 previsto; conta com −500 → −360; conta antiga igual a antes.
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec)
 - T03: commitada com 8 de 12 testes **falhando de propósito** (o cálculo ainda não usa o saldo inicial) e um erro de `tsc` por `openingBalanceTotal` (campo criado na T04). Sem push até ficar verde (T08).
+- T06: verificado no sandbox local (servidor separado na porta 3011, sem Supabase e **com agendador forçado desligado**): criar com saldo, editar com aviso e prévia ("R$ 63.108,06 → R$ 65.108,06"), voltar/cancelar sem gravar, confirmar, auditoria `entity.updated`.
+- Decisão de UX durante a T06: ao editar conta **sem data de saldo e com lançamentos**, a data padrão é a do lançamento mais antigo (não hoje); com hoje, todos os lançamentos anteriores sairiam do saldo (a prévia mostrava 63.108,06 → 19.280,00). Conta sem lançamentos continua com hoje.

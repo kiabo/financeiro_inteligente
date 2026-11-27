@@ -524,6 +524,7 @@ export default function App(): React.JSX.Element {
               groups={snapshot.groups}
               companies={snapshot.companies}
               accounts={snapshot.accounts}
+              transactions={snapshot.transactions}
               onRefresh={refreshWorkspace}
             />
           )}

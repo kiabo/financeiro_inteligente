@@ -1,6 +1,7 @@
 /**
  * Spec 003: saldo inicial da conta. Mesmos cenários validados no Postgres descartável (migration 0007).
  */
+import { parseMoneyInput } from '../../../lib/utils';
 import type { Company, FinancialAccount, Transaction } from '../types';
 import {
   buildAccountUpdate,
@@ -232,6 +233,15 @@ export async function runAccountBalancesTests(): Promise<AccountBalancesTestResu
     assertEq(cols.opening_balance_date, '2026-11-01', 'data');
     const zero = buildAccountUpdate({ opening_balance: 0, opening_balance_date: '2026-11-01' }, '2026-11-26');
     assertEq(zero.opening_balance_date, null, 'zero limpa a data');
+  });
+
+  await record('parseMoneyInput: formatos pt-BR, negativo, vazio e inválidos', () => {
+    const cases: Array<[string, number | null]> = [
+      ['1.500,50', 1500.5], ['-300', -300], ['R$ 1.234,56', 1234.56], ['1234.56', 1234.56], ['1500', 1500],
+      ['', 0], ['  ', 0], ['-1.000,00', -1000], ['0,5', 0.5], ['1.234.567', 1234567],
+      ['abc', null], ['1,2,3', null], ['--5', null], ['-', null], ['12a', null],
+    ];
+    for (const [input, expected] of cases) assertEq(parseMoneyInput(input), expected, `parseMoneyInput("${input}")`);
   });
 
   await record('sandbox: criar conta com saldo positivo e negativo, depois editar (com auditoria)', async () => {

@@ -27,10 +27,10 @@ Regras duras: a connection string e a senha do banco nunca são lidas, impressas
 - [x] T03 — `server/crypto/backupCrypto.ts`: `encryptBackupPayload` aceita `string | Buffer`; teste escrito **antes** (um Buffer binário volta idêntico ao decifrar; o formato do cabeçalho não muda; os testes de backup antigos continuam verdes).
   **Pronto quando:** `npm test` passa com o teste novo e sem alterar os antigos. (CA3)
 
-- [ ] T04 — `server/integrations/dbBackup/pgConnection.ts`: separar a URL em host, porta, usuário, banco e senha (senha só em `PGPASSWORD` do processo filho) e `redactConnectionError`; testes **antes**.
+- [x] T04 — `server/integrations/dbBackup/pgConnection.ts`: separar a URL em host, porta, usuário, banco e senha (senha só em `PGPASSWORD` do processo filho) e `redactConnectionError`; testes **antes**.
   **Pronto quando:** com uma senha fictícia, nenhum argumento, mensagem de erro, saída de log nem objeto serializado contém a senha; URL inválida ou ausente dá mensagem clara em pt-BR. (CA7)
 
-- [ ] T05 — `server/integrations/dbBackup/pgRunner.ts` (`execFile` de `pg_dump` e `psql` com timeout, limite de saída e dependência injetável) e `planUsage.ts` (`readPlanUsage`, `evaluateUsage`, limites por `PLAN_DB_LIMIT_MB`/`PLAN_STORAGE_LIMIT_MB`, padrão 500 MB e 1 GB); testes **antes**.
+- [x] T05 — `server/integrations/dbBackup/pgRunner.ts` (`execFile` de `pg_dump` e `psql` com timeout, limite de saída e dependência injetável) e `planUsage.ts` (`readPlanUsage`, `evaluateUsage`, limites por `PLAN_DB_LIMIT_MB`/`PLAN_STORAGE_LIMIT_MB`, padrão 500 MB e 1 GB); testes **antes**.
   **Pronto quando:** a saída simulada do `psql` vira bytes e porcentagens corretos, e 69%, 70%, 90% e 100% caem em `ok`, `warn`, `critical`, `critical`. (CA4, CA5)
 
 ## Backup

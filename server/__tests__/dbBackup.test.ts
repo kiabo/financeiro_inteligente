@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import { assert, assertEqual, assertRejects, runCases, type TestCase, type TestCaseResult } from '../../scripts/testHarness.ts';
 import { parsePgUrl, pgArgsFor, pgEnvFor, redactConnectionError } from '../integrations/dbBackup/pgConnection.ts';
+import { createPgRunner } from '../integrations/dbBackup/pgRunner.ts';
+import { evaluateUsage, parseUsageOutput, planLimits, readPlanUsage } from '../integrations/dbBackup/planUsage.ts';
 import { decryptBackupBytes, decryptBackupPayload, encryptBackupPayload, readBackupHeader } from '../crypto/backupCrypto.ts';
 
 const NOW = new Date('2026-11-27T06:00:00Z');
@@ -71,6 +73,70 @@ const cases: TestCase[] = [
     assert(!clean.includes(FAKE_PASSWORD) && !clean.includes(encodeURIComponent(FAKE_PASSWORD)), 'senha presente');
     assert(!clean.includes('postgresql://'), 'URL presente');
     assert(/password authentication failed/.test(clean), 'o diagnóstico útil permanece');
+  }],
+
+  // ---------------------------------------------------------------- T05 · executor e medição de uso
+  ['executor: pg_dump recebe os argumentos esperados e a senha só no ambiente (CA7)', async () => {
+    const calls: Array<{ file: string; args: string[]; env: NodeJS.ProcessEnv }> = [];
+    const runner = createPgRunner(((file: string, args: string[], options: { env: NodeJS.ProcessEnv }, cb: (e: null, o: string, s: string) => void) => {
+      calls.push({ file, args, env: options.env });
+      cb(null, '', '');
+    }) as never);
+    await runner.dump(parsePgUrl(FAKE_URL), '/backups/x.partial');
+    const call = calls[0]!;
+    assertEqual(call.file, 'pg_dump', 'binário');
+    for (const flag of ['--format=custom', '--no-owner', '--no-acl', '--schema=public', '--schema=auth', '--no-password']) {
+      assert(call.args.includes(flag), `falta ${flag}`);
+    }
+    assert(call.args.includes('/backups/x.partial'), 'arquivo de saída');
+    assert(!call.args.join(' ').includes(FAKE_PASSWORD), 'senha nos argumentos');
+    assertEqual(call.env.PGPASSWORD, FAKE_PASSWORD, 'senha no ambiente');
+  }],
+  ['executor: erro do processo sai sem a senha nem a URL; binário ausente tem mensagem própria (CA7)', async () => {
+    const failing = (stderr: string, code?: string) =>
+      createPgRunner(((_f: string, _a: string[], _o: unknown, cb: (e: Error, o: string, s: string) => void) => {
+        const err = Object.assign(new Error('falhou'), code ? { code } : {});
+        cb(err, '', stderr);
+      }) as never);
+    const conn = parsePgUrl(FAKE_URL);
+    const msg1 = await failing(`FATAL: password authentication failed (${FAKE_PASSWORD}) ${FAKE_URL}`).dump(conn, '/x').then(() => '', (e: Error) => e.message);
+    assert(msg1.includes('password authentication failed'), 'diagnóstico preservado');
+    assert(!msg1.includes(FAKE_PASSWORD) && !msg1.includes('postgresql://'), `vazou: ${msg1}`);
+    const msg2 = await failing('', 'ENOENT').query(conn, 'select 1').then(() => '', (e: Error) => e.message);
+    assert(/não encontrado/.test(msg2), `mensagem do binário ausente: ${msg2}`);
+  }],
+  ['uso: a saída do psql vira bytes e porcentagens do banco e do Storage (CA4)', async () => {
+    assertEqual(JSON.stringify(parseUsageOutput('14784179|0\n')), JSON.stringify({ dbBytes: 14784179, storageBytes: 0 }), 'parse');
+    const runner = { dump: async () => undefined, query: async () => `${250 * 1024 * 1024}|${512 * 1024 * 1024}\n` };
+    const usage = await readPlanUsage(runner, parsePgUrl(FAKE_URL), {} as NodeJS.ProcessEnv);
+    assertEqual(usage.db.pct, 50, 'banco 250 MB de 500 MB');
+    assertEqual(usage.storage.pct, 50, 'Storage 512 MB de 1 GB');
+    assertEqual(usage.level, 'ok', 'nível geral');
+    for (const bad of ['', 'abc|def', '-1|0', '10']) {
+      let failed = false;
+      try { parseUsageOutput(bad); } catch { failed = true; }
+      assert(failed, `deveria recusar "${bad}"`);
+    }
+  }],
+  ['uso: 69% é normal, 70% avisa, 90% e 100% são críticos (CA4, CA5)', () => {
+    const lim = 1000;
+    assertEqual(evaluateUsage(690, lim).level, 'ok', '69%');
+    assertEqual(evaluateUsage(700, lim).level, 'warn', '70%');
+    assertEqual(evaluateUsage(899, lim).level, 'warn', '89,9%');
+    assertEqual(evaluateUsage(900, lim).level, 'critical', '90%');
+    assertEqual(evaluateUsage(1000, lim).level, 'critical', '100%');
+    assertEqual(evaluateUsage(1500, lim).level, 'critical', 'acima do limite');
+  }],
+  ['uso: o nível geral é o pior dos dois e os limites vêm do ambiente (CA5)', async () => {
+    const mb = 1024 * 1024;
+    const runner = { dump: async () => undefined, query: async () => `${10 * mb}|${800 * mb}\n` };
+    const usage = await readPlanUsage(runner, parsePgUrl(FAKE_URL), { PLAN_STORAGE_LIMIT_MB: '1000', PLAN_DB_LIMIT_MB: '500' } as NodeJS.ProcessEnv);
+    assertEqual(usage.storage.level, 'warn', 'Storage a 80%');
+    assertEqual(usage.db.level, 'ok', 'banco a 2%');
+    assertEqual(usage.level, 'warn', 'geral');
+    const lim = planLimits({ PLAN_DB_LIMIT_MB: 'lixo' } as NodeJS.ProcessEnv);
+    assertEqual(lim.dbBytes, 500 * mb, 'valor inválido volta ao padrão');
+    assertEqual(lim.storageBytes, 1024 * mb, 'padrão do Storage');
   }],
 ];
 

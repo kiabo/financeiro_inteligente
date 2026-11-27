@@ -1,0 +1,12 @@
+{
+  "object": "list",
+  "hasMore": false,
+  "totalCount": 3,
+  "limit": 100,
+  "offset": 0,
+  "data": [
+    { "object": "customer", "id": "cus_0001", "name": "Maria Souza Teste", "email": "maria.teste@example.com", "cpfCnpj": "00000000000", "deleted": false },
+    { "object": "customer", "id": "cus_0002", "name": "Oficina Exemplo Ltda", "email": "contato@exemplo.test", "cpfCnpj": "00000000000191", "deleted": false },
+    { "object": "customer", "id": "cus_0003", "name": "João Teste da Silva", "email": null, "cpfCnpj": null, "deleted": true }
+  ]
+}

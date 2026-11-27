@@ -11,6 +11,11 @@ import { runHealthEngineUnitTests } from '../src/modules/health/__tests__/health
 import { runModule6ClientTests } from '../src/modules/integrations/__tests__/module6Client.test.ts';
 import { runProjectCalculatorUnitTests } from '../src/modules/projects/__tests__/projectCalculator.test.ts';
 import { runAnonymizerUnitTests } from '../src/modules/vault/__tests__/anonymizer.test.ts';
+import { runHistoryPeriodTests } from '../src/modules/integrations/__tests__/historyPeriod.test.ts';
+import { runHistoryTests } from '../server/__tests__/history.test.ts';
+import { runHistoryUpsertTests } from '../server/__tests__/historyUpsert.test.ts';
+import { runHistoryRunnerTests } from '../server/__tests__/historyRunner.test.ts';
+import { runHistoryServiceTests } from '../server/__tests__/historyService.test.ts';
 import { runModule6ServerTests } from '../server/__tests__/module6Server.test.ts';
 
 interface Result {
@@ -30,6 +35,11 @@ const suites: Array<[string, () => Result[] | Promise<Result[]>]> = [
   ['Papéis e visibilidade do SQL (spec 001)', runRolesTests],
   ['Rotas por tela (spec 002)', runRoutesTests],
   ['Saldo inicial da conta (spec 003)', runAccountBalancesTests],
+  ['Importação de histórico · período (spec 004)', runHistoryPeriodTests],
+  ['Importação de histórico por API (spec 004)', runHistoryTests],
+  ['Importação de histórico · idempotência (spec 004)', runHistoryUpsertTests],
+  ['Importação de histórico · execução em lotes (spec 004)', runHistoryRunnerTests],
+  ['Importação de histórico · serviço e chave de API (spec 004)', runHistoryServiceTests],
 ];
 
 let failures = 0;

@@ -85,6 +85,8 @@ export interface NormalizedPaymentEvent {
   description: string;
   /** Dica de produto: SKU, token PRD_XX/SRV_XX ou referência externa */
   productHint: string | null;
+  /** Nome do cliente/pagador, quando o provedor informa (vira a contraparte do lançamento; nunca vai à IA em claro) */
+  counterpartyName?: string | null;
   ignoredReason?: string;
 }
 

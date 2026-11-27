@@ -28,7 +28,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Normalização e mapeamento
 
-- [ ] T04 — Refatorar sem mudar comportamento: `NormalizedPaymentEvent.counterpartyName?`; extrair `normalizeMercadoPagoPayment` (pura) de `mercadopago.ts` e o que for comum em `asaas.ts`;
+- [x] T04 — Refatorar sem mudar comportamento: `NormalizedPaymentEvent.counterpartyName?`; extrair `normalizeMercadoPagoPayment` (pura) de `mercadopago.ts` e o que for comum em `asaas.ts`;
   o webhook passa a usar as funções extraídas.
   **Pronto quando:** `npx tsc --noEmit` passa e **todos** os testes existentes do webhook (suíte do servidor) continuam verdes sem alterar suas expectativas. (CA6)
 
@@ -99,6 +99,11 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T04 — Normalização compartilhada (2026-11-27)
+- `asaasBaseFields` (Asaas) e `normalizeMercadoPagoPayment` + `mercadoPagoPayerName` (Mercado Pago) extraídos; o webhook usa as funções; os 14 testes de webhook existentes seguem verdes sem mudar expectativas.
+- Já inclui as duas mudanças aprovadas na decisão 4 do plan: o MP grava `counterpartyName` (nome do pagador) e usa `date_of_expiration` como vencimento de pendentes. Ficam inertes até a T08 (o planejador ainda ignora a contraparte). Testes dessas duas regras: T05.
+- Observação (ajuste do plan): `counterpartyName` fica em `webhook_events.normalized` (necessário para o reprocessamento manual reconstruir o lançamento); o **`payload`** do log continua sem dados do pagador. As duas colunas são visíveis só ao titular (RLS) e o backup é cifrado.
 
 ### T02 — Migration 0008 (2026-11-27)
 - Arquivo escrito e relido linha a linha contra `0006`/`0007` (sem Postgres local para executar; será aplicada por você na T16). Idempotente (`IF NOT EXISTS`, `DO $$`, `DROP … IF EXISTS`), sem usar o valor novo do enum na mesma transação.

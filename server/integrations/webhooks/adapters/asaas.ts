@@ -20,6 +20,35 @@ const SETTLED = new Set(['PAYMENT_RECEIVED', 'PAYMENT_RECEIVED_IN_CASH']);
 const PENDING = new Set(['PAYMENT_CONFIRMED', 'PAYMENT_CREATED', 'PAYMENT_AWAITING_RISK_ANALYSIS', 'PAYMENT_APPROVED_BY_RISK_ANALYSIS']);
 const REFUND = new Set(['PAYMENT_REFUNDED', 'PAYMENT_CHARGEBACK_REQUESTED', 'PAYMENT_PARTIALLY_REFUNDED']);
 
+/**
+ * Campos comuns de uma cobrança Asaas (usados pelo webhook e pela importação de histórico):
+ * taxa = value - netValue, datas, descrição e dica de produto. O `kind` e o valor bruto ficam com quem chama.
+ */
+export function asaasBaseFields(
+  payment: Record<string, unknown>,
+  paymentRef: string,
+  now: Date
+): Omit<NormalizedPaymentEvent, 'kind' | 'grossAmount'> {
+  const value = roundMoney(toNumberOrNull(payment.value) ?? 0);
+  const netValue = toNumberOrNull(payment.netValue);
+  const fee = netValue !== null ? roundMoney(Math.max(0, value - netValue)) : null;
+  return {
+    paymentRef,
+    feeAmount: fee,
+    netAmount: netValue !== null ? roundMoney(netValue) : null,
+    currency: 'BRL',
+    competenceDate: toISODateBR(payment.confirmedDate ?? payment.paymentDate ?? payment.dateCreated, now),
+    settlementDate: toISODateBR(
+      payment.creditDate ?? payment.estimatedCreditDate ?? payment.clientPaymentDate ?? payment.paymentDate,
+      now
+    ),
+    description:
+      (typeof payment.description === 'string' && payment.description) ||
+      `Asaas ${typeof payment.billingType === 'string' ? payment.billingType : 'cobrança'}`,
+    productHint: typeof payment.externalReference === 'string' ? payment.externalReference : null,
+  };
+}
+
 export const asaasAdapter: PaymentProviderAdapter = {
   provider: 'asaas',
   displayName: 'Asaas',
@@ -41,24 +70,7 @@ export const asaasAdapter: PaymentProviderAdapter = {
     if (!eventId) throw new Error('Evento Asaas sem identificador.');
 
     const value = roundMoney(toNumberOrNull(payment.value) ?? 0);
-    const netValue = toNumberOrNull(payment.netValue);
-    const fee = netValue !== null ? roundMoney(Math.max(0, value - netValue)) : null;
-
-    const base: Omit<NormalizedPaymentEvent, 'kind' | 'grossAmount'> = {
-      paymentRef: paymentId || eventId,
-      feeAmount: fee,
-      netAmount: netValue !== null ? roundMoney(netValue) : null,
-      currency: 'BRL',
-      competenceDate: toISODateBR(payment.confirmedDate ?? payment.paymentDate ?? payment.dateCreated, ctx.now),
-      settlementDate: toISODateBR(
-        payment.creditDate ?? payment.estimatedCreditDate ?? payment.clientPaymentDate ?? payment.paymentDate,
-        ctx.now
-      ),
-      description:
-        (typeof payment.description === 'string' && payment.description) ||
-        `Asaas ${typeof payment.billingType === 'string' ? payment.billingType : 'cobrança'}`,
-      productHint: typeof payment.externalReference === 'string' ? payment.externalReference : null,
-    };
+    const base = asaasBaseFields(payment, paymentId || eventId, ctx.now);
 
     let normalized: NormalizedPaymentEvent;
     if (SETTLED.has(event) && value > 0) {

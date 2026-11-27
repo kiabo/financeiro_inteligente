@@ -16,7 +16,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 - [x] T02 — `AppShell.tsx`: os rótulos do menu passam a ler `SECTION_TITLES` (fonte única, sem mudar nenhum texto).
   **Pronto quando:** `tsc` passa e o menu mostra exatamente os mesmos 15 nomes de hoje. (CA7)
 
-- [ ] T03 — `App.tsx`: seção inicial por `location.pathname`; `navigate(section, {replace?})` com `pushState`/`replaceState`
+- [x] T03 — `App.tsx`: seção inicial por `location.pathname`; `navigate(section, {replace?})` com `pushState`/`replaceState`
   sem duplicar entrada; normalização de `/` e desconhecido para `/visao-geral`; listener `popstate`; troca de todos os
   `setActiveSection` / `onNavigate={setActiveSection}` por `navigate`; logout navega para `/visao-geral` com replace.
   **Pronto quando:** `tsc` passa e não resta nenhum `setActiveSection` fora do próprio `navigate`/`popstate`. (CA1, CA2, CA3, CA5)

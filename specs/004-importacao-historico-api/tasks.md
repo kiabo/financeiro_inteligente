@@ -1,9 +1,9 @@
 # Tasks 004 — Importação de histórico por API (Asaas e Mercado Pago)
 
-- **Status:** rascunho
+- **Status:** aprovado
 - **Plan:** `specs/004-importacao-historico-api/plan.md` (aprovado em 2026-11-27)
 - **Branch:** `feat/004-importacao-historico-api` (saindo da `dev`)
-- **Aprovado em:** —
+- **Aprovado em:** 2026-11-27
 
 Uma tarefa por vez, em ordem. Marque `[x]` ao concluir. Commit: `feat(004): descrição (T01)`.
 Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tarefas de front).

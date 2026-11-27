@@ -39,7 +39,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 - [x] T08 — Rodar tudo: `npx tsc --noEmit`, `npm test`, `npm run build`; conferir a denylist no `dist/sw.js`.
   **Pronto quando:** os três comandos passam e a denylist aparece no `dist/sw.js`. (CA9)
 
-- [ ] T09 — Subir a branch, abrir PR para a `dev`, merge e deploy no h-cfo. **(usuário: confirmar o merge)**
+- [x] T09 — Subir a branch, abrir PR para a `dev`, merge e deploy no h-cfo. **(usuário: confirmar o merge)**
   **Pronto quando:** workflow verde e h-cfo respondendo 200.
 
 - [ ] T10 — Verificação final no h-cfo contra todos os critérios (`/sdd-verify 002`): cliques no menu e `history`, Voltar/Avançar,
@@ -51,3 +51,5 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec)
 - T08: `tsc`, 58/58 testes e build OK; `dist/sw.js` contém `NavigationRoute(...,{denylist:[/^\/api\//]})`.
 - Mudança de fluxo: o título da aba e o nome do sistema ficaram em `src/modules/core/brand.ts` (`APP_NAME`), para a spec 005 ligar à marca.
+- T09: PR #2 mergeado na `dev` em 2026-11-27; deploy verde; h-cfo saudável.
+- T10: verificação registrada na spec; **CA4 pendente do usuário** (deep link deslogado). Spec/plan/tasks seguem `em-andamento` até o CA4 e a promoção para a `main`.

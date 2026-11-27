@@ -69,6 +69,10 @@ export interface FinancialAccount {
   last_four: string | null;
   analytical_token: string;
   is_active: boolean;
+  /** Saldo que a conta já tinha na abertura (spec 003). Pode ser negativo. */
+  opening_balance: number;
+  /** Data (AAAA-MM-DD) a partir da qual os movimentos contam no saldo; obrigatória se o saldo inicial ≠ 0. */
+  opening_balance_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -205,6 +209,8 @@ export interface AccountBalanceSummary {
   analytical_token: string;
   current_balance: number;
   projected_balance: number;
+  opening_balance: number;
+  opening_balance_date: string | null;
 }
 
 // ============================================================================

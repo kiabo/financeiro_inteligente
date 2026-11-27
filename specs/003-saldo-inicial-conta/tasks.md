@@ -15,7 +15,7 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
   **Pronto quando:** o arquivo é idempotente (`IF NOT EXISTS`/`DO $$`), mantém a ordem das colunas existentes da view e passa na leitura minuciosa
   (revisão linha a linha contra a view da 0002). (CA6, CA10)
 
-- [ ] T02 — Tipos e regra pura: `FinancialAccount` e `AccountBalanceSummary` com os campos novos; em `repository.ts`, helpers
+- [x] T02 — Tipos e regra pura: `FinancialAccount` e `AccountBalanceSummary` com os campos novos; em `repository.ts`, helpers
   `transactionCashDate` e `normalizeOpeningBalance`; ajustar fixtures (`healthEngine.test.ts` e demais) para o `tsc` voltar a passar.
   **Pronto quando:** `npx tsc --noEmit` passa. (CA5, CA6)
 

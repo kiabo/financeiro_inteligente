@@ -679,6 +679,8 @@ export function computeAccountBalances(
         analytical_token: acc.analytical_token,
         current_balance: currentBalance,
         projected_balance: projectedBalance,
+        opening_balance: acc.opening_balance ?? 0,
+        opening_balance_date: acc.opening_balance_date ?? null,
       };
     });
 }
@@ -690,6 +692,52 @@ export function transactionTouchesContext(
   if (accountIds.has(tx.account_id)) return true;
   if (tx.destination_account_id && accountIds.has(tx.destination_account_id)) return true;
   return false;
+}
+
+/** Data de caixa do movimento: pagamento (se pago e informado) ou vencimento. */
+export function transactionCashDate(
+  tx: Pick<Transaction, 'status' | 'payment_date' | 'due_date'>
+): string {
+  return tx.status === 'paid' && tx.payment_date ? tx.payment_date : tx.due_date;
+}
+
+export interface OpeningBalanceInput {
+  opening_balance?: number | null;
+  opening_balance_date?: string | null;
+}
+
+export interface OpeningBalanceValue {
+  opening_balance: number;
+  opening_balance_date: string | null;
+}
+
+const MAX_OPENING_BALANCE = 999_999_999_999.99; // NUMERIC(14,2)
+
+/**
+ * Valida e normaliza o saldo inicial: 2 casas, limite do NUMERIC(14,2), data ISO válida,
+ * obrigatória (padrão: hoje) quando o saldo ≠ 0 e nunca futura. Saldo zero não guarda data.
+ */
+export function normalizeOpeningBalance(
+  input: OpeningBalanceInput,
+  todayISO: string = getTodayISO()
+): OpeningBalanceValue {
+  const raw = input.opening_balance ?? 0;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) throw new Error('Saldo inicial inválido.');
+  const value = Math.round(raw * 100) / 100;
+  if (Math.abs(value) > MAX_OPENING_BALANCE) throw new Error('Saldo inicial acima do limite permitido.');
+  if (value === 0) return { opening_balance: 0, opening_balance_date: null };
+
+  const date = input.opening_balance_date || todayISO;
+  const parsed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const valid =
+    parsed !== null &&
+    (() => {
+      const d = new Date(Date.UTC(Number(parsed[1]), Number(parsed[2]) - 1, Number(parsed[3])));
+      return d.getUTCFullYear() === Number(parsed[1]) && d.getUTCMonth() === Number(parsed[2]) - 1 && d.getUTCDate() === Number(parsed[3]);
+    })();
+  if (!valid) throw new Error('Data do saldo inválida.');
+  if (date > todayISO) throw new Error('A data do saldo não pode ser futura.');
+  return { opening_balance: value, opening_balance_date: date };
 }
 
 export function getTransactionReferenceDate(tx: Transaction, regime: AccountingRegime): string {
@@ -1351,6 +1399,8 @@ export async function createFinancialAccount(
       last_four: lastFour,
       analytical_token: token,
       is_active: true,
+      opening_balance: 0,
+      opening_balance_date: null,
       created_at: now,
       updated_at: now,
     };
@@ -1886,6 +1936,8 @@ export async function fetchAccountBalancesByContext(
     analytical_token: String(row.analytical_token),
     current_balance: Number(row.current_balance ?? 0),
     projected_balance: Number(row.projected_balance ?? 0),
+    opening_balance: 0,
+    opening_balance_date: null,
   }));
 }
 

@@ -83,6 +83,8 @@ const ACCOUNTS: FinancialAccount[] = [
     last_four: '9821',
     analytical_token: 'CTA_01',
     is_active: true,
+  opening_balance: 0,
+  opening_balance_date: null,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   },

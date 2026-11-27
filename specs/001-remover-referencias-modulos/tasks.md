@@ -28,7 +28,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 - [x] T06 — Tela Segurança & SQL: títulos descritivos, botões "Copiar SQL", e `canSeeSql(role)` (owner/admin) condicionando os 5 blocos de migration; teste unitário de `canSeeSql`.
   **Pronto quando:** com `owner` os blocos aparecem com títulos sem "Módulo"; com `analyst` não aparecem; testes passam. (CA1, CA4)
 
-- [ ] T07 — Rodar tudo: `npx tsc --noEmit`, `npm test` (inclui o teste-guarda, agora verde) e `npm run build`; conferir que o `dist/` não tem literais "Módulo N" de interface.
+- [x] T07 — Rodar tudo: `npx tsc --noEmit`, `npm test` (inclui o teste-guarda, agora verde) e `npm run build`; conferir que o `dist/` não tem literais "Módulo N" de interface.
   **Pronto quando:** os três comandos passam e a busca em `dist/` é limpa (exceto o SQL embutido, se houver). (CA2, CA3, CA4)
 
 - [ ] T08 — Subir a branch, abrir PR para a `dev`, merge e aguardar o deploy no h-cfo. **(usuário: confirmar o merge)**
@@ -43,3 +43,4 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 - T01 commitada com o teste-guarda **propositalmente falhando** (prova de detecção, 40 ocorrências). Não há push até ficar verde (T07); o CI só roda em `dev`/`main`.
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec)
 - T02: exceção ao "nome do item de menu": em AutomationCenterView a etiqueta ficaria idêntica ao título ("Alertas, Agenda & Backup"); usado "Automação & Continuidade" (texto original sem o prefixo).
+- T07: `tsc`, 51/51 testes e build OK. No `dist/` restam 11 ocorrências, todas dentro de comentários do SQL das migrations embutido via `?raw` (permitido pela spec); 0 fora do SQL.

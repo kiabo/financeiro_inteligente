@@ -36,6 +36,7 @@ import {
   runDbBackupIfDue,
   type DbBackupWiring,
 } from '../integrations/dbBackup/dbBackupContext.ts';
+import { RESTORE_CHECK_TABLES, compareCounts, countsSql, parseCounts, restoreOk } from '../integrations/dbBackup/restoreCheck.ts';
 import { decryptBackupBytes, decryptBackupPayload, encryptBackupPayload, readBackupHeader } from '../crypto/backupCrypto.ts';
 
 const NOW = new Date('2026-11-27T06:00:00Z');
@@ -544,6 +545,30 @@ const cases: TestCase[] = [
     const view = await handleDbStatus({ id: 'u', sandbox: false }, await wiring(dir, { sink: null }), async () => 'owner');
     assertEqual(view.configured.alerts, false, 'alertas desligados');
     assertEqual(view.configured.drive, false, 'Drive desligado');
+  }],
+
+  // ---------------------------------------------------------------- T10 · teste de restauração (lógica de comparação)
+  ['restauração: contagens iguais passam; banco real com mais linhas é esperado; restaurado maior ou tabela ausente reprova (CA2)', () => {
+    const live = parseCounts('companies|1\ntransactions|120\naudit_logs|70\n');
+    const same = compareCounts(parseCounts('companies|1\ntransactions|120\naudit_logs|70'), live, ['companies', 'transactions', 'audit_logs']);
+    assert(same.every((r) => r.verdict === 'igual') && restoreOk(same), 'tudo igual');
+    const grown = compareCounts(parseCounts('companies|1\ntransactions|118\naudit_logs|70'), live, ['companies', 'transactions', 'audit_logs']);
+    assertEqual(grown[1]!.verdict, 'live-maior', 'banco real cresceu desde o backup');
+    assert(restoreOk(grown), 'crescimento não reprova');
+    const bigger = compareCounts(parseCounts('companies|1\ntransactions|121\naudit_logs|70'), live, ['companies', 'transactions', 'audit_logs']);
+    assertEqual(bigger[1]!.verdict, 'divergente', 'restaurado com mais linhas que o real');
+    assert(!restoreOk(bigger), 'reprova');
+    const missing = compareCounts(parseCounts('companies|1'), live, ['companies', 'transactions']);
+    assertEqual(missing[1]!.verdict, 'divergente', 'tabela que não voltou');
+  }],
+  ['restauração: SQL de contagem só aceita nomes de tabela simples e cobre as tabelas principais (CA2)', () => {
+    const sql = countsSql(RESTORE_CHECK_TABLES);
+    for (const table of ['transactions', 'financial_accounts', 'companies']) assert(sql.includes(`public.${table}`), `falta ${table}`);
+    for (const bad of ['x; drop table y', 'Tabela', 'a.b', '']) {
+      let refused = false;
+      try { countsSql([bad]); } catch { refused = true; }
+      assert(refused, `deveria recusar "${bad}"`);
+    }
   }],
 ];
 

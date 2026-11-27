@@ -19,6 +19,21 @@ FROM node:24-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000
+# Cliente do PostgreSQL 17 (pg_dump, pg_restore, psql) para o backup diário do banco (spec 006).
+# O Debian da imagem traz o cliente 15, que NÃO consegue copiar um servidor 17; por isso o repositório oficial (PGDG).
+# curl e gnupg só existem durante a instalação.
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates curl gnupg; \
+    install -d /usr/share/postgresql-common/pgdg; \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc; \
+    CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"; \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends postgresql-client-17; \
+    apt-get purge -y curl gnupg; \
+    apt-get autoremove -y; \
+    rm -rf /var/lib/apt/lists/*
 # tsx é devDependency: o servidor importa módulos compartilhados com o cliente (sem extensão .ts),
 # então `node server.ts` puro não resolve. Mantemos node_modules completo.
 COPY --from=build /app/node_modules ./node_modules

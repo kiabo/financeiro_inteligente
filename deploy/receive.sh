@@ -49,6 +49,14 @@ docker build --pull \
 
 PREVIOUS="$(docker inspect --format '{{.Config.Image}}' "$APP" 2>/dev/null || true)"
 
+# Backup diário do banco (spec 006): só a produção grava em /backups, e só se a pasta existir no VPS
+# (criada uma vez, como root: mkdir -p /opt/financeiro-inteligente/backups && chown 1000:1000 ...).
+# Sem a pasta o contêiner sobe do mesmo jeito; o painel e o alerta avisam que o backup não tem onde gravar.
+MOUNTS=()
+if [ "$ENV_NAME" = "main" ] && [ -d "$BASE/backups" ]; then
+  MOUNTS=(-v "$BASE/backups:/backups")
+fi
+
 docker rm -f "$APP" >/dev/null 2>&1 || true
 run_container() {
   docker run -d --name "$APP" --restart unless-stopped \
@@ -56,6 +64,7 @@ run_container() {
     -p "127.0.0.1:$PORT:3000" \
     --memory 768m --cpus 1.5 \
     --log-opt max-size=10m --log-opt max-file=3 \
+    ${MOUNTS[@]+"${MOUNTS[@]}"} \
     "$1" >/dev/null
 }
 run_container "$IMAGE"

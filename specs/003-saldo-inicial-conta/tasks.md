@@ -24,7 +24,7 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
   `previousBalance` com saldo inicial, `normalizeOpeningBalance`.
   **Pronto quando:** `npm test` roda a nova suíte e os casos que dependem do cálculo **falham** (prova de que testam). (CA1, CA2, CA3, CA5, CA11)
 
-- [ ] T04 — Implementar o cálculo: `computeAccountBalances` e `computePeriodMetrics` (com `openingBalanceTotal`) usando saldo inicial e data de caixa.
+- [x] T04 — Implementar o cálculo: `computeAccountBalances` e `computePeriodMetrics` (com `openingBalanceTotal`) usando saldo inicial e data de caixa.
   **Pronto quando:** os testes da T03 passam e `npm test` inteiro continua verde (os saldos de contas sem saldo inicial não mudam). (CA1–CA6, CA11)
 
 - [ ] T05 — Cadastro e edição no repository: `CreateAccountInput` e `createFinancialAccount` (sandbox + Supabase) com os campos novos e validação;

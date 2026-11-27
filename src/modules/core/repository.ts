@@ -137,6 +137,8 @@ export interface PeriodSummaryMetrics {
   projectedBalance: number;
   overdueCount: number;
   overdueAmount: number;
+  /** Soma dos saldos iniciais (contas do escopo) incluídos no Saldo Anterior deste período (spec 003). */
+  openingBalanceTotal: number;
 }
 
 interface SandboxStore {
@@ -646,11 +648,14 @@ export function computeAccountBalances(
   return accounts
     .filter((acc) => accountIds.has(acc.id))
     .map((acc) => {
-      let currentBalance = 0;
-      let projectedBalance = 0;
+      // Saldo inicial (spec 003): ponto de partida na data do saldo; movimentos anteriores a ela já estão resumidos nele
+      const openingStart = acc.opening_balance_date ?? null;
+      let currentBalance = acc.opening_balance ?? 0;
+      let projectedBalance = currentBalance;
 
       for (const tx of transactions) {
         if (tx.status === 'canceled') continue;
+        if (openingStart && transactionCashDate(tx) < openingStart) continue;
 
         let delta = 0;
         if (tx.transaction_type === 'income' && tx.account_id === acc.id) {
@@ -759,7 +764,24 @@ export function computePeriodMetrics(
 ): PeriodSummaryMetrics {
   const { accountIds } = getScopedIds(companies, accounts, activeContext);
 
-  let previousBalance = 0;
+  // Saldo inicial (spec 003): entra no Saldo Anterior se a data do saldo é ≤ fim do período;
+  // movimentos de caixa anteriores à data do saldo de uma conta não afetam o saldo dela.
+  const openingStartByAccount = new Map<string, string | null>();
+  let openingBalanceTotal = 0;
+  for (const acc of accounts) {
+    if (!accountIds.has(acc.id)) continue;
+    openingStartByAccount.set(acc.id, acc.opening_balance_date ?? null);
+    const opening = acc.opening_balance ?? 0;
+    if (opening !== 0 && (!periodEnd || !acc.opening_balance_date || acc.opening_balance_date <= periodEnd)) {
+      openingBalanceTotal += opening;
+    }
+  }
+  const countsForBalance = (accountId: string, tx: Transaction): boolean => {
+    const start = openingStartByAccount.get(accountId);
+    return !start || transactionCashDate(tx) >= start;
+  };
+
+  let previousBalance = openingBalanceTotal;
   let inflows = 0;
   let inflowsRealized = 0;
   let inflowsPending = 0;
@@ -781,12 +803,16 @@ export function computePeriodMetrics(
     if (periodStart && refDate < periodStart) {
       if (tx.status === 'paid') {
         if (tx.transaction_type === 'income' && accountIds.has(tx.account_id)) {
-          previousBalance += tx.amount;
+          if (countsForBalance(tx.account_id, tx)) previousBalance += tx.amount;
         } else if (tx.transaction_type === 'expense' && accountIds.has(tx.account_id)) {
-          previousBalance -= tx.amount;
+          if (countsForBalance(tx.account_id, tx)) previousBalance -= tx.amount;
         } else if (tx.transaction_type === 'transfer') {
-          if (accountIds.has(tx.account_id)) previousBalance -= tx.amount;
-          if (tx.destination_account_id && accountIds.has(tx.destination_account_id)) {
+          if (accountIds.has(tx.account_id) && countsForBalance(tx.account_id, tx)) previousBalance -= tx.amount;
+          if (
+            tx.destination_account_id &&
+            accountIds.has(tx.destination_account_id) &&
+            countsForBalance(tx.destination_account_id, tx)
+          ) {
             previousBalance += tx.amount;
           }
         }
@@ -801,8 +827,12 @@ export function computePeriodMetrics(
     // Dentro do período selecionado:
     // Regra Crítica: transferências internas movimentam saldo das contas envolvidas, mas NUNCA entram em Entradas/Saídas/Resultado
     if (tx.transaction_type === 'transfer') {
-      if (accountIds.has(tx.account_id)) netTransfersInPeriod -= tx.amount;
-      if (tx.destination_account_id && accountIds.has(tx.destination_account_id)) {
+      if (accountIds.has(tx.account_id) && countsForBalance(tx.account_id, tx)) netTransfersInPeriod -= tx.amount;
+      if (
+        tx.destination_account_id &&
+        accountIds.has(tx.destination_account_id) &&
+        countsForBalance(tx.destination_account_id, tx)
+      ) {
         netTransfersInPeriod += tx.amount;
       }
       continue;
@@ -846,6 +876,7 @@ export function computePeriodMetrics(
     projectedBalance,
     overdueCount,
     overdueAmount,
+    openingBalanceTotal,
   };
 }
 

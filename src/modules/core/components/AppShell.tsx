@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { cn } from '../../../lib/utils';
+import { SECTION_TITLES } from '../routes';
 import { OfflineIndicator } from '../pwa/OfflineIndicator';
 import { PWAInstallButton } from '../pwa/PWAInstallButton';
 import type {
@@ -65,105 +66,105 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   {
     id: 'overview',
-    label: 'Visão Geral',
+    label: SECTION_TITLES.overview,
     mobileLabel: 'Visão',
     sectionGroup: 'core',
     icon: LayoutDashboard,
   },
   {
     id: 'health',
-    label: 'Saúde Financeira',
+    label: SECTION_TITLES.health,
     mobileLabel: 'Saúde',
     sectionGroup: 'core',
     icon: Activity,
   },
   {
     id: 'ai_cfo',
-    label: 'CFO Virtual (IA)',
+    label: SECTION_TITLES.ai_cfo,
     mobileLabel: 'CFO IA',
     sectionGroup: 'core',
     icon: Cpu,
   },
   {
     id: 'dre',
-    label: 'DRE Gerencial',
+    label: SECTION_TITLES.dre,
     mobileLabel: 'DRE',
     sectionGroup: 'core',
     icon: FileSpreadsheet,
   },
   {
     id: 'transactions',
-    label: 'Fluxo & Lançamentos',
+    label: SECTION_TITLES.transactions,
     mobileLabel: 'Fluxo',
     sectionGroup: 'core',
     icon: ArrowLeftRight,
   },
   {
     id: 'debts_taxes',
-    label: 'Dívidas & Impostos',
+    label: SECTION_TITLES.debts_taxes,
     mobileLabel: 'Dívidas',
     sectionGroup: 'core',
     icon: Landmark,
   },
   {
     id: 'projects',
-    label: 'Projetos & Viabilidade',
+    label: SECTION_TITLES.projects,
     mobileLabel: 'Projetos',
     sectionGroup: 'core',
     icon: FolderKanban,
   },
   {
     id: 'catalog',
-    label: 'Produtos & Serviços',
+    label: SECTION_TITLES.catalog,
     mobileLabel: 'Catálogo',
     sectionGroup: 'core',
     icon: Package,
   },
   {
     id: 'reconciliation',
-    label: 'Conciliação Bancária',
+    label: SECTION_TITLES.reconciliation,
     mobileLabel: 'Conciliar',
     sectionGroup: 'core',
     icon: GitCompareArrows,
   },
   {
     id: 'hierarchy',
-    label: 'Empresas & Contas',
+    label: SECTION_TITLES.hierarchy,
     mobileLabel: 'Cadastros',
     sectionGroup: 'governance',
     icon: Building2,
   },
   {
     id: 'vault',
-    label: 'Cofre de Privacidade',
+    label: SECTION_TITLES.vault,
     mobileLabel: 'Cofre',
     sectionGroup: 'governance',
     icon: ShieldCheck,
   },
   {
     id: 'integrations',
-    label: 'Integrações & Webhooks',
+    label: SECTION_TITLES.integrations,
     mobileLabel: 'Integrações',
     sectionGroup: 'governance',
     icon: Plug,
   },
   {
     id: 'automation',
-    label: 'Alertas, Agenda & Backup',
+    label: SECTION_TITLES.automation,
     mobileLabel: 'Alertas',
     sectionGroup: 'governance',
     icon: BellRing,
   },
   {
     id: 'mcp_settings',
-    label: 'Servidor MCP & Chaves',
+    label: SECTION_TITLES.mcp_settings,
     mobileLabel: 'MCP',
     sectionGroup: 'governance',
     icon: KeyRound,
   },
   {
     id: 'security',
-    label: 'Segurança & SQL',
+    label: SECTION_TITLES.security,
     mobileLabel: 'Segurança',
     sectionGroup: 'governance',
     icon: Shield,

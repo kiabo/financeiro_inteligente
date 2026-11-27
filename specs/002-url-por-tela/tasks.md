@@ -13,7 +13,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
   **Pronto quando:** testes verdes cobrindo caminho único em minúsculas e sem acento para toda `AppSection`, ida e volta,
   barra final, maiúsculas, `/` e desconhecido → `null`. (CA1, CA5)
 
-- [ ] T02 — `AppShell.tsx`: os rótulos do menu passam a ler `SECTION_TITLES` (fonte única, sem mudar nenhum texto).
+- [x] T02 — `AppShell.tsx`: os rótulos do menu passam a ler `SECTION_TITLES` (fonte única, sem mudar nenhum texto).
   **Pronto quando:** `tsc` passa e o menu mostra exatamente os mesmos 15 nomes de hoje. (CA7)
 
 - [ ] T03 — `App.tsx`: seção inicial por `location.pathname`; `navigate(section, {replace?})` com `pushState`/`replaceState`

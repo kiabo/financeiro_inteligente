@@ -1,5 +1,6 @@
 import { addMonthsISO, getTodayISO, normalizeCNPJ } from '../../lib/utils';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase';
+import { normalizeRole } from './roles';
 import type {
   AccountBalanceSummary,
   AccountType,
@@ -803,6 +804,25 @@ export function computePeriodMetrics(
 // ============================================================================
 // Snapshot Fetch (Módulo 1 + Módulo 2 + Módulo 3)
 // ============================================================================
+
+/**
+ * Papel real do usuário (user_profiles.role). A política RLS `user_profiles_self_select`
+ * permite ler apenas a própria linha. Em erro/ausência devolve o papel de menor privilégio.
+ */
+export async function fetchOwnRole(userId: string): Promise<AppRole> {
+  const supabase = getSupabaseClient();
+  if (!isSupabaseConfigured || !supabase) return 'owner';
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) {
+    console.warn('[Papel] não foi possível ler o perfil; usando o menor privilégio.', error.message);
+    return 'analyst';
+  }
+  return normalizeRole(data?.role);
+}
 
 export async function fetchWorkspaceSnapshot(
   tenantId: string,

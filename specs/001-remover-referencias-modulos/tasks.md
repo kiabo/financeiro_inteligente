@@ -19,7 +19,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 - [x] T03 — Reescrever as duas mensagens com "do Módulo 6" ([integrationsApi.ts:24](src/modules/integrations/integrationsApi.ts#L24) e [moduleUi.tsx:140](src/modules/integrations/components/moduleUi.tsx#L140)).
   **Pronto quando:** ambas dizem "Este recurso exige o Supabase configurado…" sem citar módulo. (CA1, CA3)
 
-- [ ] T04 — Criar `fetchOwnRole(userId)` em `src/modules/core/repository.ts` (lê `user_profiles.role`, fallback `'analyst'`, log em erro) e um teste unitário do fallback/mapeamento.
+- [x] T04 — Criar `fetchOwnRole(userId)` em `src/modules/core/repository.ts` (lê `user_profiles.role`, fallback `'analyst'`, log em erro) e um teste unitário do fallback/mapeamento.
   **Pronto quando:** a função está exportada, tipada e o teste passa. (CA1 — habilita o ocultamento)
 
 - [ ] T05 — Usar o papel real nas sessões Supabase: `src/App.tsx` (~134) e `LoginScreen.tsx` (~86 e ~207). Sandbox (~265) permanece `'owner'`.

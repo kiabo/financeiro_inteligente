@@ -2,6 +2,7 @@
  * Executa todas as suítes de teste do projeto: `npm test`
  * (as suítes dos Módulos 1–5 mantêm seu formato original e também são exibidas na UI).
  */
+import { runRolesTests } from '../src/modules/core/__tests__/roles.test.ts';
 import { runNoModuleLabelsTests } from '../src/modules/core/__tests__/noModuleLabels.test.ts';
 import { runAiContextBuilderTests } from '../src/modules/ai-cfo/__tests__/aiContextBuilder.test.ts';
 import { runHealthEngineUnitTests } from '../src/modules/health/__tests__/healthEngine.test.ts';
@@ -24,6 +25,7 @@ const suites: Array<[string, () => Result[] | Promise<Result[]>]> = [
   ['Módulo 6 · Servidor (cripto, webhooks, alertas, backup)', runModule6ServerTests],
   ['Módulo 6 · Cliente (conciliação, OCR)', runModule6ClientTests],
   ['Interface sem referências a módulos (spec 001)', runNoModuleLabelsTests],
+  ['Papéis e visibilidade do SQL (spec 001)', runRolesTests],
 ];
 
 let failures = 0;

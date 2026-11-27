@@ -65,7 +65,7 @@ Verificado em 2026-11-27 no h-cfo (deploy do PR #2), usuário owner aal2, pelo C
 | CA5 | ok | `/qualquer-coisa` → `/visao-geral`, sem erro |
 | CA6 | ok | `GET /api/google/oauth/callback?error=teste_sdd` no navegador → `/alertas-agenda-backup`, mensagem "Não foi possível conectar o Google: teste_sdd" e query limpa |
 | CA7 | ok | título da aba mudou em cada tela ("<Tela> · Vértice") |
-| CA8 | ok | h-cfo verificado; `localhost:3000` informado como funcionando pelo usuário; cfo conferido após a promoção (ver abaixo) |
+| CA8 | ok | h-cfo verificado; `localhost:3000` informado como funcionando pelo usuário; cfo: após a promoção `/dre` responde 200 e a API sem login 401 (`curl`); navegação logada no cfo **não** conferida no Chrome (a sessão do cfo é separada da do h-cfo) |
 | CA9 | ok | `sw.js` publicado contém `denylist:[/^\/api\//]`; com o SW controlando a página o callback chegou ao servidor |
 
 Não verificado: login por Google com deep link (T06), só testado por `tsc`.

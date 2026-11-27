@@ -17,7 +17,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
   cabeçalho de autenticação, URL de produção × sandbox, listagem de clientes do Asaas e campos do pagador no MP. Registrar o resultado nas "Notas de execução".
   **Pronto quando:** as Notas listam cada ponto confirmado; se algo contradiz o plan (status, filtro, teto), **paro** e atualizo o plan para você aprovar antes da T02. (CA2, CA6, CA8)
 
-- [ ] T02 — Escrever `supabase/migrations/0008_importacao_historico_api.sql`: colunas `external_source/ref/role` em `transactions` + `CHECK` tudo-ou-nada,
+- [x] T02 — Escrever `supabase/migrations/0008_importacao_historico_api.sql`: colunas `external_source/ref/role` em `transactions` + `CHECK` tudo-ou-nada,
   índice único parcial, backfill por `notes` com `DISTINCT ON`, `webhook_events.source`, tabela `import_runs` (RLS + FORCE RLS, política de leitura por tenant,
   `REVOKE` de escrita, índice único de execução ativa por conexão, trigger `updated_at`), valor de auditoria `integration.history_imported` e bloco de rollback comentado.
   **Pronto quando:** o arquivo é idempotente (`IF NOT EXISTS`/`DO $$`), não usa o valor novo do enum na mesma transação e passa em leitura linha a linha contra `0006` e `0007`. (CA1, CA3, CA12)
@@ -99,6 +99,11 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T02 — Migration 0008 (2026-11-27)
+- Arquivo escrito e relido linha a linha contra `0006`/`0007` (sem Postgres local para executar; será aplicada por você na T16). Idempotente (`IF NOT EXISTS`, `DO $$`, `DROP … IF EXISTS`), sem usar o valor novo do enum na mesma transação.
+- Decisão: `GRANT SELECT` de `import_runs` **por coluna**, sem `customers` (nomes de clientes) e sem `cursor`; o servidor lê tudo com a service role.
+- `import_runs` não entra no backup (dado derivado/operacional).
 
 ### T01 — Conferência nas documentações oficiais (2026-11-27)
 **Asaas** (docs.asaas.com, páginas "Listar cobranças", "Listar clientes", "Limites da API"; chaves de API):

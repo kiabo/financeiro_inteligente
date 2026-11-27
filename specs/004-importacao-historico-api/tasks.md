@@ -57,7 +57,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Execução em lotes
 
-- [ ] T10 — `server/integrations/history/historyRunner.ts`: `startRun`, `stepRun`, `cancelRun`, `getRun`; fase "clientes" (Asaas) → "pagamentos"; cursor `{janela, offset}`;
+- [x] T10 — `server/integrations/history/historyRunner.ts`: `startRun`, `stepRun`, `cancelRun`, `getRun`; fase "clientes" (Asaas) → "pagamentos"; cursor `{janela, offset}`;
   contadores; erro de um pagamento não aborta; falha de página/chave marca `failed` **mantendo o cursor**; um evento por pagamento em `webhook_events` com `source = 'api'` e payload reduzido; auditoria ao concluir.
   Testado com os fakes da T06/T07.
   **Pronto quando:** testes provam: importar 3 meses das fixtures cria o esperado; repetir resulta em 0 criados; falha na página 2 mantém a página 1 e retoma da página 2; cancelar mantém o importado;
@@ -99,6 +99,12 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T10 — Executor em lotes (2026-11-27)
+- `server/integrations/history/historyRunner.ts`: `startRun`, `stepRun`, `cancelRun`, `getRun`, `createHistorySource`, `toPublicRun`; dependências injetáveis (`HistoryDeps`). Cursor `{janela, offset, customersOffset}`; Asaas passa pela fase "clientes" (uma página por passo) antes dos pagamentos.
+- Regras: `failed` mantém o cursor e `stepRun` numa execução `failed` **retoma** (a chave é relida a cada passo, então pode ter sido corrigida); `canceled`/`completed` não processam mais; uma execução ativa por conexão (409 devolve a execução para retomar); erro em um pagamento conta em "erros" (só o id) e não aborta o lote; auditoria `integration.history_imported` ao concluir.
+- **Correção encontrada ao escrever o teste do MP:** o Mercado Pago devolve `net_received_amount = 0` em pagamentos ainda não aprovados; o núcleo tratava isso como líquido real e lançaria uma "taxa" igual ao valor inteiro (o mesmo defeito existia no webhook). `normalizeMercadoPagoPayment` agora só usa líquido e taxa quando o status é `approved`. Teste de regressão adicionado.
+- 16 testes novos com fakes em memória (`helpers/memoryRuns.ts`); `npm test`: 157/157.
 
 ### T09 — Webhook usa o upsert por pagamento (2026-11-27)
 - `applyNormalizedEvent` agora planeja e chama `upsertPayment` (intenção `open|settled|refund`); a busca por `webhook_events.normalized->>paymentRef` foi removida. Recebe `deps` opcional (armazenamento e catálogo) para teste.

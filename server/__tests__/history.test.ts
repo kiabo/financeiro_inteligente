@@ -175,6 +175,8 @@ const cases: TestCase[] = [
     assertEqual(r.normalized.kind, 'payment_pending', 'tipo');
     assertEqual(r.normalized.settlementDate, '2026-02-10', 'expiração');
     assertEqual(r.normalized.counterpartyName ?? null, null, 'sem nome');
+    assertEqual(r.normalized.feeAmount, null, 'sem taxa antes da aprovação (o líquido 0 do MP não é taxa)');
+    assertEqual(r.normalized.netAmount, null, 'sem líquido antes da aprovação');
   }],
   ['Mercado Pago: in_mediation fica em aberto com o valor cheio; nome só com first_name é aceito', () => {
     const r = mapMercadoPagoPayment(byId(mpPage1, 90000003), NOW);

@@ -67,12 +67,13 @@ export function normalizeMercadoPagoPayment(payment: Obj, fallbackId: string, no
   const gross = roundMoney(toNumberOrNull(payment.transaction_amount) ?? 0);
   const feeDetails = Array.isArray(payment.fee_details) ? (payment.fee_details as Obj[]) : [];
   const feeSum = feeDetails.reduce((s, f) => s + (toNumberOrNull(f.amount) ?? 0), 0);
-  const net = toNumberOrNull(asObj(payment.transaction_details).net_received_amount);
+  // Antes da aprovação o MP devolve líquido 0: tratá-lo como valor real faria a "taxa" ser o valor inteiro
+  const net = status === 'approved' ? toNumberOrNull(asObj(payment.transaction_details).net_received_amount) : null;
   const refunded = roundMoney(toNumberOrNull(payment.transaction_amount_refunded) ?? 0);
 
   const base: Omit<NormalizedPaymentEvent, 'kind' | 'grossAmount'> = {
     paymentRef: String(payment.id ?? fallbackId),
-    feeAmount: feeDetails.length > 0 ? roundMoney(feeSum) : null,
+    feeAmount: status === 'approved' && feeDetails.length > 0 ? roundMoney(feeSum) : null,
     netAmount: net !== null ? roundMoney(net) : null,
     currency: (typeof payment.currency_id === 'string' ? payment.currency_id : 'BRL').toUpperCase(),
     competenceDate: toISODateBR(payment.date_approved ?? payment.date_created, now),

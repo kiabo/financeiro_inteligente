@@ -24,6 +24,8 @@ export class MemoryTransactionStore implements TransactionStore {
   /** Executa antes do próximo insert (simula outro processo gravando o mesmo pagamento). */
   beforeInsert: (() => void) | null = null;
   insertCalls = 0;
+  /** Linhas planejadas recebidas em cada insert bem-sucedido (com contraparte, descrição etc.) */
+  inserted: PlannedPaymentRow[] = [];
 
   private nextId = () => `tx-${++this.seq}`;
 
@@ -61,6 +63,7 @@ export class MemoryTransactionStore implements TransactionStore {
     }
     const ids: string[] = [];
     for (const row of rows) {
+      this.inserted.push({ ...row });
       const id = this.nextId();
       this.rows.push({
         id,

@@ -14,6 +14,7 @@ import { runAnonymizerUnitTests } from '../src/modules/vault/__tests__/anonymize
 import { runHistoryPeriodTests } from '../src/modules/integrations/__tests__/historyPeriod.test.ts';
 import { runHistoryTests } from '../server/__tests__/history.test.ts';
 import { runHistoryUpsertTests } from '../server/__tests__/historyUpsert.test.ts';
+import { runHistoryRunnerTests } from '../server/__tests__/historyRunner.test.ts';
 import { runModule6ServerTests } from '../server/__tests__/module6Server.test.ts';
 
 interface Result {
@@ -36,6 +37,7 @@ const suites: Array<[string, () => Result[] | Promise<Result[]>]> = [
   ['Importação de histórico · período (spec 004)', runHistoryPeriodTests],
   ['Importação de histórico por API (spec 004)', runHistoryTests],
   ['Importação de histórico · idempotência (spec 004)', runHistoryUpsertTests],
+  ['Importação de histórico · execução em lotes (spec 004)', runHistoryRunnerTests],
 ];
 
 let failures = 0;

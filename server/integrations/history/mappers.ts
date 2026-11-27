@@ -131,10 +131,19 @@ export function mapAsaasPayment(payment: Obj, customerName: string | null, now: 
   return ignored('asaas', providerStatus, paymentRef, `status ${providerStatus || 'ausente'}`, now);
 }
 
-/** Pagamento do Mercado Pago (item de `GET /v1/payments/search`; mesma estrutura de `GET /v1/payments/{id}`). */
-export function mapMercadoPagoPayment(payment: Obj, now: Date): HistoryPayment {
+/**
+ * Pagamento do Mercado Pago (item de `GET /v1/payments/search`; mesma estrutura de `GET /v1/payments/{id}`).
+ * `ownAccountId` é o id da conta dona do token: a busca também devolve pagamentos em que a conta é a PAGADORA
+ * (compras), que não são receita. Só entram os que têm esta conta como recebedora (`collector_id`).
+ */
+export function mapMercadoPagoPayment(payment: Obj, now: Date, ownAccountId: string): HistoryPayment {
   const { normalized, status, paymentRef } = normalizeMercadoPagoPayment(payment, '', now);
   if (!paymentRef) return ignored('mercadopago', status, '', 'pagamento sem identificador', now);
+
+  const collector = payment.collector_id === undefined || payment.collector_id === null ? '' : String(payment.collector_id);
+  if (collector !== ownAccountId) {
+    return ignored('mercadopago', status, paymentRef, 'pagamento feito por esta conta (não é recebimento)', now);
+  }
 
   const gross = roundMoney(toNumberOrNull(payment.transaction_amount) ?? 0);
   if (gross <= 0) return ignored('mercadopago', status, paymentRef, 'pagamento sem valor', now);

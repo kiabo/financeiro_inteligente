@@ -27,6 +27,8 @@ import {
 type Obj = Record<string, unknown>;
 
 const NOW = new Date('2026-11-26T15:00:00Z');
+/** Id da conta dona do token do Mercado Pago nas fixtures (`collector_id` dos recebimentos) */
+export const MP_OWN_ID = '777000';
 
 export const loadFixture = <T = Obj>(name: string): T =>
   JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8')) as T;
@@ -158,7 +160,7 @@ const cases: TestCase[] = [
 
   // ---------------------------------------------------------------- Mercado Pago
   ['Mercado Pago: approved vira liquidado com taxa dos fee_details, líquido e pagador (CA6, CA11)', () => {
-    const r = mapMercadoPagoPayment(byId(mpPage1, 90000001), NOW);
+    const r = mapMercadoPagoPayment(byId(mpPage1, 90000001), NOW, MP_OWN_ID);
     assertEqual(r.lifecycle, 'settled', 'ciclo');
     assertEqual(r.normalized.kind, 'payment_settled', 'tipo');
     assertEqual(r.normalized.paymentRef, '90000001', 'ref numérica como texto');
@@ -170,7 +172,7 @@ const cases: TestCase[] = [
     assertEqual(r.normalized.productHint, 'SRV_01', 'produto por referência externa');
   }],
   ['Mercado Pago: pending usa date_of_expiration como vencimento; pagador sem nome → contraparte nula', () => {
-    const r = mapMercadoPagoPayment(byId(mpPage1, 90000002), NOW);
+    const r = mapMercadoPagoPayment(byId(mpPage1, 90000002), NOW, MP_OWN_ID);
     assertEqual(r.lifecycle, 'open', 'ciclo');
     assertEqual(r.normalized.kind, 'payment_pending', 'tipo');
     assertEqual(r.normalized.settlementDate, '2026-02-10', 'expiração');
@@ -179,36 +181,50 @@ const cases: TestCase[] = [
     assertEqual(r.normalized.netAmount, null, 'sem líquido antes da aprovação');
   }],
   ['Mercado Pago: in_mediation fica em aberto com o valor cheio; nome só com first_name é aceito', () => {
-    const r = mapMercadoPagoPayment(byId(mpPage1, 90000003), NOW);
+    const r = mapMercadoPagoPayment(byId(mpPage1, 90000003), NOW, MP_OWN_ID);
     assertEqual(r.lifecycle, 'open', 'ciclo');
     assertClose(r.normalized.grossAmount, 45, 'valor cheio');
     assertEqual(r.normalized.counterpartyName, 'Ana', 'só primeiro nome');
   }],
   ['Mercado Pago: cancelled/rejected são cancelados e refunded/charged_back são estornados, com valor cheio (CA13)', () => {
-    const cancelled = mapMercadoPagoPayment(byId(mpPage2, 90000004), NOW);
+    const cancelled = mapMercadoPagoPayment(byId(mpPage2, 90000004), NOW, MP_OWN_ID);
     assertEqual(cancelled.lifecycle, 'canceled', 'cancelled');
     assertClose(cancelled.normalized.grossAmount, 70, 'valor cancelado');
-    const refunded = mapMercadoPagoPayment(byId(mpPage2, 90000005), NOW);
+    const refunded = mapMercadoPagoPayment(byId(mpPage2, 90000005), NOW, MP_OWN_ID);
     assertEqual(refunded.lifecycle, 'refunded', 'refunded');
     assertClose(refunded.normalized.grossAmount, 120, 'valor cheio');
-    const rejected = mapMercadoPagoPayment(byId(mpPage2, 90000006), NOW);
+    const rejected = mapMercadoPagoPayment(byId(mpPage2, 90000006), NOW, MP_OWN_ID);
     assertEqual(rejected.lifecycle, 'canceled', 'rejected');
-    const chargedBack = mapMercadoPagoPayment({ ...byId(mpPage2, 90000005), status: 'charged_back' }, NOW);
+    const chargedBack = mapMercadoPagoPayment({ ...byId(mpPage2, 90000005), status: 'charged_back' }, NOW, MP_OWN_ID);
     assertEqual(chargedBack.lifecycle, 'refunded', 'charged_back');
   }],
   ['Mercado Pago: status desconhecido ou sem id é ignorado com motivo', () => {
-    const unknown = mapMercadoPagoPayment({ ...byId(mpPage1, 90000001), status: 'xyz' }, NOW);
+    const unknown = mapMercadoPagoPayment({ ...byId(mpPage1, 90000001), status: 'xyz' }, NOW, MP_OWN_ID);
     assertEqual(unknown.lifecycle, 'unknown', 'desconhecido');
     assert(/xyz/.test(unknown.normalized.ignoredReason ?? ''), 'motivo cita o status');
-    assertEqual(mapMercadoPagoPayment({ ...byId(mpPage1, 90000001), id: undefined }, NOW).lifecycle, 'unknown', 'sem id');
+    assertEqual(mapMercadoPagoPayment({ ...byId(mpPage1, 90000001), id: undefined }, NOW, MP_OWN_ID).lifecycle, 'unknown', 'sem id');
   }],
   ['Mercado Pago: totais das duas páginas (1 paga, 2 abertas, 1 estornada, 2 canceladas)', () => {
-    const mapped = [...mpPage1, ...mpPage2].map((p) => mapMercadoPagoPayment(p, NOW));
+    const mapped = [...mpPage1, ...mpPage2].map((p) => mapMercadoPagoPayment(p, NOW, MP_OWN_ID));
     const count = (l: string) => mapped.filter((m) => m.lifecycle === l).length;
     assertEqual(count('settled'), 1, 'pagas');
     assertEqual(count('open'), 2, 'abertas');
     assertEqual(count('refunded'), 1, 'estornadas');
     assertEqual(count('canceled'), 2, 'canceladas');
+    assertEqual(count('unknown'), 1, 'a compra feita pela própria conta não entra');
+  }],
+  ['Mercado Pago: pagamento feito por esta conta (compra) NÃO vira receita — só os que ela recebe (defeito encontrado no cfo)', () => {
+    const outgoing = mapMercadoPagoPayment(byId(mpPage2, 90000007), NOW, MP_OWN_ID);
+    assertEqual(outgoing.lifecycle, 'unknown', 'compra da própria conta');
+    assertEqual(outgoing.normalized.kind, 'ignored', 'tipo');
+    assert(/não é recebimento/.test(outgoing.normalized.ignoredReason ?? ''), 'motivo claro');
+    // Sem collector_id (formato inesperado) também não entra: falha para o lado seguro
+    const noCollector = mapMercadoPagoPayment({ ...byId(mpPage1, 90000001), collector_id: undefined }, NOW, MP_OWN_ID);
+    assertEqual(noCollector.lifecycle, 'unknown', 'sem collector_id');
+    // collector_id como texto ou número é igual
+    assertEqual(mapMercadoPagoPayment({ ...byId(mpPage1, 90000001), collector_id: '777000' }, NOW, MP_OWN_ID).lifecycle, 'settled', 'texto');
+    // outra conta como "dona" → o recebimento vira ignorado
+    assertEqual(mapMercadoPagoPayment(byId(mpPage1, 90000001), NOW, '999').lifecycle, 'unknown', 'outra conta');
   }],
 
   // ---------------------------------------------------------------- Planejamento dos lançamentos
@@ -297,7 +313,7 @@ const cases: TestCase[] = [
     const client = new MercadoPagoClient('APP_USR_TOKEN_EXEMPLO', http.options);
     const first = await client.searchPayments({ start: '2026-01-01', end: '2026-02-28', offset: 0, limit: 3 });
     assertEqual(first.hasMore, true, 'tem mais');
-    assertEqual(first.total, 6, 'total');
+    assertEqual(first.total, 7, 'total');
     const second = await client.searchPayments({ start: '2026-01-01', end: '2026-02-28', offset: 3, limit: 3 });
     assertEqual(second.hasMore, false, 'fim');
     const url = decodeURIComponent(http.calls[0]!.url);
@@ -305,6 +321,18 @@ const cases: TestCase[] = [
     assert(url.includes('range=date_created') && url.includes('sort=date_created') && url.includes('criteria=asc'), 'ordenação/range');
     assert(url.includes('begin_date=2026-01-01T00:00:00.000-03:00') && url.includes('end_date=2026-02-28T23:59:59.999-03:00'), 'datas');
     assertEqual(http.calls[0]!.headers.Authorization, 'Bearer APP_USR_TOKEN_EXEMPLO', 'token no cabeçalho');
+  }],
+  ['cliente Mercado Pago: identifica a conta por GET /users/me; cai no sufixo do token; erro de chave não é escondido; sem nada, falha', async () => {
+    const ok = fakeHttp([{ body: { id: 777000, nickname: 'x' } }]);
+    assertEqual(await new MercadoPagoClient('APP_USR-1-2-abc-999', ok.options).identifyAccount(), '777000', '/users/me tem prioridade');
+    assertEqual(ok.calls[0]!.url, 'https://api.mercadopago.com/users/me', 'URL');
+    assertEqual(ok.calls[0]!.method, 'GET', 'só leitura');
+    const fallback = fakeHttp([{ status: 404 }]);
+    assertEqual(await new MercadoPagoClient('APP_USR-1234-112233-abcdef-445566', fallback.options).identifyAccount(), '445566', 'sufixo do token');
+    const auth = fakeHttp([{ status: 401 }]);
+    await assertRejects(() => new MercadoPagoClient('APP_USR-1234-112233-abcdef-445566', auth.options).identifyAccount(), /recusou o access token/, 'chave inválida');
+    const none = fakeHttp([{ status: 404 }]);
+    await assertRejects(() => new MercadoPagoClient('token-sem-sufixo', none.options).identifyAccount(), /identificar a conta/, 'sem como identificar');
   }],
   ['cliente: 429 espera o RateLimit-Reset (sem repetir de imediato) e continua (CA8)', async () => {
     const http = fakeHttp([{ status: 429, headers: { 'RateLimit-Reset': '2' } }, { body: asaasP1 }]);
@@ -413,7 +441,7 @@ const cases: TestCase[] = [
     const { counterpartyName, ...rest } = r.normalized;
     assertEqual(counterpartyName, 'Maria Souza Teste', 'contraparte');
     assert(!JSON.stringify(rest).includes('Maria'), 'nome fora de outros campos');
-    const mp = mapMercadoPagoPayment(byId(mpPage1, 90000001), NOW);
+    const mp = mapMercadoPagoPayment(byId(mpPage1, 90000001), NOW, MP_OWN_ID);
     assert(!JSON.stringify(mp.normalized).includes('@'), 'sem e-mail no evento normalizado');
   }],
 ];

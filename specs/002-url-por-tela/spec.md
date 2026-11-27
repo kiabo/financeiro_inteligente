@@ -1,8 +1,8 @@
 # Spec 002 — URL por tela (histórico de navegação)
 
-- **Status:** rascunho
+- **Status:** em-andamento
 - **Criada em:** 2026-11-26
-- **Aprovada em:** —
+- **Aprovada em:** 2026-11-27
 - **Responsável pela aprovação:** usuário
 
 ## Problema
@@ -37,6 +37,7 @@ um link de uma tela e o F5 volta sempre para a Visão Geral.
 - [ ] CA6: conectar o Google em Alertas, Agenda & Backup retorna à mesma tela com a mensagem de sucesso/erro.
 - [ ] CA7: título da aba muda por tela.
 - [ ] CA8: funciona em h-cfo e cfo (nginx → Express devolve o SPA), e em `localhost:3000`.
+- [ ] CA9 (acrescentado em 2026-11-27, durante o plan): com o service worker do PWA ativo, navegar para `/api/...` (ex.: o callback do Google) chega ao **servidor**, não ao SPA.
 
 ## Fora de escopo
 - Parâmetros de URL para filtros e contexto (empresa/conta); pode virar spec futura.
@@ -45,9 +46,12 @@ um link de uma tela e o F5 volta sempre para a Visão Geral.
 ## Restrições e princípios aplicáveis
 - Sem dependência nova; não alterar a lógica de autenticação aal2.
 
+## Notas de alteração
+- 2026-11-27: CA9 acrescentado. O service worker gerado hoje (`NavigationRoute` → `index.html`, sem exceção para `/api/`) pode interceptar o retorno do OAuth do Google; está no escopo porque o CA6 depende disso.
+
 ## Perguntas abertas
-- Os caminhos em português acima estão bons?
-- Querem que o contexto global (empresa/grupo/conta) também vá na URL (`?contexto=…`) nesta spec?
+- Os caminhos em português acima estão bons? (sim, estão bons)
+- Querem que o contexto global (empresa/grupo/conta) também vá na URL (`?contexto=…`) nesta spec? (não precisa ir para a url)
 
 ## Registro de verificação
 —

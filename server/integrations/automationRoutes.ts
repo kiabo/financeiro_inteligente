@@ -1,4 +1,5 @@
 import express, { type Response } from 'express';
+import { pathFromSection } from '../../src/modules/core/routes.ts';
 import { getAuthUser, requireUser } from '../authMiddleware.ts';
 import { isBackupKeyConfigured } from '../crypto/backupCrypto.ts';
 import { isCredentialsKeyConfigured, timingSafeEqualStr } from '../crypto/secretBox.ts';
@@ -31,6 +32,12 @@ function requireSupabase(res: Response): boolean {
     return false;
   }
   return true;
+}
+
+/** URL de retorno do OAuth do Google: abre direto a tela de Alertas, Agenda & Backup (spec 002). */
+export function buildGoogleReturnUrl(status: 'connected' | 'error', reason?: string): string {
+  const query = status === 'connected' ? 'google=connected' : `google=error&reason=${encodeURIComponent(reason ?? 'falha')}`;
+  return `${pathFromSection('automation')}?${query}`;
 }
 
 export function createAutomationRouter(): express.Router {
@@ -87,15 +94,15 @@ export function createAutomationRouter(): express.Router {
     const state = typeof req.query.state === 'string' ? req.query.state : '';
     const oauthError = typeof req.query.error === 'string' ? req.query.error : '';
     if (oauthError || !code || !state) {
-      res.redirect(`/?google=error&reason=${encodeURIComponent(oauthError || 'parametros_ausentes')}`);
+      res.redirect(buildGoogleReturnUrl('error', oauthError || 'parametros_ausentes'));
       return;
     }
     try {
       await completeGoogleOAuth({ code, state, redirectUri: resolveGoogleRedirectUri(resolvePublicBaseUrl(req)) });
-      res.redirect('/?google=connected');
+      res.redirect(buildGoogleReturnUrl('connected'));
     } catch (err) {
       const reason = err instanceof Error ? err.message.slice(0, 160) : 'falha';
-      res.redirect(`/?google=error&reason=${encodeURIComponent(reason)}`);
+      res.redirect(buildGoogleReturnUrl('error', reason));
     }
   });
 

@@ -151,7 +151,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onAuthenticated }) => 
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          // Preserva o caminho pedido (deep link) para voltar à mesma tela depois do login (spec 002)
+          redirectTo: `${window.location.origin}${window.location.pathname}`,
         },
       });
       if (oauthError) {

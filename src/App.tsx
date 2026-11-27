@@ -19,6 +19,8 @@ import {
   type WorkspaceSnapshot,
 } from './modules/core/repository';
 import { getSupabaseClient, isSupabaseConfigured } from './modules/core/supabase';
+import { APP_NAME } from './modules/core/brand';
+import { DEFAULT_SECTION, SECTION_TITLES, pathFromSection, sectionFromPath } from './modules/core/routes';
 import type { ActiveContext, AppSection, AuthSessionState } from './modules/core/types';
 import { CashFlowView } from './modules/core/views/CashFlowView';
 import { OverviewView } from './modules/core/views/OverviewView';
@@ -68,7 +70,35 @@ export default function App(): React.JSX.Element {
   const [seeding, setSeeding] = useState(false);
 
   const [activeContext, setActiveContext] = useState<ActiveContext>({ scope: 'all_independent' });
-  const [activeSection, setActiveSection] = useState<AppSection>('overview');
+  // Seção ativa sincronizada com a URL (spec 002): cada tela tem seu caminho e histórico próprio.
+  const [activeSection, setActiveSection] = useState<AppSection>(() =>
+    typeof window === 'undefined' ? DEFAULT_SECTION : (sectionFromPath(window.location.pathname) ?? DEFAULT_SECTION)
+  );
+  const navigate = useCallback((section: AppSection, options?: { replace?: boolean }) => {
+    setActiveSection(section);
+    const path = pathFromSection(section);
+    if (window.location.pathname !== path) {
+      if (options?.replace) window.history.replaceState(null, '', path);
+      else window.history.pushState(null, '', path);
+    }
+  }, []);
+  // Título da aba: "<Tela> · <Sistema>" com sessão verificada; sem sessão, o título padrão do index.html
+  const [defaultTitle] = useState(() => (typeof document === 'undefined' ? '' : document.title));
+  const authenticated = Boolean(session?.mfaVerified);
+  useEffect(() => {
+    document.title = authenticated ? `${SECTION_TITLES[activeSection]} · ${APP_NAME}` : defaultTitle;
+  }, [authenticated, activeSection, defaultTitle]);
+  useEffect(() => {
+    // `/` ou caminho desconhecido → Visão Geral, sem criar entrada extra no histórico
+    if (!sectionFromPath(window.location.pathname)) {
+      window.history.replaceState(null, '', pathFromSection(DEFAULT_SECTION) + window.location.search);
+    }
+    const handlePopState = () => {
+      setActiveSection(sectionFromPath(window.location.pathname) ?? DEFAULT_SECTION);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [receiptOpen, setReceiptOpen] = useState(false);
   // Retorno do OAuth do Google (/?google=connected|error) → abre a Central de Alertas & Backup
   const [googleReturn] = useState<{ tone: 'success' | 'error'; text: string } | null>(() => {
@@ -82,8 +112,8 @@ export default function App(): React.JSX.Element {
       : { tone: 'error', text: `Não foi possível conectar o Google: ${params.get('reason') ?? 'erro desconhecido'}` };
   });
   useEffect(() => {
-    if (googleReturn) setActiveSection('automation');
-  }, [googleReturn]);
+    if (googleReturn) navigate('automation', { replace: true });
+  }, [googleReturn, navigate]);
   const [autoCadence, setAutoCadence] = useState<'manual' | 'daily_open'>(() => {
     if (typeof window === 'undefined') return 'manual';
     return localStorage.getItem('vertice_cfo_cadence') === 'daily_open'
@@ -275,7 +305,7 @@ export default function App(): React.JSX.Element {
     setSession(null);
     setSnapshot(EMPTY_SNAPSHOT);
     setActiveContext({ scope: 'all_independent' });
-    setActiveSection('overview');
+    navigate('overview', { replace: true });
   };
 
   const handleSeedExample = async () => {
@@ -312,7 +342,7 @@ export default function App(): React.JSX.Element {
       isDark={isDark}
       onToggleTheme={() => setIsDark((prev) => !prev)}
       onChangeContext={setActiveContext}
-      onNavigate={setActiveSection}
+      onNavigate={navigate}
       onLogout={handleLogout}
       onOpenReceiptCapture={() => setReceiptOpen(true)}
     >
@@ -334,7 +364,7 @@ export default function App(): React.JSX.Element {
               : null
         }
         onCreated={refreshWorkspace}
-        onOpenManual={() => setActiveSection('transactions')}
+        onOpenManual={() => navigate('transactions')}
       />
       {dataError ? (
         <div className="rounded-[8px] border border-[#FECACA] bg-[#FEF2F2] p-6 text-[14px] text-[#991B1B] dark:border-[#7F1D1D] dark:bg-[#3B1219] dark:text-[#FCA5A5]">
@@ -374,7 +404,7 @@ export default function App(): React.JSX.Element {
               transactions={snapshot.transactions}
               vault={snapshot.vault}
               activeContext={activeContext}
-              onNavigate={setActiveSection}
+              onNavigate={navigate}
               onSeedExample={handleSeedExample}
               seeding={seeding}
             />
@@ -397,7 +427,7 @@ export default function App(): React.JSX.Element {
               vault={snapshot.vault}
               aiInsights={snapshot.aiInsights}
               activeContext={activeContext}
-              onNavigate={setActiveSection}
+              onNavigate={navigate}
               onRefresh={refreshWorkspace}
             />
           )}
@@ -409,7 +439,7 @@ export default function App(): React.JSX.Element {
               aiInsights={snapshot.aiInsights}
               activeContext={activeContext}
               onRefresh={refreshWorkspace}
-              onNavigate={setActiveSection}
+              onNavigate={navigate}
               autoCadence={autoCadence}
               onChangeAutoCadence={handleChangeAutoCadence}
             />
@@ -423,7 +453,7 @@ export default function App(): React.JSX.Element {
               categories={snapshot.categories}
               transactions={snapshot.transactions}
               activeContext={activeContext}
-              onNavigate={setActiveSection}
+              onNavigate={navigate}
             />
           )}
 
@@ -438,7 +468,7 @@ export default function App(): React.JSX.Element {
               taxObligations={snapshot.taxObligations}
               activeContext={activeContext}
               onRefresh={refreshWorkspace}
-              onNavigate={setActiveSection}
+              onNavigate={navigate}
             />
           )}
 
@@ -454,7 +484,7 @@ export default function App(): React.JSX.Element {
               transactions={snapshot.transactions}
               activeContext={activeContext}
               onRefresh={refreshWorkspace}
-              onNavigateHierarchy={() => setActiveSection('hierarchy')}
+              onNavigateHierarchy={() => navigate('hierarchy')}
             />
           )}
 
@@ -471,7 +501,7 @@ export default function App(): React.JSX.Element {
               transactions={snapshot.transactions}
               activeContext={activeContext}
               onRefresh={refreshWorkspace}
-              onNavigateHierarchy={() => setActiveSection('hierarchy')}
+              onNavigateHierarchy={() => navigate('hierarchy')}
             />
           )}
 
@@ -484,7 +514,7 @@ export default function App(): React.JSX.Element {
               productsServices={snapshot.productsServices}
               activeContext={activeContext}
               onRefresh={refreshWorkspace}
-              onNavigateHierarchy={() => setActiveSection('hierarchy')}
+              onNavigateHierarchy={() => navigate('hierarchy')}
             />
           )}
 
@@ -519,7 +549,7 @@ export default function App(): React.JSX.Element {
               mcpCallLogs={snapshot.mcpCallLogs}
               activeContext={activeContext}
               onRefresh={refreshWorkspace}
-              onNavigate={setActiveSection}
+              onNavigate={navigate}
             />
           )}
 

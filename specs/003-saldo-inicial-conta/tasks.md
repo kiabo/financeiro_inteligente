@@ -47,10 +47,10 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
   Eu entrego o SQL pronto no chat. **Só depois disto** se faz o merge.
   **Pronto quando:** o usuário confirma e uma consulta `select opening_balance, opening_balance_date from financial_accounts limit 1` funciona.
 
-- [ ] T10 — Subir a branch, abrir PR para a `dev`, merge e deploy no h-cfo. **(usuário: confirmar o merge)**
+- [x] T10 — Subir a branch, abrir PR para a `dev`, merge e deploy no h-cfo. **(usuário: confirmar o merge)**
   **Pronto quando:** workflow verde e h-cfo respondendo 200.
 
-- [ ] T11 — Verificação final no h-cfo contra todos os critérios (`/sdd-verify 003`): criar conta com saldo positivo e outra negativo;
+- [x] T11 — Verificação final no h-cfo contra todos os critérios (`/sdd-verify 003`): criar conta com saldo positivo e outra negativo;
   conferir Fluxo, Visão Geral e Saúde; editar conta com lançamentos (aviso, cancelar e confirmar); observações discretas;
   conta antiga inalterada; `v_account_balances` comparada com a tela. Apagar as contas de teste. **(usuário entra no h-cfo)**
   **Pronto quando:** CA1–CA11 marcados `[x]` na spec com evidência.
@@ -64,3 +64,5 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
 - T07: verificado no sandbox: cartão "Saldo Anterior" mostra "inclui saldo inicial de R$ 3.500,50"; cartões das contas com "Saldo inicial: R$ … em dd/mm/aaaa"; 0 linhas no extrato.
 - T08: `tsc`, 75/75 testes e build OK.
 - T09: migration `0007` aplicada pelo usuário em 2026-11-27. Conferido por consulta de leitura: colunas presentes nas 3 contas reais (0/null) e a view `v_account_balances` responde 200. (Com a service role a view devolve vazio, pois filtra por `auth.uid()`; o cálculo foi validado antes no Postgres descartável.)
+- T10: PR #3 mergeado na `dev` em 2026-11-27 (com a 0007 já aplicada); deploy verde; h-cfo saudável.
+- T11: verificação registrada na spec. **CA10 fica parcial** (isolamento entre tenants não testado); spec/plan/tasks permanecem `em-andamento` até o usuário aceitar isso e autorizar a promoção para a `main`.

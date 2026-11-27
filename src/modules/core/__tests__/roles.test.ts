@@ -1,4 +1,4 @@
-import { canSeeSql, normalizeRole } from '../roles';
+import { canManageInstance, canSeeSql, normalizeRole } from '../roles';
 
 export interface RolesTestResult {
   name: string;
@@ -36,6 +36,11 @@ export function runRolesTests(): RolesTestResult[] {
     assert(canSeeSql('owner'), 'owner deve ver');
     assert(canSeeSql('admin'), 'admin deve ver');
     assert(!canSeeSql('analyst'), 'analyst não deve ver');
+  });
+
+  record('painel do banco e marca: só owner e admin administram a instância', () => {
+    assert(canManageInstance('owner') && canManageInstance('admin'), 'owner/admin');
+    assert(!canManageInstance('analyst'), 'analyst não');
   });
 
   return results;

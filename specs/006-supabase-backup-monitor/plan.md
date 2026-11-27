@@ -1,6 +1,6 @@
 # Plan 006 — Supabase Free com backup e monitor de uso
 
-- **Status:** aprovado
+- **Status:** em-andamento
 - **Spec:** `specs/006-supabase-backup-monitor/spec.md` (aprovado em 2026-11-27)
 - **Criado em:** 2026-11-27
 - **Aprovado em:** 2026-11-27
@@ -76,7 +76,7 @@ Acesso ao banco pelo app: **só** por `SUPABASE_DB_URL` no env do VPS (usuário 
 | Retenção apagar arquivos que não são nossos | Remove só arquivos `financeiro-db-*.vtxdb`, no diretório e na pasta do Drive criada por nós |
 | O agendador de dev disparar o backup também | Só roda com `ENABLE_INTERNAL_SCHEDULER=true` (produção) **e** `SUPABASE_DB_URL` definido; o dev não monta `/backups` |
 | Arquivos antigos no VPS sem permissão para o usuário `node` (uid 1000) | O usuário cria a pasta uma vez (`mkdir` e `chown 1000:1000`); o job checa a escrita no início e alerta se falhar |
-| Como o `deploy/receive.sh` do VPS é carregado (cópia instalada versus a do repositório) | Verificado na T01 por SSH; se for uma cópia instalada, a mudança é aplicada lá por mim, com a sua confirmação |
+| O `deploy/receive.sh` do VPS é uma **cópia instalada** (root, `/opt/financeiro-inteligente/bin/`), não atualizada pelo deploy (confirmado na T01) | A mudança é aplicada nas duas cópias; a instalada só com a sua confirmação, e o `receive.sh` antigo é guardado como `receive.sh.bak` para voltar atrás |
 
 ## Rollback
 - Código: reverter o PR; sem `SUPABASE_DB_URL`/`OWNER_TENANT_ID` o job fica inerte.

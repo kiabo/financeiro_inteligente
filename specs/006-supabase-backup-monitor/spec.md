@@ -1,6 +1,6 @@
 # Spec 006 — Supabase Free com backup e monitor de uso
 
-- **Status:** aprovado
+- **Status:** em-andamento
 - **Criada em:** 2026-11-26
 - **Aprovada em:** 2026-11-27
 - **Responsável pela aprovação:** usuário

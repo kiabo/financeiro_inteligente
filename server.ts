@@ -18,6 +18,8 @@ import {
 import { requireUser } from './server/authMiddleware.ts';
 import { createAutomationRouter } from './server/integrations/automationRoutes.ts';
 import { startInternalScheduler } from './server/integrations/dailyJobs.ts';
+import { createDbBackupRouter } from './server/integrations/dbBackup/dbBackupRoutes.ts';
+import { startDbBackupScheduler } from './server/integrations/dbBackup/dbBackupContext.ts';
 import { createHistoryRouter } from './server/integrations/historyRoutes.ts';
 import { createWebhookRouter } from './server/integrations/webhookRoutes.ts';
 import { isServerSandboxMode, isServerSupabaseConfigured } from './server/supabaseAdmin.ts';
@@ -175,6 +177,7 @@ async function startServer(): Promise<void> {
   app.use('/api', createWebhookRouter());
   app.use('/api', createHistoryRouter());
   app.use('/api', createAutomationRouter());
+  app.use('/api', createDbBackupRouter());
 
   // Endpoint Oficial do Servidor MCP (JSON-RPC Streamable HTTP + SSE)
   app.post('/api/mcp', (req, res) => {
@@ -215,6 +218,7 @@ async function startServer(): Promise<void> {
   app.listen(port, '0.0.0.0', () => {
     console.log(`[Vértice Server] Listening on http://0.0.0.0:${port}`);
     startInternalScheduler();
+    startDbBackupScheduler();
   });
 }
 

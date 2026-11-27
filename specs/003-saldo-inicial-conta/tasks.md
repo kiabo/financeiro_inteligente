@@ -43,7 +43,7 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
 - [x] T08 — Rodar tudo: `npx tsc --noEmit`, `npm test`, `npm run build`; conferir o SQL da T01 uma última vez.
   **Pronto quando:** os três comandos passam. (CA11)
 
-- [ ] T09 — **(usuário)** Aplicar `0007_opening_balance.sql` no SQL Editor do Supabase (o mesmo banco serve h-cfo e cfo) e me avisar.
+- [x] T09 — **(usuário)** Aplicar `0007_opening_balance.sql` no SQL Editor do Supabase (o mesmo banco serve h-cfo e cfo) e me avisar.
   Eu entrego o SQL pronto no chat. **Só depois disto** se faz o merge.
   **Pronto quando:** o usuário confirma e uma consulta `select opening_balance, opening_balance_date from financial_accounts limit 1` funciona.
 
@@ -63,3 +63,4 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
 - Decisão de UX durante a T06: ao editar conta **sem data de saldo e com lançamentos**, a data padrão é a do lançamento mais antigo (não hoje); com hoje, todos os lançamentos anteriores sairiam do saldo (a prévia mostrava 63.108,06 → 19.280,00). Conta sem lançamentos continua com hoje.
 - T07: verificado no sandbox: cartão "Saldo Anterior" mostra "inclui saldo inicial de R$ 3.500,50"; cartões das contas com "Saldo inicial: R$ … em dd/mm/aaaa"; 0 linhas no extrato.
 - T08: `tsc`, 75/75 testes e build OK.
+- T09: migration `0007` aplicada pelo usuário em 2026-11-27. Conferido por consulta de leitura: colunas presentes nas 3 contas reais (0/null) e a view `v_account_balances` responde 200. (Com a service role a view devolve vazio, pois filtra por `auth.uid()`; o cálculo foi validado antes no Postgres descartável.)

@@ -58,7 +58,8 @@ function deriveKey(passphrase: string, salt: Buffer, N: number, r: number, p: nu
 }
 
 export function encryptBackupPayload(
-  plainJson: string,
+  /** JSON em texto (backup lógico) ou bytes (dump binário do banco, spec 006). O formato do arquivo é o mesmo. */
+  plain: string | Buffer,
   passphrase: string,
   tenantRef: string,
   now: Date = new Date()
@@ -83,7 +84,7 @@ export function encryptBackupPayload(
   const aad = Buffer.concat([MAGIC, lenBytes, headerBytes]);
 
   const key = deriveKey(passphrase, salt, header.N, header.r, header.p);
-  const compressed = zlib.gzipSync(Buffer.from(plainJson, 'utf8'), { level: 9 });
+  const compressed = zlib.gzipSync(typeof plain === 'string' ? Buffer.from(plain, 'utf8') : plain, { level: 9 });
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   cipher.setAAD(aad);
   const ciphertext = Buffer.concat([cipher.update(compressed), cipher.final()]);
@@ -110,6 +111,12 @@ export function readBackupHeader(pkg: Buffer): { header: BackupHeader; aadLength
 }
 
 export function decryptBackupPayload(pkg: Buffer, passphrase: string): { header: BackupHeader; json: string } {
+  const { header, data } = decryptBackupBytes(pkg, passphrase);
+  return { header, json: data.toString('utf8') };
+}
+
+/** Decifra para bytes (dump binário do banco); `decryptBackupPayload` é a mesma operação lida como texto. */
+export function decryptBackupBytes(pkg: Buffer, passphrase: string): { header: BackupHeader; data: Buffer } {
   const { header, aadLength } = readBackupHeader(pkg);
   // Limita parâmetros do KDF lidos do arquivo para evitar DoS por cabeçalho adulterado
   if (header.N > 2 ** 20 || header.r > 16 || header.p > 4) {
@@ -131,6 +138,5 @@ export function decryptBackupPayload(pkg: Buffer, passphrase: string): { header:
   } finally {
     key.fill(0);
   }
-  const json = zlib.gunzipSync(compressed).toString('utf8');
-  return { header, json };
+  return { header, data: zlib.gunzipSync(compressed) };
 }

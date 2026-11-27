@@ -21,10 +21,10 @@ Regras duras: a connection string e a senha do banco nunca são lidas, impressas
 
 ## Banco e alicerces
 
-- [ ] T02 — Escrever `supabase/migrations/0009_alertas_backup_uso.sql` (troca o CHECK de `notification_logs.kind` incluindo `backup_failed` e `usage_high`), idempotente, com rollback comentado e o aviso "aplicar antes do deploy".
+- [x] T02 — Escrever `supabase/migrations/0009_alertas_backup_uso.sql` (troca o CHECK de `notification_logs.kind` incluindo `backup_failed` e `usage_high`), idempotente, com rollback comentado e o aviso "aplicar antes do deploy".
   **Pronto quando:** o arquivo usa o nome real do CHECK (T01), pode rodar duas vezes sem erro e passa em leitura linha a linha contra a `0006`. (CA5, CA6)
 
-- [ ] T03 — `server/crypto/backupCrypto.ts`: `encryptBackupPayload` aceita `string | Buffer`; teste escrito **antes** (um Buffer binário volta idêntico ao decifrar; o formato do cabeçalho não muda; os testes de backup antigos continuam verdes).
+- [x] T03 — `server/crypto/backupCrypto.ts`: `encryptBackupPayload` aceita `string | Buffer`; teste escrito **antes** (um Buffer binário volta idêntico ao decifrar; o formato do cabeçalho não muda; os testes de backup antigos continuam verdes).
   **Pronto quando:** `npm test` passa com o teste novo e sem alterar os antigos. (CA3)
 
 - [ ] T04 — `server/integrations/dbBackup/pgConnection.ts`: separar a URL em host, porta, usuário, banco e senha (senha só em `PGPASSWORD` do processo filho) e `redactConnectionError`; testes **antes**.

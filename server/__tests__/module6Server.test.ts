@@ -10,6 +10,7 @@ import {
 } from '../../scripts/testHarness.ts';
 import { decryptBackupPayload, encryptBackupPayload, readBackupHeader } from '../crypto/backupCrypto.ts';
 import { decryptSecret, encryptSecret } from '../crypto/secretBox.ts';
+import { buildGoogleReturnUrl } from '../integrations/automationRoutes.ts';
 import { buildAgendaItems } from '../integrations/alerts/agendaBuilder.ts';
 import { composeDueTodayMessage, composeOverdueMessage } from '../integrations/alerts/notificationService.ts';
 import { asaasAdapter } from '../integrations/webhooks/adapters/asaas.ts';
@@ -192,6 +193,15 @@ const cases: TestCase[] = [
     }
     assert(all.includes('CTA_01') && all.includes('Aluguel'), 'usa token + categoria genérica');
     assert((composeDueTodayMessage(items, true, '2026-11-26')?.text ?? '').includes('Fulano'), 'com rótulos reais ativados mostra a descrição');
+  }],
+  ['retorno do OAuth do Google abre Alertas, Agenda & Backup (spec 002)', () => {
+    assertEqual(buildGoogleReturnUrl('connected'), '/alertas-agenda-backup?google=connected', 'sucesso');
+    assertEqual(
+      buildGoogleReturnUrl('error', 'acesso negado & tentar'),
+      '/alertas-agenda-backup?google=error&reason=acesso%20negado%20%26%20tentar',
+      'erro com motivo codificado'
+    );
+    assertEqual(buildGoogleReturnUrl('error'), '/alertas-agenda-backup?google=error&reason=falha', 'erro sem motivo');
   }],
 ];
 

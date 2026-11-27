@@ -25,7 +25,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
   título padrão sem sessão.
   **Pronto quando:** `tsc` passa e a lógica usa `SECTION_TITLES`. (CA7)
 
-- [ ] T05 — Retorno do Google: `automationRoutes.ts` redireciona para `/alertas-agenda-backup?google=…`;
+- [x] T05 — Retorno do Google: `automationRoutes.ts` redireciona para `/alertas-agenda-backup?google=…`;
   `App.tsx` mantém o leitor da query (aceita também a forma antiga `/?google=…`) e usa `navigate('automation', {replace: true})`;
   `server/__tests__/module6Server.test.ts` atualizado se cobrir os redirects.
   **Pronto quando:** testes verdes e o redirect aponta para o novo caminho. (CA6)

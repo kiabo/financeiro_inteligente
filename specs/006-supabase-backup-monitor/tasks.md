@@ -1,6 +1,6 @@
 # Tasks 006 — Supabase Free com backup e monitor de uso
 
-- **Status:** aprovado
+- **Status:** em-andamento
 - **Plan:** `specs/006-supabase-backup-monitor/plan.md` (aprovado em 2026-11-27)
 - **Branch:** `feat/006-supabase-backup-monitor` (saindo da `dev`)
 - **Aprovado em:** 2026-11-27
@@ -12,7 +12,7 @@ Regras duras: a connection string e a senha do banco nunca são lidas, impressas
 
 ## Preparação
 
-- [ ] T01 — **(usuário)** Verificar a conexão e o ambiente. Eu passo os comandos; você roda e me diz **só o resultado**:
+- [x] T01 — **(usuário)** Verificar a conexão e o ambiente. Eu passo os comandos; você roda e me diz **só o resultado**:
   (a) `SHOW server_version` com a connection string do **pooler em modo sessão** (num contêiner `postgres:17` descartável, lendo a variável do seu env, sem me mostrar a senha);
   (b) `select conname from pg_constraint where conrelid = 'public.notification_logs'::regclass and contype = 'c'` (nome real do CHECK da coluna `kind`);
   (c) se a conta do `deploy` consegue usar `/opt/financeiro-inteligente/backups`.
@@ -72,4 +72,6 @@ Regras duras: a connection string e a senha do banco nunca são lidas, impressas
   **Pronto quando:** o "Registro de verificação" tem cada CA com resultado, evidência e data; spec, plan e tasks `concluído`. (CA1–CA8)
 
 ## Notas de execução
-(decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec)
+- **T01 (feita por mim, em modo leitura, a seu pedido, com o Supabase e o VPS já acessíveis):** Postgres do Supabase **17.12** (cliente 17 compatível); nome do CHECK = `notification_logs_kind_check`; banco com 14,8 MB e Storage com 0 byte; o VPS **tem IPv6** (então a conexão direta funciona, e o pooler também serve); a pasta `/opt/financeiro-inteligente/backups` **não existe** (o usuário do contêiner é o `node`, uid 1000, que no VPS é o `ubuntu`); o `receive.sh` **instalado** (`/opt/financeiro-inteligente/bin/receive.sh`, dono root, comando forçado da chave de deploy) é **igual ao do repositório, mas não é atualizado pelo deploy**.
+  A senha do banco não foi lida; o teste real de conexão com o `psql` fica para a T14/T15, depois que `SUPABASE_DB_URL` estiver no env.
+- **Mudança na T10:** atualizar o `receive.sh` do repositório **e** a cópia instalada no VPS (como root, com a sua confirmação antes), e criar `/opt/financeiro-inteligente/backups` com dono `1000:1000`. Isso vira passo explícito na T13.

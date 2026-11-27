@@ -1,9 +1,9 @@
 # Plan 007 — Trocar o segredo do webhook de uma conexão
 
-- **Status:** rascunho
+- **Status:** aprovado
 - **Spec:** `specs/007-trocar-segredo-webhook/spec.md` (aprovado em 2026-11-27)
 - **Criado em:** 2026-11-27
-- **Aprovado em:** —
+- **Aprovado em:** 2026-11-27
 
 ## Abordagem
 O servidor **já aceita** a troca: `PATCH /api/integrations/connections/:id` com `signing_secret` cifra o valor (`encryptSecret(valor, user.id)`),

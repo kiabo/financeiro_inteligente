@@ -1,9 +1,9 @@
 # Plan 005 — Nome e marca do sistema
 
-- **Status:** rascunho
+- **Status:** aprovado
 - **Spec:** `specs/005-marca-e-temas/spec.md` (aprovado em 2026-11-27)
 - **Criado em:** 2026-11-27
-- **Aprovado em:** —
+- **Aprovado em:** 2026-11-27
 
 ## Abordagem
 Uma **marca única da instância** (nome, nome curto, logo, favicon), guardada numa tabela de uma só linha, **lida e gravada somente pelo servidor** (service role).

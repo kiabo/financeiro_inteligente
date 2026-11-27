@@ -1,9 +1,9 @@
 # Plan 006 — Supabase Free com backup e monitor de uso
 
-- **Status:** rascunho
+- **Status:** aprovado
 - **Spec:** `specs/006-supabase-backup-monitor/spec.md` (aprovado em 2026-11-27)
 - **Criado em:** 2026-11-27
-- **Aprovado em:** —
+- **Aprovado em:** 2026-11-27
 
 ## Abordagem
 O `pg_dump` roda **dentro do contêiner do app** (produção), no agendador interno que já existe, e não em um cron separado no VPS. Motivo: o contêiner já tem a chave de backup,

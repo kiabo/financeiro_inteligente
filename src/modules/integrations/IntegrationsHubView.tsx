@@ -1,4 +1,4 @@
-import { Check, Copy, FlaskConical, Pause, Play, Plug, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, Copy, Download, FlaskConical, KeyRound, Pause, Play, Plug, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
@@ -8,6 +8,7 @@ import { StatusChip } from '../../components/ui/status-chip';
 import { formatCurrencyBRL, formatDateTimeBR } from '../../lib/utils';
 import type { AuthSessionState, Category, Company, FinancialAccount, ProductService } from '../core/types';
 import { isSupabaseConfigured } from '../core/supabase';
+import { HistoryImportModal } from './components/HistoryImportModal';
 import { ModuleHeader, NativeSelect, Notice, SandboxGate, Toggle } from './components/moduleUi';
 import {
   createConnection,
@@ -51,6 +52,9 @@ const MAPPING_FIELDS: Array<{ key: keyof CustomFieldMappingConfig; label: string
   { key: 'signature_header', label: 'Cabeçalho da assinatura', placeholder: 'x-signature' },
 ];
 
+/** Provedores com consulta por API (chave de API e importação de histórico). */
+const supportsApiKey = (p: IntegrationProvider) => p === 'asaas' || p === 'mercadopago';
+
 const statusChip = (s: WebhookEventRow['status']) =>
   s === 'processed' ? 'positive' : s === 'failed' ? 'alert' : s === 'ignored' ? 'neutral' : 'primary';
 
@@ -87,6 +91,14 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Chave de API de uma conexão existente (a chave nunca volta do servidor)
+  const [historyConn, setHistoryConn] = useState<IntegrationConnection | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<'' | 'api' | 'webhook'>('');
+  const [keyDialog, setKeyDialog] = useState<IntegrationConnection | null>(null);
+  const [keyValue, setKeyValue] = useState('');
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [keySaving, setKeySaving] = useState(false);
+
   const companyAccounts = useMemo(() => accounts.filter((a) => a.company_id === companyId), [accounts, companyId]);
   const companyProducts = useMemo(
     () => productsServices.filter((p) => p.is_active && (p.company_id === companyId || p.company_id === null)),
@@ -103,7 +115,7 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
     if (!isSupabaseConfigured) return;
     setLoading(true);
     try {
-      const [conn, ev] = await Promise.all([fetchConnections(), fetchWebhookEvents()]);
+      const [conn, ev] = await Promise.all([fetchConnections(), fetchWebhookEvents(undefined, sourceFilter || undefined)]);
       setConnections(conn.connections);
       setEvents(ev);
     } catch (err) {
@@ -111,7 +123,7 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sourceFilter]);
 
   useEffect(() => {
     void load();
@@ -170,6 +182,30 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
       setFormError(err instanceof Error ? err.message : 'Falha ao criar conexão.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openKeyDialog = (c: IntegrationConnection) => {
+    setKeyDialog(c);
+    setKeyValue('');
+    setKeyError(null);
+  };
+
+  const handleSaveKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!keyDialog) return;
+    setKeyError(null);
+    setKeySaving(true);
+    try {
+      await updateConnection(keyDialog.id, { api_access_token: keyValue.trim() });
+      setKeyDialog(null);
+      setKeyValue('');
+      setFeedback({ tone: 'success', text: `Chave de API da conexão "${keyDialog.label}" salva. Ela foi cifrada e não será exibida novamente.` });
+      await load();
+    } catch (err) {
+      setKeyError(err instanceof Error ? err.message : 'Falha ao salvar a chave de API.');
+    } finally {
+      setKeySaving(false);
     }
   };
 
@@ -289,9 +325,16 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
                       {PROVIDER_LABELS[c.provider]} · {companyName(c.company_id)} → {accountName(c.account_id)}
                     </CardDescription>
                   </div>
-                  <StatusChip variant={c.status === 'active' ? 'positive' : c.status === 'paused' ? 'neutral' : 'alert'}>
-                    {c.status === 'active' ? 'Ativa' : c.status === 'paused' ? 'Pausada' : 'Com erro'}
-                  </StatusChip>
+                  <div className="flex flex-col items-end gap-1">
+                    <StatusChip variant={c.status === 'active' ? 'positive' : c.status === 'paused' ? 'neutral' : 'alert'}>
+                      {c.status === 'active' ? 'Ativa' : c.status === 'paused' ? 'Pausada' : 'Com erro'}
+                    </StatusChip>
+                    {supportsApiKey(c.provider) && (
+                      <StatusChip variant={c.api_key_configured ? 'positive' : 'neutral'}>
+                        {c.api_key_configured ? 'Chave configurada' : 'Sem chave de API'}
+                      </StatusChip>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 pt-0">
@@ -321,6 +364,24 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
                     <FlaskConical className="h-3.5 w-3.5" />
                     Testar
                   </Button>
+                  {supportsApiKey(c.provider) && (
+                    <Button size="sm" variant="outline" disabled={busyId === c.id} onClick={() => openKeyDialog(c)}>
+                      <KeyRound className="h-3.5 w-3.5" />
+                      {c.api_key_configured ? 'Trocar chave de API' : 'Chave de API'}
+                    </Button>
+                  )}
+                  {supportsApiKey(c.provider) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busyId === c.id || !c.api_key_configured}
+                      title={c.api_key_configured ? 'Traz do provedor o histórico de cobranças de um período' : 'Configure a chave de API para importar o histórico'}
+                      onClick={() => setHistoryConn(c)}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Importar histórico
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" disabled={busyId === c.id} onClick={() => void handleToggleStatus(c)}>
                     {c.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
                     {c.status === 'paused' ? 'Reativar' : 'Pausar'}
@@ -349,8 +410,20 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
                 <CardTitle>Log de eventos recebidos</CardTitle>
                 <CardDescription>Fila com idempotência: reenvios do provedor aparecem uma única vez. Falhas podem ser reprocessadas.</CardDescription>
               </div>
-              <div className="w-full sm:w-64">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                 <NativeSelect
+                  aria-label="Filtrar por origem"
+                  className="sm:w-44"
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value as '' | 'api' | 'webhook')}
+                  placeholder="Todas as origens"
+                  options={[
+                    { value: 'webhook', label: 'Webhook' },
+                    { value: 'api', label: 'Importação por API' },
+                  ]}
+                />
+                <NativeSelect
+                  className="sm:w-64"
                   aria-label="Filtrar por conexão"
                   value={eventFilter}
                   onChange={(e) => setEventFilter(e.target.value)}
@@ -383,7 +456,10 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
                         <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatDateTimeBR(ev.received_at)}</td>
                         <td className="px-3 py-2">
                           <p className="font-mono text-[11px]">{ev.external_event_id}</p>
-                          <p className="text-[#72787D]">{ev.event_type}</p>
+                          <p className="flex items-center gap-1.5 text-[#72787D]">
+                            {ev.event_type}
+                            {ev.source === 'api' && <StatusChip variant="primary">API</StatusChip>}
+                          </p>
                         </td>
                         <td className="px-3 py-2">{ev.normalized?.kind ?? '—'}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{ev.normalized ? formatCurrencyBRL(ev.normalized.grossAmount) : '—'}</td>
@@ -470,11 +546,21 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
 
             {provider === 'mercadopago' && (
               <div className="space-y-1.5">
-                <Label htmlFor="int-token">Access Token (produção) *</Label>
+                <Label htmlFor="int-token">Chave de API (Access Token de produção) *</Label>
                 <Input id="int-token" type="password" autoComplete="off" required value={apiToken} onChange={(e) => setApiToken(e.target.value)} placeholder="APP_USR-..." />
                 <p className="text-[11px] text-[#72787D]">
                   A assinatura do Mercado Pago não cobre o corpo da notificação; o servidor consulta o pagamento na API para obter valor,
-                  taxa e datas reais.
+                  taxa e datas reais. A mesma chave permite importar o histórico. Ela fica cifrada e não é exibida novamente.
+                </p>
+              </div>
+            )}
+
+            {provider === 'asaas' && (
+              <div className="space-y-1.5">
+                <Label htmlFor="int-token">Chave de API (opcional)</Label>
+                <Input id="int-token" type="password" autoComplete="off" value={apiToken} onChange={(e) => setApiToken(e.target.value)} placeholder="$aact_..." />
+                <p className="text-[11px] text-[#72787D]">
+                  Necessária só para importar o histórico de cobranças. O sistema apenas lê dados do Asaas. A chave fica cifrada e não é exibida novamente.
                 </p>
               </div>
             )}
@@ -534,6 +620,50 @@ export const IntegrationsHubView: React.FC<IntegrationsHubViewProps> = ({
               </Button>
               <Button type="submit" disabled={saving || !companyId || !accountId || signingSecret.length < 8}>
                 {saving ? 'Salvando…' : 'Criar conexão'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <HistoryImportModal
+        connection={historyConn}
+        accounts={historyConn ? accounts.filter((a) => a.company_id === historyConn.company_id) : []}
+        onClose={() => setHistoryConn(null)}
+        onFinished={() => void Promise.all([load(), onRefresh()])}
+      />
+
+      {/* Dialog da chave de API de uma conexão existente */}
+      <Dialog open={keyDialog !== null} onOpenChange={(open) => !open && setKeyDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chave de API — {keyDialog?.label}</DialogTitle>
+            <DialogDescription>
+              Usada para consultar o {keyDialog ? PROVIDER_LABELS[keyDialog.provider] : 'provedor'} ao importar o histórico. O sistema apenas lê dados; a chave
+              fica cifrada no servidor e não é exibida novamente.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => void handleSaveKey(e)} className="mt-4 space-y-4">
+            {keyError && <Notice tone="error">{keyError}</Notice>}
+            <div className="space-y-1.5">
+              <Label htmlFor="int-key-edit">{keyDialog?.api_key_configured ? 'Nova chave de API' : 'Chave de API'}</Label>
+              <Input
+                id="int-key-edit"
+                type="password"
+                autoComplete="off"
+                required
+                value={keyValue}
+                onChange={(e) => setKeyValue(e.target.value)}
+                placeholder={keyDialog?.provider === 'asaas' ? '$aact_...' : 'APP_USR-...'}
+              />
+              {keyDialog?.api_key_configured && <p className="text-[11px] text-[#72787D]">Já existe uma chave configurada; ao salvar, ela é substituída.</p>}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setKeyDialog(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={keySaving || keyValue.trim().length < 8}>
+                {keySaving ? 'Salvando…' : 'Salvar chave'}
               </Button>
             </div>
           </form>

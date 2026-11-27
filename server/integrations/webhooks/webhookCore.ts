@@ -2,6 +2,8 @@ import type { Category, ProductService } from '../../../src/modules/core/types.t
 import { decryptSecret } from '../../crypto/secretBox.ts';
 import { getSupabaseAdmin } from '../../supabaseAdmin.ts';
 import { getPaymentAdapter } from './adapters/index.ts';
+import { upsertPayment, type TransactionStore } from '../history/paymentUpsert.ts';
+import { SupabaseTransactionStore } from '../history/supabaseTransactionStore.ts';
 import {
   WebhookSignatureError,
   type ConnectionConfig,
@@ -45,9 +47,9 @@ export interface PlannedTransactionRow {
   product_service_id: string | null;
   project_id: null;
   transaction_type: 'income' | 'expense';
-  status: 'pending' | 'paid';
+  status: 'pending' | 'paid' | 'canceled';
   description: string;
-  counterparty_name: null;
+  counterparty_name: string | null;
   amount: number;
   competence_date: string;
   due_date: string;
@@ -109,16 +111,21 @@ export function planTransactionsForEvent(params: {
   categories: readonly Category[];
   products: readonly ProductService[];
   todayISO: string;
+  /** Conta de destino da importação (sobrepõe a conta fixa da conexão) */
+  accountId?: string;
+  /** Importação de histórico: cancelado/estornado entram como receita `canceled`, sem taxa nem estorno */
+  voidAs?: 'canceled' | 'refunded';
 }): PlannedTransactionRow[] {
   const { connection, normalized, todayISO } = params;
   const config = connection.config ?? {};
   if (normalized.kind === 'ignored' || normalized.grossAmount <= 0) return [];
-  if (!connection.company_id || !connection.account_id) {
+  const accountId = params.accountId ?? connection.account_id;
+  if (!connection.company_id || !accountId) {
     throw new Error('Conexão sem empresa/conta de destino configurada.');
   }
 
   const companyId = connection.company_id;
-  const accountId = connection.account_id;
+  const counterparty = normalized.counterpartyName?.trim() ? normalized.counterpartyName.trim().slice(0, 160) : null;
   const product =
     matchProductFromHint(normalized.productHint, params.products, companyId) ??
     (config.default_product_service_id
@@ -135,7 +142,33 @@ export function planTransactionsForEvent(params: {
   const settled = normalized.kind === 'payment_settled' || normalized.kind === 'refund';
   const cashArrived = settled && normalized.settlementDate <= todayISO;
   const status: 'pending' | 'paid' = cashArrived ? 'paid' : 'pending';
-  const marker = `webhook:${connection.provider}:${normalized.paymentRef}:${settled ? 'settled' : 'pending'}`;
+  const marker = `webhook:${connection.provider}:${normalized.paymentRef}:${params.voidAs ? 'canceled' : settled ? 'settled' : 'pending'}`;
+
+  // Cancelado/estornado (importação): só a receita, marcada como cancelada — não soma em nenhum saldo
+  if (params.voidAs) {
+    const label = params.voidAs === 'refunded' ? 'Estornado' : 'Cancelado';
+    return [
+      {
+        role: 'income',
+        tenant_id: connection.tenant_id,
+        company_id: companyId,
+        account_id: accountId,
+        destination_account_id: null,
+        category_id: revenueCategory,
+        product_service_id: product?.id ?? null,
+        project_id: null,
+        transaction_type: 'income',
+        status: 'canceled',
+        description: clampDescription(`${params.providerName} [${label}]: ${normalized.description}`),
+        counterparty_name: counterparty,
+        amount: roundMoney(normalized.grossAmount),
+        competence_date: normalized.competenceDate,
+        due_date: normalized.settlementDate,
+        payment_date: null,
+        notes: marker,
+      },
+    ];
+  }
 
   const base = {
     tenant_id: connection.tenant_id,
@@ -143,7 +176,6 @@ export function planTransactionsForEvent(params: {
     account_id: accountId,
     destination_account_id: null,
     project_id: null,
-    counterparty_name: null,
     competence_date: normalized.competenceDate,
     due_date: normalized.settlementDate,
     payment_date: status === 'paid' ? normalized.settlementDate : null,
@@ -156,6 +188,7 @@ export function planTransactionsForEvent(params: {
       {
         ...base,
         role: 'refund',
+        counterparty_name: counterparty,
         transaction_type: 'expense',
         category_id: refundCategory,
         product_service_id: product?.id ?? null,
@@ -169,6 +202,7 @@ export function planTransactionsForEvent(params: {
     {
       ...base,
       role: 'income',
+      counterparty_name: counterparty,
       transaction_type: 'income',
       category_id: revenueCategory,
       product_service_id: product?.id ?? null,
@@ -182,6 +216,7 @@ export function planTransactionsForEvent(params: {
     rows.push({
       ...base,
       role: 'fee',
+      counterparty_name: null,
       transaction_type: 'expense',
       category_id: feeCategory,
       product_service_id: product?.id ?? null,
@@ -212,7 +247,7 @@ export function decryptConnectionSecrets(connection: IntegrationConnectionRow): 
   return { signingSecret, apiAccessToken };
 }
 
-async function loadTenantCatalog(tenantId: string): Promise<{ categories: Category[]; products: ProductService[] }> {
+export async function loadTenantCatalog(tenantId: string): Promise<{ categories: Category[]; products: ProductService[] }> {
   const admin = getSupabaseAdmin();
   const [cats, prods] = await Promise.all([
     admin.from('categories').select('*').eq('tenant_id', tenantId),
@@ -226,53 +261,31 @@ async function loadTenantCatalog(tenantId: string): Promise<{ categories: Catego
   };
 }
 
+/** Dependências injetáveis (testes): armazenamento de lançamentos e catálogo do tenant. */
+export interface ApplyEventDeps {
+  store?: TransactionStore;
+  catalog?: { categories: Category[]; products: ProductService[] };
+}
+
 /**
- * Aplica o evento normalizado: atualiza lançamentos pendentes do mesmo pagamento
- * (pendente → liquidado) ou cria novos. Retorna os IDs dos lançamentos afetados.
+ * Aplica o evento normalizado de forma idempotente por **pagamento** (provedor + id do pagamento),
+ * independente da conexão e da conta (spec 004): pendente → liquidado atualiza as mesmas linhas,
+ * repetição não duplica e estorno não duplica receita já marcada como cancelada.
+ * Retorna os IDs dos lançamentos criados/atualizados.
  */
 export async function applyNormalizedEvent(
   connection: IntegrationConnectionRow,
   normalized: NormalizedPaymentEvent,
-  currentEventId: string,
-  now: Date = new Date()
+  _currentEventId: string,
+  now: Date = new Date(),
+  deps: ApplyEventDeps = {}
 ): Promise<string[]> {
   if (normalized.kind === 'ignored') return [];
-  const admin = getSupabaseAdmin();
   const adapter = getPaymentAdapter(connection.provider);
   const providerName = adapter?.displayName ?? connection.provider;
   const todayISO = toISODateBR(undefined, now);
 
-  // Pendente → liquidado: reaproveita os lançamentos já criados para o mesmo pagamento
-  if (normalized.kind === 'payment_settled') {
-    const { data: prior, error: priorErr } = await admin
-      .from('webhook_events')
-      .select('id, transaction_ids')
-      .eq('connection_id', connection.id)
-      .eq('status', 'processed')
-      .eq('normalized->>paymentRef', normalized.paymentRef)
-      .eq('normalized->>kind', 'payment_pending')
-      .neq('id', currentEventId);
-    if (priorErr) throw new Error(priorErr.message);
-
-    const priorTxIds = ((prior ?? []) as Array<{ transaction_ids: string[] }>).flatMap((e) => e.transaction_ids ?? []);
-    if (priorTxIds.length > 0) {
-      const settledNow = normalized.settlementDate <= todayISO;
-      const { error: updErr } = await admin
-        .from('transactions')
-        .update({
-          status: settledNow ? 'paid' : 'pending',
-          payment_date: settledNow ? normalized.settlementDate : null,
-          due_date: normalized.settlementDate,
-          notes: `webhook:${connection.provider}:${normalized.paymentRef}:settled`,
-        })
-        .in('id', priorTxIds)
-        .eq('tenant_id', connection.tenant_id);
-      if (updErr) throw new Error(updErr.message);
-      return priorTxIds;
-    }
-  }
-
-  const { categories, products } = await loadTenantCatalog(connection.tenant_id);
+  const { categories, products } = deps.catalog ?? (await loadTenantCatalog(connection.tenant_id));
   const planned = planTransactionsForEvent({
     connection,
     providerName,
@@ -283,10 +296,15 @@ export async function applyNormalizedEvent(
   });
   if (planned.length === 0) return [];
 
-  const rows = planned.map(({ role: _role, ...row }) => row);
-  const { data, error } = await admin.from('transactions').insert(rows).select('id');
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as Array<{ id: string }>).map((r) => r.id);
+  const intent = normalized.kind === 'refund' ? 'refund' : normalized.kind === 'payment_settled' ? 'settled' : 'open';
+  const outcome = await upsertPayment(deps.store ?? new SupabaseTransactionStore(), {
+    tenantId: connection.tenant_id,
+    source: connection.provider,
+    ref: normalized.paymentRef,
+    intent,
+    planned: planned.map((row) => ({ ...row })),
+  });
+  return outcome.ids;
 }
 
 function lowerHeaders(headers: Record<string, string | string[] | undefined>): Record<string, string | undefined> {

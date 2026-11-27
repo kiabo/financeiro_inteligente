@@ -1,0 +1,33 @@
+{
+  "paging": { "total": 6, "limit": 3, "offset": 3 },
+  "results": [
+    {
+      "id": 90000004, "status": "cancelled", "status_detail": "expired", "currency_id": "BRL",
+      "transaction_amount": 70, "transaction_amount_refunded": 0,
+      "transaction_details": { "net_received_amount": 0 },
+      "date_created": "2026-01-05T10:00:00.000-03:00", "date_approved": null, "money_release_date": null,
+      "date_last_updated": "2026-02-04T10:00:00.000-03:00",
+      "description": "Pix expirado", "external_reference": null,
+      "payer": { "id": "4", "first_name": "Bruno", "last_name": "Teste", "email": "bruno.teste@example.com", "identification": null }
+    },
+    {
+      "id": 90000005, "status": "refunded", "status_detail": "refunded", "currency_id": "BRL",
+      "transaction_amount": 120, "transaction_amount_refunded": 120,
+      "transaction_details": { "net_received_amount": 0 },
+      "fee_details": [{ "type": "mercadopago_fee", "amount": 4.8, "fee_payer": "collector" }],
+      "date_created": "2026-01-06T10:00:00.000-03:00", "date_approved": "2026-01-06T10:01:00.000-03:00",
+      "money_release_date": "2026-01-20T10:01:00.000-03:00", "date_last_updated": "2026-01-25T10:00:00.000-03:00",
+      "description": "Compra estornada", "external_reference": null,
+      "payer": { "id": "5", "first_name": "Carla", "last_name": "Teste", "email": "carla.teste@example.com", "identification": null }
+    },
+    {
+      "id": 90000006, "status": "rejected", "status_detail": "cc_rejected_insufficient_amount", "currency_id": "BRL",
+      "transaction_amount": 33.3, "transaction_amount_refunded": 0,
+      "transaction_details": { "net_received_amount": 0 },
+      "date_created": "2026-01-07T10:00:00.000-03:00", "date_approved": null, "money_release_date": null,
+      "date_last_updated": "2026-01-07T10:00:00.000-03:00",
+      "description": "Cartão recusado", "external_reference": null,
+      "payer": { "id": "6", "first_name": "Diego", "last_name": "Teste", "email": "diego.teste@example.com", "identification": null }
+    }
+  ]
+}

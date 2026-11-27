@@ -7,6 +7,7 @@ import type {
   AutomationStatus,
   BackupLogRow,
   BankStatementImport,
+  HistoryImportRun,
   EditablePreferences,
   IntegrationConnection,
   IntegrationConnectionConfig,
@@ -76,14 +77,51 @@ export async function deleteConnection(id: string): Promise<void> {
   await apiJson(`/api/integrations/connections/${id}`, { method: 'DELETE' });
 }
 
-export async function fetchWebhookEvents(connectionId?: string): Promise<WebhookEventRow[]> {
-  const qs = connectionId ? `?connection_id=${encodeURIComponent(connectionId)}&limit=100` : '?limit=100';
+export async function fetchWebhookEvents(connectionId?: string, source?: 'api' | 'webhook'): Promise<WebhookEventRow[]> {
+  const params = new URLSearchParams({ limit: '100' });
+  if (connectionId) params.set('connection_id', connectionId);
+  if (source) params.set('source', source);
+  const qs = `?${params.toString()}`;
   const res = await apiJson<{ events: WebhookEventRow[] }>(`/api/integrations/events${qs}`);
   return res.events;
 }
 
 export async function reprocessEvent(eventId: string): Promise<{ ok: boolean; transactions: number; error?: string }> {
   return apiJson(`/api/integrations/events/${eventId}/reprocess`, { method: 'POST', body: '{}' });
+}
+
+// ----------------------------------------------------------------------------
+// Importação de histórico por API (a chave fica cifrada no servidor e nunca volta)
+// ----------------------------------------------------------------------------
+export async function startHistoryImport(
+  connectionId: string,
+  input: { period_start: string; period_end: string; account_id: string }
+): Promise<HistoryImportRun> {
+  const res = await apiJson<{ run: HistoryImportRun }>(`/api/integrations/connections/${connectionId}/history/start`, {
+    method: 'POST',
+    body: JSON.stringify({ period_start: input.period_start, period_end: input.period_end, account_id: input.account_id }),
+  });
+  return res.run;
+}
+
+/** Processa um lote (uma página) e devolve o progresso; numa execução "failed" funciona como "Retomar". */
+export async function stepHistoryImport(runId: string): Promise<HistoryImportRun> {
+  const res = await apiJson<{ run: HistoryImportRun; done: boolean }>(`/api/integrations/history/${runId}/step`, {
+    method: 'POST',
+    body: '{}',
+  });
+  return res.run;
+}
+
+export async function cancelHistoryImport(runId: string): Promise<HistoryImportRun> {
+  const res = await apiJson<{ run: HistoryImportRun }>(`/api/integrations/history/${runId}/cancel`, { method: 'POST', body: '{}' });
+  return res.run;
+}
+
+/** Execução mais recente da conexão (ou null), para oferecer "Retomar". */
+export async function fetchLatestHistoryImport(connectionId: string): Promise<HistoryImportRun | null> {
+  const res = await apiJson<{ run: HistoryImportRun | null }>(`/api/integrations/connections/${connectionId}/history/latest`);
+  return res.run;
 }
 
 export async function sendTestEvent(connectionId: string): Promise<Record<string, unknown>> {

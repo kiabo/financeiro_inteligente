@@ -1,0 +1,31 @@
+{
+  "object": "list",
+  "hasMore": false,
+  "totalCount": 6,
+  "limit": 3,
+  "offset": 3,
+  "data": [
+    {
+      "object": "payment", "id": "pay_0004", "dateCreated": "2026-01-05", "customer": "cus_0002",
+      "value": 120.00, "netValue": 116.01, "status": "OVERDUE", "billingType": "BOLETO",
+      "dueDate": "2026-01-20", "originalDueDate": "2026-01-20", "paymentDate": null,
+      "clientPaymentDate": null, "creditDate": null, "estimatedCreditDate": null,
+      "description": "Mensalidade janeiro", "externalReference": null, "deleted": false, "refunds": null
+    },
+    {
+      "object": "payment", "id": "pay_0005", "dateCreated": "2026-01-06", "customer": "cus_0003",
+      "value": 99.90, "netValue": 95.91, "status": "REFUNDED", "billingType": "CREDIT_CARD",
+      "dueDate": "2026-01-15", "originalDueDate": "2026-01-15", "paymentDate": "2026-01-14",
+      "clientPaymentDate": "2026-01-14", "creditDate": "2026-02-13", "estimatedCreditDate": "2026-02-13",
+      "description": "Curso avulso", "externalReference": null, "deleted": false,
+      "refunds": [{ "dateCreated": "2026-01-20", "status": "DONE", "value": 99.90 }]
+    },
+    {
+      "object": "payment", "id": "pay_0006", "dateCreated": "2026-01-07", "customer": "cus_0001",
+      "value": 60.00, "netValue": 57.01, "status": "PENDING", "billingType": "PIX",
+      "dueDate": "2026-01-30", "originalDueDate": "2026-01-30", "paymentDate": null,
+      "clientPaymentDate": null, "creditDate": null, "estimatedCreditDate": null,
+      "description": "Cobrança removida", "externalReference": null, "deleted": true, "refunds": null
+    }
+  ]
+}

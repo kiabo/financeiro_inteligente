@@ -14,6 +14,7 @@ import {
   mapMercadoPagoPayment,
   toHistoryLogPayload,
 } from '../integrations/history/mappers.ts';
+import { planTransactionsForEvent } from '../integrations/webhooks/webhookCore.ts';
 import {
   AsaasClient,
   MercadoPagoClient,
@@ -206,6 +207,44 @@ const cases: TestCase[] = [
     assertEqual(count('open'), 2, 'abertas');
     assertEqual(count('refunded'), 1, 'estornadas');
     assertEqual(count('canceled'), 2, 'canceladas');
+  }],
+
+  // ---------------------------------------------------------------- Planejamento dos lançamentos
+  ['planejador: a conta da importação sobrepõe a conta da conexão e o cliente vira contraparte da receita (CA10, CA11)', () => {
+    const conn = { tenant_id: 't', company_id: 'c', account_id: 'conta-da-conexao', provider: 'asaas', config: {} };
+    const settled = mapAsaasPayment(byId(asaasPage1, 'pay_0001'), 'Maria Souza Teste', NOW);
+    const rows = planTransactionsForEvent({
+      connection: conn, providerName: 'Asaas', normalized: settled.normalized, categories: [], products: [], todayISO: '2026-11-26',
+      accountId: 'conta-escolhida',
+    });
+    assertEqual(rows.length, 2, 'receita + taxa');
+    assert(rows.every((r) => r.account_id === 'conta-escolhida'), 'conta escolhida na importação');
+    assertEqual(rows[0]!.counterparty_name, 'Maria Souza Teste', 'contraparte na receita');
+    assertEqual(rows[1]!.counterparty_name, null, 'taxa sem contraparte');
+    assertEqual(rows[0]!.status, 'paid', 'crédito no passado → pago');
+    const noOverride = planTransactionsForEvent({ connection: conn, providerName: 'Asaas', normalized: settled.normalized, categories: [], products: [], todayISO: '2026-11-26' });
+    assertEqual(noOverride[0]!.account_id, 'conta-da-conexao', 'sem sobreposição usa a conta da conexão (webhook)');
+  }],
+  ['planejador: cancelado/estornado vira só a receita "canceled" marcada à parte, sem taxa nem estorno (CA13)', () => {
+    const conn = { tenant_id: 't', company_id: 'c', account_id: 'a', provider: 'asaas', config: { fee_pct: 3 } };
+    for (const [voidAs, label] of [['canceled', 'Cancelado'], ['refunded', 'Estornado']] as const) {
+      const mapped = mapAsaasPayment(byId(asaasPage2, voidAs === 'refunded' ? 'pay_0005' : 'pay_0006'), null, NOW);
+      const rows = planTransactionsForEvent({ connection: conn, providerName: 'Asaas', normalized: mapped.normalized, categories: [], products: [], todayISO: '2026-11-26', voidAs });
+      assertEqual(rows.length, 1, `${label}: uma linha`);
+      assertEqual(rows[0]!.role, 'income', 'papel');
+      assertEqual(rows[0]!.status, 'canceled', 'status');
+      assertEqual(rows[0]!.payment_date, null, 'sem data de pagamento');
+      assert(rows[0]!.description.includes(`[${label}]`), `descrição marcada [${label}]`);
+      assert(rows[0]!.notes.endsWith(':canceled'), 'marcador');
+    }
+  }],
+  ['planejador: pendente do Asaas vence na data de vencimento e fica sem data de pagamento', () => {
+    const conn = { tenant_id: 't', company_id: 'c', account_id: 'a', provider: 'asaas', config: {} };
+    const open = mapAsaasPayment(byId(asaasPage1, 'pay_0003'), null, NOW);
+    const rows = planTransactionsForEvent({ connection: conn, providerName: 'Asaas', normalized: open.normalized, categories: [], products: [], todayISO: '2026-11-26' });
+    assertEqual(rows[0]!.status, 'pending', 'pendente');
+    assertEqual(rows[0]!.due_date, '2099-12-31', 'vencimento');
+    assertEqual(rows[0]!.payment_date, null, 'sem pagamento');
   }],
 
   // ---------------------------------------------------------------- Cliente HTTP

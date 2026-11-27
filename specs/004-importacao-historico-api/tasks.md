@@ -47,7 +47,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
   (criar, pendente→pago, não regredir, mesmo estado, cancelar/estornar, estorno já existente, estorno parcial acumulado, fallback por `notes`) e os cenários CA3, CA4, CA5, CA12, CA13.
   **Pronto quando:** `npm test` roda a suíte e os casos que dependem de `paymentUpsert` **falham** (prova de que testam). (CA3, CA4, CA5, CA12, CA13)
 
-- [ ] T08 — Implementar `server/integrations/history/paymentUpsert.ts` (`decidePaymentUpsert` pura + `TransactionStore` Supabase) e ajustar `planTransactionsForEvent`
+- [x] T08 — Implementar `server/integrations/history/paymentUpsert.ts` (`decidePaymentUpsert` pura + `TransactionStore` Supabase) e ajustar `planTransactionsForEvent`
   (conta de destino por parâmetro, ciclo cancelado/estornado "[Cancelado]/[Estornado]" sem taxa e sem estorno, colunas `external_*`, contraparte).
   **Pronto quando:** os testes da T07 passam e a suíte inteira do servidor continua verde. (CA3, CA5, CA10, CA11, CA12, CA13)
 
@@ -99,6 +99,12 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T08 — Upsert por pagamento e planejador (2026-11-27)
+- `paymentUpsert.ts` implementado: decisão por intenção (`open|settled|void|refund`), adoção de linhas antigas pelo marcador em `notes`, e releitura quando outro processo grava o mesmo pagamento no meio do caminho (3 tentativas). Pendente e vencido contam como o mesmo estado (evita "atualizado" a cada reimportação).
+- `supabaseTransactionStore.ts`: implementação Supabase (service role, sempre filtrando por `tenant_id`, lista explícita de colunas no update, `23505` → conflito).
+- `planTransactionsForEvent`: `accountId` (conta da importação), `voidAs` (receita `canceled` "[Cancelado]/[Estornado]", sem taxa nem estorno) e `counterparty_name` na receita e no estorno.
+- Os 17 testes da T07 passam; 3 testes novos do planejador. `npm test`: 137/137.
 
 ### T07 — Testes de idempotência primeiro (2026-11-27)
 - `server/__tests__/historyUpsert.test.ts` (17 casos) + `server/__tests__/helpers/memoryStore.ts` (armazenamento em memória que simula o índice único e o fallback por `notes`) + esqueleto `server/integrations/history/paymentUpsert.ts` com os tipos e a API (`upsertPayment`, `TransactionStore`, intenções `open|settled|void|refund`).

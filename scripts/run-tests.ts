@@ -2,6 +2,7 @@
  * Executa todas as suítes de teste do projeto: `npm test`
  * (as suítes dos Módulos 1–5 mantêm seu formato original e também são exibidas na UI).
  */
+import { runAccountBalancesTests } from '../src/modules/core/__tests__/accountBalances.test.ts';
 import { runRoutesTests } from '../src/modules/core/__tests__/routes.test.ts';
 import { runRolesTests } from '../src/modules/core/__tests__/roles.test.ts';
 import { runNoModuleLabelsTests } from '../src/modules/core/__tests__/noModuleLabels.test.ts';
@@ -28,6 +29,7 @@ const suites: Array<[string, () => Result[] | Promise<Result[]>]> = [
   ['Interface sem referências a módulos (spec 001)', runNoModuleLabelsTests],
   ['Papéis e visibilidade do SQL (spec 001)', runRolesTests],
   ['Rotas por tela (spec 002)', runRoutesTests],
+  ['Saldo inicial da conta (spec 003)', runAccountBalancesTests],
 ];
 
 let failures = 0;

@@ -1,7 +1,14 @@
-import { Building2, Layers, Plus, Trash2, Wallet } from 'lucide-react';
+import { Building2, Layers, Pencil, Plus, Trash2, Wallet } from 'lucide-react';
 import React, { useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog';
 import { Input, Label } from '../../components/ui/input';
 import {
   Select,
@@ -12,16 +19,27 @@ import {
 } from '../../components/ui/select';
 import { StatusChip } from '../../components/ui/status-chip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { formatCNPJ, isValidCNPJ, normalizeCNPJ } from '../../lib/utils';
+import {
+  formatCNPJ,
+  formatCurrencyBRL,
+  formatDateBR,
+  getTodayISO,
+  isValidCNPJ,
+  normalizeCNPJ,
+  parseMoneyInput,
+} from '../../lib/utils';
 import { InfoTooltip } from '../core/components/InfoTooltip';
 import {
+  computeAccountBalances,
   createBusinessGroup,
   createCompany,
   createFinancialAccount,
   deleteBusinessGroup,
   deleteCompany,
   deleteFinancialAccount,
+  transactionCashDate,
   updateCompanyGroup,
+  updateFinancialAccount,
 } from '../core/repository';
 import type {
   AccountType,
@@ -29,6 +47,7 @@ import type {
   BusinessGroup,
   Company,
   FinancialAccount,
+  Transaction,
 } from '../core/types';
 
 interface HierarchySettingsViewProps {
@@ -36,6 +55,8 @@ interface HierarchySettingsViewProps {
   groups: BusinessGroup[];
   companies: Company[];
   accounts: FinancialAccount[];
+  /** Usado para avisar ao alterar o saldo inicial de uma conta que já tem lançamentos. */
+  transactions: Transaction[];
   onRefresh: () => Promise<void>;
 }
 
@@ -54,6 +75,7 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
   groups,
   companies,
   accounts,
+  transactions,
   onRefresh,
 }) => {
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
@@ -70,12 +92,115 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
   const [accountType, setAccountType] = useState<AccountType>('checking');
   const [institutionName, setInstitutionName] = useState('');
   const [lastFour, setLastFour] = useState('');
+  const [accountOpening, setAccountOpening] = useState('');
+  const [accountOpeningDate, setAccountOpeningDate] = useState(getTodayISO());
+
+  // Edição de conta (Dialog) com confirmação ao alterar o saldo inicial de conta que já tem lançamentos
+  const [editing, setEditing] = useState<FinancialAccount | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    type: 'checking' as AccountType,
+    institution: '',
+    lastFour: '',
+    opening: '',
+    date: getTodayISO(),
+    active: true,
+  });
+  const [confirmingBalance, setConfirmingBalance] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
 
   const effectiveAccountCompanyId =
     companies.some((c) => c.id === accountCompanyId) ? accountCompanyId : (companies[0]?.id ?? '');
+
+  const openEdit = (acc: FinancialAccount) => {
+    // Sem data de saldo ainda: usa o lançamento mais antigo da conta (assim o histórico continua contando);
+    // conta sem lançamentos usa hoje.
+    const cashDates = transactions
+      .filter((t) => t.account_id === acc.id || t.destination_account_id === acc.id)
+      .map((t) => transactionCashDate(t))
+      .sort();
+    const defaultDate = acc.opening_balance_date ?? cashDates[0] ?? getTodayISO();
+    setEditing(acc);
+    setEditForm({
+      name: acc.name,
+      type: acc.account_type,
+      institution: acc.institution_name ?? '',
+      lastFour: acc.last_four ?? '',
+      opening: acc.opening_balance ? String(acc.opening_balance).replace('.', ',') : '',
+      date: defaultDate,
+      active: acc.is_active,
+    });
+    setConfirmingBalance(false);
+    setEditError(null);
+  };
+
+  const closeEdit = () => {
+    setEditing(null);
+    setConfirmingBalance(false);
+    setEditError(null);
+  };
+
+  const editOpening = parseMoneyInput(editForm.opening);
+  const editHasMovements = editing
+    ? transactions.some((t) => t.account_id === editing.id || t.destination_account_id === editing.id)
+    : false;
+  const editBalanceChanged =
+    editing !== null &&
+    editOpening !== null &&
+    (editOpening !== (editing.opening_balance ?? 0) ||
+      (editOpening !== 0 && editForm.date !== (editing.opening_balance_date ?? '')));
+
+  // Saldo atual da conta antes e depois da alteração (mostrado no aviso de confirmação)
+  const editPreview = (() => {
+    if (!editing || editOpening === null) return null;
+    const scope = { scope: 'account', accountId: editing.id } as const;
+    const next: FinancialAccount = {
+      ...editing,
+      opening_balance: editOpening,
+      opening_balance_date: editOpening === 0 ? null : editForm.date || getTodayISO(),
+    };
+    const before = computeAccountBalances([editing], transactions, companies, scope)[0];
+    const after = computeAccountBalances([next], transactions, companies, scope)[0];
+    return before && after ? { before: before.current_balance, after: after.current_balance } : null;
+  })();
+
+  const submitEdit = async (confirmed: boolean) => {
+    if (!editing) return;
+    setEditError(null);
+    if (editOpening === null) {
+      setEditError('Saldo inicial inválido. Use números, ex.: 1.500,00 ou -300,00.');
+      return;
+    }
+    if (editBalanceChanged && editHasMovements && !confirmed) {
+      setConfirmingBalance(true);
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await updateFinancialAccount(session.userId, session.email, editing.id, {
+        name: editForm.name,
+        account_type: editForm.type,
+        institution_name: editForm.institution,
+        last_four: editForm.lastFour,
+        opening_balance: editOpening,
+        opening_balance_date: editOpening === 0 ? null : editForm.date,
+        is_active: editForm.active,
+      });
+      const savedName = editForm.name.trim();
+      closeEdit();
+      await onRefresh();
+      setFeedback({ type: 'success', text: `Conta "${savedName}" atualizada.` });
+    } catch (err) {
+      setConfirmingBalance(false);
+      setEditError(err instanceof Error ? err.message : 'Erro ao atualizar a conta.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const handleCreateCompany = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,6 +250,12 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
       return;
     }
 
+    const opening = parseMoneyInput(accountOpening);
+    if (opening === null) {
+      setFeedback({ type: 'error', text: 'Saldo inicial inválido. Use números, ex.: 1.500,00 ou -300,00.' });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const created = await createFinancialAccount(session.userId, session.email, {
@@ -134,10 +265,14 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
         institution_name: institutionName || undefined,
         currency: 'BRL',
         last_four: lastFour || undefined,
+        opening_balance: opening,
+        opening_balance_date: opening === 0 ? undefined : accountOpeningDate,
       });
       setAccountName('');
       setInstitutionName('');
       setLastFour('');
+      setAccountOpening('');
+      setAccountOpeningDate(getTodayISO());
       await onRefresh();
       setFeedback({
         type: 'success',
@@ -513,6 +648,37 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
                   />
                 </div>
 
+                <div className="space-y-1.5">
+                  <Label htmlFor="acc-opening">Saldo inicial (Opcional)</Label>
+                  <Input
+                    id="acc-opening"
+                    inputMode="decimal"
+                    value={accountOpening}
+                    onChange={(e) => setAccountOpening(e.target.value)}
+                    placeholder="Ex.: 1.500,00 ou -300,00"
+                    className="tabular-nums"
+                  />
+                  <p className="text-[11px] text-[#72787D]">
+                    Saldo que a conta já tinha na abertura. Use valor negativo para saldo devedor.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="acc-opening-date">Data do saldo</Label>
+                  <Input
+                    id="acc-opening-date"
+                    type="date"
+                    max={getTodayISO()}
+                    value={accountOpeningDate}
+                    onChange={(e) => setAccountOpeningDate(e.target.value)}
+                    disabled={accountOpening.trim() === ''}
+                    className="tabular-nums"
+                  />
+                  <p className="text-[11px] text-[#72787D]">
+                    Movimentos anteriores a esta data não entram no saldo.
+                  </p>
+                </div>
+
                 <div className="flex items-end">
                   <Button
                     type="submit"
@@ -564,6 +730,12 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
                                   •••• {acc.last_four}
                                 </span>
                               )}
+                              {(acc.opening_balance ?? 0) !== 0 && (
+                                <p className="mt-0.5 text-[11px] font-normal tabular-nums text-[#72787D]">
+                                  Saldo inicial {formatCurrencyBRL(acc.opening_balance)} em{' '}
+                                  {formatDateBR(acc.opening_balance_date)}
+                                </p>
+                              )}
                             </td>
                             <td className="px-6 py-2.5 text-[12px] text-[#334155] dark:text-[#B9CADB]">
                               {comp
@@ -575,6 +747,15 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
                               {acc.institution_name ? ` · ${acc.institution_name}` : ''}
                             </td>
                             <td className="px-6 py-2.5 text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mr-2"
+                                aria-label={`Editar ${acc.name}`}
+                                onClick={() => openEdit(acc)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
                               <Button
                                 variant="destructive"
                                 size="sm"
@@ -692,6 +873,154 @@ export const HierarchySettingsView: React.FC<HierarchySettingsViewProps> = ({
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={editing !== null} onOpenChange={(open) => (open ? undefined : closeEdit())}>
+        <DialogContent className="max-w-xl max-h-[92vh] overflow-y-auto">
+          {editing && !confirmingBalance && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Editar conta</DialogTitle>
+                <DialogDescription>
+                  Token analítico <span className="font-mono">{editing.analytical_token}</span> não muda.
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void submitEdit(false);
+                }}
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+              >
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="edit-acc-name">Nome da Conta *</Label>
+                  <Input
+                    id="edit-acc-name"
+                    required
+                    value={editForm.name}
+                    onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-acc-type">Tipo de Conta</Label>
+                  <Select
+                    value={editForm.type}
+                    onValueChange={(v) => setEditForm((f) => ({ ...f, type: v as AccountType }))}
+                  >
+                    <SelectTrigger id="edit-acc-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(ACCOUNT_TYPE_LABELS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-acc-bank">Instituição / Banco</Label>
+                  <Input
+                    id="edit-acc-bank"
+                    value={editForm.institution}
+                    onChange={(e) => setEditForm((f) => ({ ...f, institution: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-acc-last4">4 Últimos Dígitos</Label>
+                  <Input
+                    id="edit-acc-last4"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={editForm.lastFour}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, lastFour: e.target.value.replace(/\D/g, '').slice(0, 4) }))
+                    }
+                    className="tabular-nums"
+                  />
+                </div>
+                <div className="flex items-end gap-2 pb-2">
+                  <input
+                    id="edit-acc-active"
+                    type="checkbox"
+                    checked={editForm.active}
+                    onChange={(e) => setEditForm((f) => ({ ...f, active: e.target.checked }))}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="edit-acc-active">Conta ativa</Label>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-acc-opening">Saldo inicial</Label>
+                  <Input
+                    id="edit-acc-opening"
+                    inputMode="decimal"
+                    value={editForm.opening}
+                    onChange={(e) => setEditForm((f) => ({ ...f, opening: e.target.value }))}
+                    placeholder="Ex.: 1.500,00 ou -300,00"
+                    className="tabular-nums"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-acc-opening-date">Data do saldo</Label>
+                  <Input
+                    id="edit-acc-opening-date"
+                    type="date"
+                    max={getTodayISO()}
+                    value={editForm.date}
+                    onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
+                    disabled={editForm.opening.trim() === ''}
+                    className="tabular-nums"
+                  />
+                </div>
+                {editError && (
+                  <p role="alert" className="text-[12px] text-[#DC2626] dark:text-[#FCA5A5] sm:col-span-2">
+                    {editError}
+                  </p>
+                )}
+                <div className="flex justify-end gap-2 pt-2 sm:col-span-2">
+                  <Button type="button" variant="outline" onClick={closeEdit}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" variant="primary" disabled={savingEdit}>
+                    Salvar
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {editing && confirmingBalance && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Alterar o saldo inicial?</DialogTitle>
+                <DialogDescription>
+                  A conta <strong>{editing.name}</strong> já tem lançamentos. Mudar o saldo inicial altera o saldo
+                  atual e o previsto em todas as telas (Visão Geral, Fluxo & Lançamentos, Saúde Financeira) e nos
+                  consolidados.
+                </DialogDescription>
+              </DialogHeader>
+              {editPreview && (
+                <p className="rounded-[8px] border border-[#E2E8F0] px-3 py-2 text-[13px] tabular-nums dark:border-[#1E2F3F]">
+                  Saldo atual: {formatCurrencyBRL(editPreview.before)} → <strong>{formatCurrencyBRL(editPreview.after)}</strong>
+                </p>
+              )}
+              {editError && (
+                <p role="alert" className="text-[12px] text-[#DC2626] dark:text-[#FCA5A5]">
+                  {editError}
+                </p>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setConfirmingBalance(false)}>
+                  Voltar
+                </Button>
+                <Button type="button" variant="primary" disabled={savingEdit} onClick={() => void submitEdit(true)}>
+                  Confirmar alteração
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

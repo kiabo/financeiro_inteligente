@@ -66,6 +66,32 @@ export function formatCurrencyBRL(value: number): string {
   }).format(safe);
 }
 
+/**
+ * Converte o texto digitado em reais (pt-BR) em número: aceita "1.500,50", "-300", "R$ 1.234,56" e "1234.56".
+ * Vazio vira 0; texto inválido devolve `null`.
+ */
+export function parseMoneyInput(text: string): number | null {
+  const cleaned = text.replace(/R\$/gi, '').replace(/\s+/g, '');
+  if (cleaned === '' || cleaned === '-') return cleaned === '' ? 0 : null;
+  if (!/^-?[\d.,]+$/.test(cleaned)) return null;
+  const negative = cleaned.startsWith('-');
+  const body = negative ? cleaned.slice(1) : cleaned;
+  let normalized: string;
+  if (body.includes(',')) {
+    // vírgula decimal: pontos são separadores de milhar
+    if ((body.match(/,/g) ?? []).length > 1) return null;
+    normalized = body.replace(/\./g, '').replace(',', '.');
+  } else if ((body.match(/\./g) ?? []).length > 1) {
+    normalized = body.replace(/\./g, ''); // 1.234.567
+  } else {
+    normalized = body; // "1234.56" ou "1500"
+  }
+  if (!/^\d+(\.\d+)?$/.test(normalized)) return null;
+  const value = Number(normalized);
+  if (!Number.isFinite(value)) return null;
+  return negative ? -value : value;
+}
+
 export function formatDateBR(dateISO: string | null | undefined): string {
   if (!dateISO) return '—';
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateISO);

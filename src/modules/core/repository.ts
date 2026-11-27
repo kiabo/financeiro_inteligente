@@ -85,7 +85,30 @@ export interface CreateAccountInput {
   institution_name?: string;
   currency?: string;
   last_four?: string;
+  /** Saldo que a conta já tinha na abertura (pode ser negativo). Padrão: 0. */
+  opening_balance?: number;
+  /** Data do saldo (AAAA-MM-DD). Padrão: hoje quando há saldo. */
+  opening_balance_date?: string;
 }
+
+/** Campos editáveis de uma conta (lista explícita: nada além disto é enviado ao banco). */
+export interface UpdateAccountInput {
+  name?: string;
+  account_type?: AccountType;
+  institution_name?: string | null;
+  last_four?: string | null;
+  /** Saldo inicial e data devem vir juntos. */
+  opening_balance?: number;
+  opening_balance_date?: string | null;
+  is_active?: boolean;
+}
+
+export type AccountUpdateColumns = Partial<
+  Pick<
+    FinancialAccount,
+    'name' | 'account_type' | 'institution_name' | 'last_four' | 'opening_balance' | 'opening_balance_date' | 'is_active'
+  >
+>;
 
 export interface UpsertProductServiceInput {
   company_id: string | null;
@@ -137,6 +160,8 @@ export interface PeriodSummaryMetrics {
   projectedBalance: number;
   overdueCount: number;
   overdueAmount: number;
+  /** Soma dos saldos iniciais (contas do escopo) incluídos no Saldo Anterior deste período (spec 003). */
+  openingBalanceTotal: number;
 }
 
 interface SandboxStore {
@@ -646,11 +671,14 @@ export function computeAccountBalances(
   return accounts
     .filter((acc) => accountIds.has(acc.id))
     .map((acc) => {
-      let currentBalance = 0;
-      let projectedBalance = 0;
+      // Saldo inicial (spec 003): ponto de partida na data do saldo; movimentos anteriores a ela já estão resumidos nele
+      const openingStart = acc.opening_balance_date ?? null;
+      let currentBalance = acc.opening_balance ?? 0;
+      let projectedBalance = currentBalance;
 
       for (const tx of transactions) {
         if (tx.status === 'canceled') continue;
+        if (openingStart && transactionCashDate(tx) < openingStart) continue;
 
         let delta = 0;
         if (tx.transaction_type === 'income' && tx.account_id === acc.id) {
@@ -679,6 +707,8 @@ export function computeAccountBalances(
         analytical_token: acc.analytical_token,
         current_balance: currentBalance,
         projected_balance: projectedBalance,
+        opening_balance: acc.opening_balance ?? 0,
+        opening_balance_date: acc.opening_balance_date ?? null,
       };
     });
 }
@@ -690,6 +720,52 @@ export function transactionTouchesContext(
   if (accountIds.has(tx.account_id)) return true;
   if (tx.destination_account_id && accountIds.has(tx.destination_account_id)) return true;
   return false;
+}
+
+/** Data de caixa do movimento: pagamento (se pago e informado) ou vencimento. */
+export function transactionCashDate(
+  tx: Pick<Transaction, 'status' | 'payment_date' | 'due_date'>
+): string {
+  return tx.status === 'paid' && tx.payment_date ? tx.payment_date : tx.due_date;
+}
+
+export interface OpeningBalanceInput {
+  opening_balance?: number | null;
+  opening_balance_date?: string | null;
+}
+
+export interface OpeningBalanceValue {
+  opening_balance: number;
+  opening_balance_date: string | null;
+}
+
+const MAX_OPENING_BALANCE = 999_999_999_999.99; // NUMERIC(14,2)
+
+/**
+ * Valida e normaliza o saldo inicial: 2 casas, limite do NUMERIC(14,2), data ISO válida,
+ * obrigatória (padrão: hoje) quando o saldo ≠ 0 e nunca futura. Saldo zero não guarda data.
+ */
+export function normalizeOpeningBalance(
+  input: OpeningBalanceInput,
+  todayISO: string = getTodayISO()
+): OpeningBalanceValue {
+  const raw = input.opening_balance ?? 0;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) throw new Error('Saldo inicial inválido.');
+  const value = Math.round(raw * 100) / 100;
+  if (Math.abs(value) > MAX_OPENING_BALANCE) throw new Error('Saldo inicial acima do limite permitido.');
+  if (value === 0) return { opening_balance: 0, opening_balance_date: null };
+
+  const date = input.opening_balance_date || todayISO;
+  const parsed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const valid =
+    parsed !== null &&
+    (() => {
+      const d = new Date(Date.UTC(Number(parsed[1]), Number(parsed[2]) - 1, Number(parsed[3])));
+      return d.getUTCFullYear() === Number(parsed[1]) && d.getUTCMonth() === Number(parsed[2]) - 1 && d.getUTCDate() === Number(parsed[3]);
+    })();
+  if (!valid) throw new Error('Data do saldo inválida.');
+  if (date > todayISO) throw new Error('A data do saldo não pode ser futura.');
+  return { opening_balance: value, opening_balance_date: date };
 }
 
 export function getTransactionReferenceDate(tx: Transaction, regime: AccountingRegime): string {
@@ -711,7 +787,24 @@ export function computePeriodMetrics(
 ): PeriodSummaryMetrics {
   const { accountIds } = getScopedIds(companies, accounts, activeContext);
 
-  let previousBalance = 0;
+  // Saldo inicial (spec 003): entra no Saldo Anterior se a data do saldo é ≤ fim do período;
+  // movimentos de caixa anteriores à data do saldo de uma conta não afetam o saldo dela.
+  const openingStartByAccount = new Map<string, string | null>();
+  let openingBalanceTotal = 0;
+  for (const acc of accounts) {
+    if (!accountIds.has(acc.id)) continue;
+    openingStartByAccount.set(acc.id, acc.opening_balance_date ?? null);
+    const opening = acc.opening_balance ?? 0;
+    if (opening !== 0 && (!periodEnd || !acc.opening_balance_date || acc.opening_balance_date <= periodEnd)) {
+      openingBalanceTotal += opening;
+    }
+  }
+  const countsForBalance = (accountId: string, tx: Transaction): boolean => {
+    const start = openingStartByAccount.get(accountId);
+    return !start || transactionCashDate(tx) >= start;
+  };
+
+  let previousBalance = openingBalanceTotal;
   let inflows = 0;
   let inflowsRealized = 0;
   let inflowsPending = 0;
@@ -733,12 +826,16 @@ export function computePeriodMetrics(
     if (periodStart && refDate < periodStart) {
       if (tx.status === 'paid') {
         if (tx.transaction_type === 'income' && accountIds.has(tx.account_id)) {
-          previousBalance += tx.amount;
+          if (countsForBalance(tx.account_id, tx)) previousBalance += tx.amount;
         } else if (tx.transaction_type === 'expense' && accountIds.has(tx.account_id)) {
-          previousBalance -= tx.amount;
+          if (countsForBalance(tx.account_id, tx)) previousBalance -= tx.amount;
         } else if (tx.transaction_type === 'transfer') {
-          if (accountIds.has(tx.account_id)) previousBalance -= tx.amount;
-          if (tx.destination_account_id && accountIds.has(tx.destination_account_id)) {
+          if (accountIds.has(tx.account_id) && countsForBalance(tx.account_id, tx)) previousBalance -= tx.amount;
+          if (
+            tx.destination_account_id &&
+            accountIds.has(tx.destination_account_id) &&
+            countsForBalance(tx.destination_account_id, tx)
+          ) {
             previousBalance += tx.amount;
           }
         }
@@ -753,8 +850,12 @@ export function computePeriodMetrics(
     // Dentro do período selecionado:
     // Regra Crítica: transferências internas movimentam saldo das contas envolvidas, mas NUNCA entram em Entradas/Saídas/Resultado
     if (tx.transaction_type === 'transfer') {
-      if (accountIds.has(tx.account_id)) netTransfersInPeriod -= tx.amount;
-      if (tx.destination_account_id && accountIds.has(tx.destination_account_id)) {
+      if (accountIds.has(tx.account_id) && countsForBalance(tx.account_id, tx)) netTransfersInPeriod -= tx.amount;
+      if (
+        tx.destination_account_id &&
+        accountIds.has(tx.destination_account_id) &&
+        countsForBalance(tx.destination_account_id, tx)
+      ) {
         netTransfersInPeriod += tx.amount;
       }
       continue;
@@ -798,6 +899,7 @@ export function computePeriodMetrics(
     projectedBalance,
     overdueCount,
     overdueAmount,
+    openingBalanceTotal,
   };
 }
 
@@ -1333,6 +1435,7 @@ export async function createFinancialAccount(
   if (lastFour && lastFour.length !== 4) {
     throw new Error('Os últimos dígitos devem ter exatamente 4 números.');
   }
+  const opening = normalizeOpeningBalance(input);
 
   if (!isSupabaseConfigured) {
     const store = loadSandboxStore(tenantId, userEmail);
@@ -1351,6 +1454,8 @@ export async function createFinancialAccount(
       last_four: lastFour,
       analytical_token: token,
       is_active: true,
+      opening_balance: opening.opening_balance,
+      opening_balance_date: opening.opening_balance_date,
       created_at: now,
       updated_at: now,
     };
@@ -1390,10 +1495,98 @@ export async function createFinancialAccount(
       currency: (input.currency ?? 'BRL').toUpperCase(),
       last_four: lastFour,
       analytical_token: 'PENDING',
+      opening_balance: opening.opening_balance,
+      opening_balance_date: opening.opening_balance_date,
     })
     .select()
     .single();
 
+  if (error) throw new Error(error.message);
+  return data as FinancialAccount;
+}
+
+/**
+ * Monta as colunas a atualizar a partir do patch (lista explícita e validada).
+ * Lança erro se o patch estiver vazio ou for inválido.
+ */
+export function buildAccountUpdate(
+  patch: UpdateAccountInput,
+  todayISO: string = getTodayISO()
+): AccountUpdateColumns {
+  const columns: AccountUpdateColumns = {};
+
+  if (patch.name !== undefined) {
+    const name = patch.name.trim();
+    if (name.length < 2) throw new Error('Nome da conta deve ter ao menos 2 caracteres.');
+    columns.name = name;
+  }
+  if (patch.account_type !== undefined) columns.account_type = patch.account_type;
+  if (patch.institution_name !== undefined) columns.institution_name = patch.institution_name?.trim() || null;
+  if (patch.last_four !== undefined) {
+    const lastFour = patch.last_four?.replace(/\D/g, '').slice(0, 4) || null;
+    if (lastFour && lastFour.length !== 4) throw new Error('Os últimos dígitos devem ter exatamente 4 números.');
+    columns.last_four = lastFour;
+  }
+  const hasBalance = patch.opening_balance !== undefined;
+  const hasDate = patch.opening_balance_date !== undefined;
+  if (hasBalance || hasDate) {
+    if (!(hasBalance && hasDate)) throw new Error('Informe o saldo inicial e a data do saldo juntos.');
+    const opening = normalizeOpeningBalance(patch, todayISO);
+    columns.opening_balance = opening.opening_balance;
+    columns.opening_balance_date = opening.opening_balance_date;
+  }
+  if (patch.is_active !== undefined) columns.is_active = Boolean(patch.is_active);
+
+  if (Object.keys(columns).length === 0) throw new Error('Nenhuma alteração informada.');
+  return columns;
+}
+
+export async function updateFinancialAccount(
+  tenantId: string,
+  userEmail: string,
+  accountId: string,
+  patch: UpdateAccountInput
+): Promise<FinancialAccount> {
+  const columns = buildAccountUpdate(patch);
+
+  if (!isSupabaseConfigured) {
+    const store = loadSandboxStore(tenantId, userEmail);
+    const index = store.accounts.findIndex((a) => a.id === accountId);
+    if (index === -1) throw new Error('Conta não encontrada.');
+    const updated: FinancialAccount = {
+      ...store.accounts[index]!,
+      ...columns,
+      updated_at: new Date().toISOString(),
+    };
+    store.accounts[index] = updated;
+    if (columns.name !== undefined || columns.last_four !== undefined || columns.institution_name !== undefined) {
+      store.vault = store.vault.map((v) =>
+        v.entity_type === 'account' && v.entity_id === accountId
+          ? {
+              ...v,
+              real_label: updated.name,
+              sensitive_identifier: updated.last_four,
+              secondary_aliases: updated.institution_name ? [updated.institution_name] : [],
+              updated_at: updated.updated_at,
+            }
+          : v
+      );
+    }
+    appendSandboxAudit(store, tenantId, 'entity.updated', 'account', accountId, updated.analytical_token, {
+      fields: Object.keys(columns),
+    });
+    saveSandboxStore(store);
+    return updated;
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Cliente Supabase indisponível.');
+  const { data, error } = await supabase
+    .from('financial_accounts')
+    .update(columns)
+    .eq('id', accountId)
+    .select()
+    .single();
   if (error) throw new Error(error.message);
   return data as FinancialAccount;
 }
@@ -1886,6 +2079,8 @@ export async function fetchAccountBalancesByContext(
     analytical_token: String(row.analytical_token),
     current_balance: Number(row.current_balance ?? 0),
     projected_balance: Number(row.projected_balance ?? 0),
+    opening_balance: 0,
+    opening_balance_date: null,
   }));
 }
 

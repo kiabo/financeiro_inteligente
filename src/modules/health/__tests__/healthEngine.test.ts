@@ -58,6 +58,8 @@ const ACC_1: FinancialAccount = {
   last_four: '1234',
   analytical_token: 'CTA_01',
   is_active: true,
+  opening_balance: 0,
+  opening_balance_date: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 };
@@ -73,6 +75,8 @@ const ACC_2: FinancialAccount = {
   last_four: '5678',
   analytical_token: 'CTA_02',
   is_active: true,
+  opening_balance: 0,
+  opening_balance_date: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 };

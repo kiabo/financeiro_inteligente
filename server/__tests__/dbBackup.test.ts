@@ -19,6 +19,17 @@ import {
   type DbBackupDeps,
 } from '../integrations/dbBackup/dbBackupService.ts';
 import { DB_BACKUP_DRIVE_FOLDER, createDbBackupDrive, type DriveApi } from '../integrations/dbBackup/dbBackupDrive.ts';
+import { isAdminRole, requireAdminRole } from '../integrations/authz.ts';
+import { HttpError } from '../authMiddleware.ts';
+import {
+  composeBackupFailedMessage,
+  composeUsageMessage,
+  createOwnerAlertSink,
+  isoWeekKey,
+  sendBackupFailedAlert,
+  sendUsageAlert,
+  type AlertSink,
+} from '../integrations/dbBackup/dbBackupAlerts.ts';
 import { decryptBackupBytes, decryptBackupPayload, encryptBackupPayload, readBackupHeader } from '../crypto/backupCrypto.ts';
 
 const NOW = new Date('2026-11-27T06:00:00Z');
@@ -351,6 +362,69 @@ const cases: TestCase[] = [
     const dir = await tempDir();
     const run = await runDbBackup(makeDeps(dir, { drive: null }), 'cron');
     assert(run.status === 'success' && !run.driveUploaded && !run.driveError, 'só local');
+  }],
+
+  // ---------------------------------------------------------------- T08 · autorização e alertas
+  ['autorização: owner e admin passam; analyst, vazio e desconhecido recebem 403', async () => {
+    assert(isAdminRole('owner') && isAdminRole('admin'), 'owner/admin');
+    for (const role of ['analyst', '', null, undefined, 'OWNER', 'root']) assert(!isAdminRole(role), `não pode: ${String(role)}`);
+    await requireAdminRole('u1', async () => 'owner');
+    await requireAdminRole('u1', async () => 'admin');
+    for (const role of ['analyst', null]) {
+      let status = 0;
+      try { await requireAdminRole('u1', async () => role); } catch (e) { status = e instanceof HttpError ? e.status : -1; }
+      assertEqual(status, 403, `papel ${String(role)} recusado com 403`);
+    }
+  }],
+  ['semana ISO: chave AAAA-Www correta nas viradas de semana e de ano', () => {
+    assertEqual(isoWeekKey('2026-11-27'), '2026-W48', 'sexta 27/11/2026');
+    assertEqual(isoWeekKey('2026-11-23'), '2026-W48', 'segunda da mesma semana');
+    assertEqual(isoWeekKey('2026-11-29'), '2026-W48', 'domingo da mesma semana');
+    assertEqual(isoWeekKey('2026-11-30'), '2026-W49', 'segunda seguinte');
+    assertEqual(isoWeekKey('2026-01-01'), '2026-W01', '1º/1/2026');
+    assertEqual(isoWeekKey('2027-01-01'), '2026-W53', '1º/1/2027 ainda é semana 53 de 2026');
+    assertEqual(isoWeekKey('2024-12-30'), '2025-W01', '30/12/2024 já é semana 1 de 2025');
+  }],
+  ['alertas: falha de backup — uma chave por dia, mensagem sem segredo (CA6)', async () => {
+    const sent: Array<{ kind: string; key: string; subject: string; text: string }> = [];
+    const sink: AlertSink = async (kind, key, m) => { sent.push({ kind, key, subject: m.subject, text: m.text }); return [{ channel: 'email', status: 'sent' }]; };
+    await sendBackupFailedAlert(sink, 'rede caiu', new Date('2026-11-27T06:00:00Z'));
+    await sendBackupFailedAlert(sink, 'rede caiu', new Date('2026-11-27T20:00:00Z'));
+    assertEqual(sent.length, 2, 'o sink recebe os dois pedidos (a deduplicação é do banco)');
+    assertEqual(sent[0]!.key, sent[1]!.key, 'mesma chave no mesmo dia');
+    assertEqual(sent[0]!.key, 'backup_failed:2026-11-27', 'chave do dia');
+    assertEqual(sent[0]!.kind, 'backup_failed', 'tipo');
+    await sendBackupFailedAlert(sink, 'rede caiu', new Date('2026-11-28T06:00:00Z'));
+    assert(sent[2]!.key !== sent[0]!.key, 'outro dia, outra chave');
+    assert(/backup do banco falhou/.test(sent[0]!.subject) && /rede caiu/.test(sent[0]!.text), 'assunto e motivo');
+    assert(!sent[0]!.text.includes('postgresql://'), 'sem connection string');
+    assertEqual(await sendBackupFailedAlert(null, 'x', new Date()), null, 'sem destinatário → null (alertas desligados)');
+  }],
+  ['alertas: uso — abaixo de 70% não envia; 70% avisa; chave semanal por nível; crítico avisa na hora (CA5)', async () => {
+    const mk = (dbPct: number, stPct: number) => {
+      const r = (pct: number, limit: number) => evaluateUsage(Math.round((pct / 100) * limit), limit);
+      const db = r(dbPct, 500 * 1024 * 1024); const storage = r(stPct, 1024 * 1024 * 1024);
+      const rank = { ok: 0, warn: 1, critical: 2 } as const;
+      return { db, storage, level: rank[db.level] >= rank[storage.level] ? db.level : storage.level };
+    };
+    const keys: string[] = [];
+    const sink: AlertSink = async (_k, key) => { keys.push(key); return [{ channel: 'email', status: 'sent' }]; };
+    assertEqual(composeUsageMessage(mk(69, 10)), null, '69% não gera mensagem');
+    assertEqual(JSON.stringify(await sendUsageAlert(sink, mk(69, 10), new Date('2026-11-27T10:00:00Z'))), '[]', 'nada enviado');
+    assertEqual(keys.length, 0, 'sink não chamado');
+    await sendUsageAlert(sink, mk(70, 10), new Date('2026-11-27T10:00:00Z'));
+    await sendUsageAlert(sink, mk(72, 10), new Date('2026-11-28T10:00:00Z'));
+    assertEqual(keys[0], keys[1], 'mesma semana e mesmo nível → mesma chave (não repete)');
+    await sendUsageAlert(sink, mk(75, 10), new Date('2026-12-04T10:00:00Z'));
+    assert(keys[2] !== keys[0], 'semana seguinte → lembrete novo');
+    await sendUsageAlert(sink, mk(91, 10), new Date('2026-12-04T11:00:00Z'));
+    assert(keys[3] !== keys[2] && /critical/.test(keys[3]!), 'subiu para crítico → aviso imediato');
+    const msg = composeUsageMessage(mk(95, 40))!;
+    assert(/Banco de dados: 475,0 MB de 500,0 MB \(95%\)/.test(msg.text) && /Armazenamento/.test(msg.text), `texto: ${msg.text}`);
+  }],
+  ['alertas: sem OWNER_TENANT_ID não há destinatário (alertas e Drive desligados)', async () => {
+    assertEqual(await createOwnerAlertSink(undefined), null, 'sem tenant → null');
+    assert(composeBackupFailedMessage('x', NOW, 'Meu App').subject.startsWith('Meu App ·'), 'nome da marca parametrizável');
   }],
 ];
 

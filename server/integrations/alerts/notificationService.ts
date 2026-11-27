@@ -9,7 +9,7 @@ import { formatBRL, formatDateBR, pickLabel, type AgendaItem } from './agendaBui
  */
 
 export type NotificationChannel = 'email' | 'whatsapp';
-export type NotificationKind = 'due_today' | 'overdue' | 'weekly_summary' | 'cfo_critical' | 'test';
+export type NotificationKind = 'due_today' | 'overdue' | 'weekly_summary' | 'cfo_critical' | 'test' | 'backup_failed' | 'usage_high';
 
 export interface NotificationPreferences {
   tenant_id: string;
@@ -53,7 +53,7 @@ export function getChannelStatus(): { email: boolean; whatsapp: boolean; whatsap
 const escapeHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-function wrapHtml(title: string, lines: string[], footer: string): string {
+export function wrapHtml(title: string, lines: string[], footer: string): string {
   return `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#F8FAFC;padding:24px;color:#0F172A">
 <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #E2E8F0;border-radius:8px;padding:24px">
 <h2 style="margin:0 0 12px;font-size:18px">${escapeHtml(title)}</h2>

@@ -42,10 +42,10 @@ Regras duras: a connection string e a senha do banco nunca são lidas, impressas
 - [x] T07 — Drive: `findDriveFolderByName` em `google/googleClient.ts` e, no serviço, envio à pasta "Backups do banco (cifrados)" com retenção de 14 só dos arquivos `financeiro-db-*.vtxdb`; testes com Drive simulado (usa a pasta certa, remove só o excedente, falha do Drive não apaga o backup local e gera alerta).
   **Pronto quando:** os testes passam. (CA8)
 
-- [ ] T08 — Autorização e alertas: `server/integrations/authz.ts` (`requireAdminRole`: `owner` e `admin`), `NotificationKind` com `backup_failed` e `usage_high`, mensagens e dedupe (`backup_failed:AAAA-MM-DD`, `usage_high:{db|storage}:{warn|critical}:AAAA-Www`) em `dbBackupAlerts.ts`; testes **antes**.
+- [x] T08 — Autorização e alertas: `server/integrations/authz.ts` (`requireAdminRole`: `owner` e `admin`), `NotificationKind` com `backup_failed` e `usage_high`, mensagens e dedupe (`backup_failed:AAAA-MM-DD`, `usage_high:{db|storage}:{warn|critical}:AAAA-Www`) em `dbBackupAlerts.ts`; testes **antes**.
   **Pronto quando:** falha de backup despacha um alerta por dia, uso acima de 70% um por semana e por nível, `analyst` é recusado em `requireAdminRole`, e sem `OWNER_TENANT_ID` o resultado diz "alertas e Drive desligados". (CA5, CA6)
 
-- [ ] T09 — Rotas e agendador: `dbBackupRoutes.ts` (`GET /api/ops/db-status`, `POST /api/ops/db-backup/run`, só `owner`/`admin`, `409` se já houver backup rodando) montadas em `server.ts`; `startInternalScheduler` também chama `runDbBackupIfDue()` (hora `DB_BACKUP_HOUR`, padrão 3; só com `ENABLE_INTERNAL_SCHEDULER=true` **e** `SUPABASE_DB_URL`; executa uma vez por dia e recupera se o contêiner estava parado às 03:00).
+- [x] T09 — Rotas e agendador: `dbBackupRoutes.ts` (`GET /api/ops/db-status`, `POST /api/ops/db-backup/run`, só `owner`/`admin`, `409` se já houver backup rodando) montadas em `server.ts`; `startInternalScheduler` também chama `runDbBackupIfDue()` (hora `DB_BACKUP_HOUR`, padrão 3; só com `ENABLE_INTERNAL_SCHEDULER=true` **e** `SUPABASE_DB_URL`; executa uma vez por dia e recupera se o contêiner estava parado às 03:00).
   **Pronto quando:** testes cobrem 403 para `analyst`, 409 em execução dupla, "já rodou hoje" não repete e nenhuma resposta traz a URL, a senha ou a chave. (CA1, CA4, CA7)
 
 ## Infraestrutura e documentos
@@ -72,6 +72,8 @@ Regras duras: a connection string e a senha do banco nunca são lidas, impressas
   **Pronto quando:** o "Registro de verificação" tem cada CA com resultado, evidência e data; spec, plan e tasks `concluído`. (CA1–CA8)
 
 ## Notas de execução
+- **T09 (desvio do plano):** o agendador do backup do banco ficou num arquivo próprio (`startDbBackupScheduler` em `dbBackupContext.ts`, chamado em `server.ts` ao lado do `startInternalScheduler`) em vez de dentro do `dailyJobs.ts`. Evita dependência circular (`dailyJobs` ↔ alertas) e mantém o horário das 03:00 separado das rotinas das 07:00. O comportamento planejado é o mesmo.
+- **T09:** a conferência do uso do plano (e o alerta de 70%/90%) roda uma vez por dia junto com o backup agendado.
 - **T01 (feita por mim, em modo leitura, a seu pedido, com o Supabase e o VPS já acessíveis):** Postgres do Supabase **17.12** (cliente 17 compatível); nome do CHECK = `notification_logs_kind_check`; banco com 14,8 MB e Storage com 0 byte; o VPS **tem IPv6** (então a conexão direta funciona, e o pooler também serve); a pasta `/opt/financeiro-inteligente/backups` **não existe** (o usuário do contêiner é o `node`, uid 1000, que no VPS é o `ubuntu`); o `receive.sh` **instalado** (`/opt/financeiro-inteligente/bin/receive.sh`, dono root, comando forçado da chave de deploy) é **igual ao do repositório, mas não é atualizado pelo deploy**.
   A senha do banco não foi lida; o teste real de conexão com o `psql` fica para a T14/T15, depois que `SUPABASE_DB_URL` estiver no env.
 - **Mudança na T10:** atualizar o `receive.sh` do repositório **e** a cópia instalada no VPS (como root, com a sua confirmação antes), e criar `/opt/financeiro-inteligente/backups` com dono `1000:1000`. Isso vira passo explícito na T13.

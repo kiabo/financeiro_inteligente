@@ -30,6 +30,12 @@ import {
   sendUsageAlert,
   type AlertSink,
 } from '../integrations/dbBackup/dbBackupAlerts.ts';
+import {
+  handleDbBackupRun,
+  handleDbStatus,
+  runDbBackupIfDue,
+  type DbBackupWiring,
+} from '../integrations/dbBackup/dbBackupContext.ts';
 import { decryptBackupBytes, decryptBackupPayload, encryptBackupPayload, readBackupHeader } from '../crypto/backupCrypto.ts';
 
 const NOW = new Date('2026-11-27T06:00:00Z');
@@ -62,6 +68,32 @@ function makeDeps(dir: string, over: Partial<DbBackupDeps> = {}, at = '2026-11-2
     ...over,
   };
   return Object.assign(deps, { get dumped() { return state.dumped; } });
+}
+
+async function wiring(dir: string, over: Partial<DbBackupWiring> = {}): Promise<DbBackupWiring> {
+  return {
+    env: { SUPABASE_DB_URL: FAKE_URL } as NodeJS.ProcessEnv,
+    now: () => new Date('2026-11-27T06:00:00Z'),
+    runner: {
+      dump: async (_c, out) => fs.writeFile(out, Buffer.concat([DUMP_MARKER, crypto.randomBytes(256)])),
+      query: async () => `${10 * 1024 * 1024}|0\n`,
+    },
+    sink: null,
+    driveAvailable: async () => false,
+    backupsDir: dir,
+    ...over,
+  };
+}
+
+async function withBackupKey<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = process.env.BACKUP_ENCRYPTION_KEY;
+  process.env.BACKUP_ENCRYPTION_KEY = BACKUP_PASS;
+  try {
+    return await fn();
+  } finally {
+    if (previous === undefined) delete process.env.BACKUP_ENCRYPTION_KEY;
+    else process.env.BACKUP_ENCRYPTION_KEY = previous;
+  }
 }
 
 const cases: TestCase[] = [
@@ -425,6 +457,93 @@ const cases: TestCase[] = [
   ['alertas: sem OWNER_TENANT_ID não há destinatário (alertas e Drive desligados)', async () => {
     assertEqual(await createOwnerAlertSink(undefined), null, 'sem tenant → null');
     assert(composeBackupFailedMessage('x', NOW, 'Meu App').subject.startsWith('Meu App ·'), 'nome da marca parametrizável');
+  }],
+
+  // ---------------------------------------------------------------- T09 · rotas e agendador
+  ['rotas do painel: analyst recebe 403 no status e no backup manual; owner e admin passam (CA4)', async () => {
+    const dir = await tempDir();
+    const w = await wiring(dir);
+    const status = (e: unknown) => (e instanceof HttpError ? e.status : -1);
+    for (const call of [
+      () => handleDbStatus({ id: 'u', sandbox: false }, w, async () => 'analyst'),
+      () => handleDbBackupRun({ id: 'u', sandbox: false }, w, async () => 'analyst'),
+    ]) {
+      let got = 0;
+      try { await call(); } catch (e) { got = status(e); }
+      assertEqual(got, 403, 'analyst recusado');
+    }
+    const view = await handleDbStatus({ id: 'u', sandbox: false }, w, async () => 'owner');
+    assertEqual(view.configured.dbUrl, true, 'URL configurada');
+    await handleDbStatus({ id: 'u', sandbox: false }, w, async () => 'admin');
+  }],
+  ['rotas do painel: a resposta nunca traz a connection string, a senha nem a chave (CA7)', async () => {
+    const dir = await tempDir();
+    const w = await wiring(dir);
+    await withBackupKey(async () => {
+      await handleDbBackupRun({ id: 'u', sandbox: false }, w, async () => 'owner');
+      const view = await handleDbStatus({ id: 'u', sandbox: false }, w, async () => 'owner');
+      const text = JSON.stringify(view);
+      for (const forbidden of [FAKE_PASSWORD, encodeURIComponent(FAKE_PASSWORD), 'postgresql://', BACKUP_PASS, 'aws-0-sa-east-1']) {
+        assert(!text.includes(forbidden), `vazou: ${forbidden}`);
+      }
+      assertEqual(view.lastBackup?.status, 'success', 'último backup registrado');
+      assertEqual(view.retained, 1, 'um arquivo guardado');
+      assert(view.usage !== null && view.usage.level === 'ok', 'uso medido');
+    });
+  }],
+  ['rotas do painel: backup manual sem SUPABASE_DB_URL dá 503 claro; execução dupla dá 409', async () => {
+    const dir = await tempDir();
+    let code = 0; let msg = '';
+    try { await handleDbBackupRun({ id: 'u', sandbox: false }, await wiring(dir, { env: {} as NodeJS.ProcessEnv }), async () => 'owner'); }
+    catch (e) { code = e instanceof HttpError ? e.status : -1; msg = e instanceof Error ? e.message : ''; }
+    assertEqual(code, 503, 'sem URL');
+    assert(/SUPABASE_DB_URL/.test(msg), `mensagem: ${msg}`);
+
+    await withBackupKey(async () => {
+      let release!: () => void;
+      const gate = new Promise<void>((r) => { release = r; });
+      const slowWiring = await wiring(dir, { runner: { dump: async (_c, out) => { await gate; await fs.writeFile(out, 'dados'); }, query: async () => '1|0' } });
+      const first = handleDbBackupRun({ id: 'u', sandbox: false }, slowWiring, async () => 'owner');
+      await new Promise((r) => setTimeout(r, 30));
+      let busy = 0;
+      try { await handleDbBackupRun({ id: 'u', sandbox: false }, slowWiring, async () => 'owner'); } catch (e) { busy = e instanceof HttpError ? e.status : -1; }
+      assertEqual(busy, 409, 'segunda execução recebe 409');
+      release();
+      await first;
+    });
+  }],
+  ['agendador: sem URL não faz nada; fora da hora não roda; na hora roda uma vez e confere o uso (CA1, CA5)', async () => {
+    const dir = await tempDir();
+    await withBackupKey(async () => {
+      assertEqual(await runDbBackupIfDue(await wiring(dir, { env: {} as NodeJS.ProcessEnv })), null, 'sem SUPABASE_DB_URL');
+      assertEqual(await runDbBackupIfDue(await wiring(dir, { now: () => new Date('2026-11-27T05:30:00Z') })), null, '02:30 ainda não é hora');
+      const alerts: string[] = [];
+      const sink: AlertSink = async (kind, key) => { alerts.push(`${kind}|${key}`); return [{ channel: 'email', status: 'sent' }]; };
+      const usageHigh = `${450 * 1024 * 1024}|0`; // 90% de 500 MB → crítico
+      const w = await wiring(dir, { now: () => new Date('2026-11-27T06:10:00Z'), sink, runner: { dump: async (_c, out) => fs.writeFile(out, 'dump'), query: async () => usageHigh } });
+      const run = await runDbBackupIfDue(w);
+      assertEqual(run?.status, 'success', 'rodou e deu certo');
+      assertEqual(await runDbBackupIfDue(w), null, 'segunda chamada no mesmo dia não repete');
+      assertEqual((await listLocalBackups(dir)).length, 1, 'um arquivo no dia');
+      assert(alerts.some((a) => a.startsWith('usage_high|')), `alerta de uso enviado: ${alerts.join(',')}`);
+    });
+  }],
+  ['agendador: falha do backup agendado envia o alerta ao titular (CA6)', async () => {
+    const dir = await tempDir();
+    await withBackupKey(async () => {
+      const alerts: string[] = [];
+      const sink: AlertSink = async (kind, key) => { alerts.push(`${kind}|${key}`); return [{ channel: 'email', status: 'sent' }]; };
+      const w = await wiring(dir, { now: () => new Date('2026-11-27T06:10:00Z'), sink, runner: { dump: async () => { throw new Error('rede caiu'); }, query: async () => '1|0' } });
+      const run = await runDbBackupIfDue(w);
+      assertEqual(run?.status, 'failed', 'falhou');
+      assert(alerts.includes('backup_failed|backup_failed:2026-11-27'), `alertas: ${alerts.join(',')}`);
+    });
+  }],
+  ['painel: sem OWNER_TENANT_ID o estado diz que Drive e alertas estão desligados', async () => {
+    const dir = await tempDir();
+    const view = await handleDbStatus({ id: 'u', sandbox: false }, await wiring(dir, { sink: null }), async () => 'owner');
+    assertEqual(view.configured.alerts, false, 'alertas desligados');
+    assertEqual(view.configured.drive, false, 'Drive desligado');
   }],
 ];
 

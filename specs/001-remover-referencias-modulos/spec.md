@@ -1,8 +1,8 @@
 # Spec 001 — Remover referências a "Módulo N" da interface
 
-- **Status:** rascunho
+- **Status:** em-andamento
 - **Criada em:** 2026-11-26
-- **Aprovada em:** —
+- **Aprovada em:** 2026-11-27
 - **Responsável pela aprovação:** usuário
 
 ## Problema
@@ -35,8 +35,12 @@ O usuário final não deve ver nada disso. O levantamento encontrou 43 ocorrênc
 - Constituição nº 7 e 8 (aparência padrão preservada; interface sem jargão interno).
 
 ## Perguntas abertas
-- Como chamar cada etiqueta de seção? Proposta: usar o próprio nome do item de menu. Preferem outro padrão?
-- Os títulos de migration na tela de Segurança devem permanecer visíveis, ou a tela pode esconder esse bloco para quem não for administrador?
+1- Como chamar cada etiqueta de seção? Proposta: usar o próprio nome do item de menu. Preferem outro padrão?
+2- Os títulos de migration na tela de Segurança devem permanecer visíveis, ou a tela pode esconder esse bloco para quem não for administrador?
+
+## Respostas as perguntas abertas
+1- Pode seguir sua proposta
+2- Pode esconder o bloco para quem não for adm
 
 ## Registro de verificação
 —

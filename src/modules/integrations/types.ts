@@ -45,6 +45,8 @@ export interface IntegrationConnection {
   account_id: string | null;
   webhook_secret_id: string | null;
   webhook_url: string | null;
+  /** Há chave de API cifrada no servidor (a chave nunca volta ao navegador) */
+  api_key_configured: boolean;
   config: IntegrationConnectionConfig;
   status: 'active' | 'paused' | 'error';
   last_event_at: string | null;
@@ -57,6 +59,8 @@ export interface WebhookEventRow {
   id: string;
   connection_id: string;
   provider: string;
+  /** Origem do evento: webhook do provedor ou importação de histórico por API */
+  source?: 'webhook' | 'api';
   external_event_id: string;
   event_type: string | null;
   status: 'received' | 'processed' | 'failed' | 'ignored';
@@ -229,3 +233,27 @@ export const PROVIDER_SECRET_HELP: Record<IntegrationProvider, string> = {
   openfinance_generic: 'Segredo HMAC-SHA256 combinado com o agregador (cabeçalho x-signature por padrão).',
   custom_json_mapping: 'Segredo HMAC-SHA256 usado para assinar o corpo bruto (cabeçalho x-signature por padrão).',
 };
+
+// ============================================================================
+// Importação de histórico por API
+// ============================================================================
+export type HistoryImportStatus = 'running' | 'completed' | 'failed' | 'canceled';
+
+export interface HistoryImportRun {
+  id: string;
+  connection_id: string;
+  provider: 'asaas' | 'mercadopago';
+  account_id: string;
+  period_start: string;
+  period_end: string;
+  status: HistoryImportStatus;
+  phase: 'customers' | 'payments';
+  window_index: number;
+  window_total: number;
+  counts: { created: number; updated: number; ignored: number; marked_apart: number; failed: number };
+  /** `ref` é o id do pagamento no provedor (nunca nome de cliente) */
+  errors: Array<{ ref: string; message: string }>;
+  last_error: string | null;
+  started_at: string;
+  finished_at: string | null;
+}

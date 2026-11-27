@@ -70,7 +70,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Interface
 
-- [ ] T12 — Cliente: tipos e funções em `integrationsApi.ts`/`types.ts` (`startHistoryImport`, `stepHistoryImport`, `cancelHistoryImport`, `getHistoryImport`, `source` nos eventos, `api_key_configured`).
+- [x] T12 — Cliente: tipos e funções em `integrationsApi.ts`/`types.ts` (`startHistoryImport`, `stepHistoryImport`, `cancelHistoryImport`, `getHistoryImport`, `source` nos eventos, `api_key_configured`).
   **Pronto quando:** `npx tsc --noEmit` passa e as funções têm lista explícita de campos no corpo das requisições. (CA1)
 
 - [ ] T13 — `IntegrationsHubView.tsx`: campo "Chave de API" na criação e na edição (Mercado Pago passa a usar este mesmo campo no lugar de "Access Token"), chip "Chave configurada", troca exige digitar de novo; a chave nunca é exibida.
@@ -99,6 +99,10 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T12 — Cliente (2026-11-27)
+- `integrationsApi.ts`: `startHistoryImport`, `stepHistoryImport`, `cancelHistoryImport`, `fetchLatestHistoryImport`; `fetchWebhookEvents(connectionId?, source?)`. Todas enviam lista explícita de campos. Tipos `HistoryImportRun`, `WebhookEventRow.source`, `IntegrationConnection.api_key_configured` em `types.ts`.
+- O `409` (já existe execução em andamento) chega só como mensagem (`apiJson`); a tela descobre a execução a retomar por `fetchLatestHistoryImport` ao abrir o modal.
 
 ### T11 — Rotas, serviço e visão pública da conexão (2026-11-27)
 - `historyStores.ts` (Supabase: `import_runs`, log de eventos com `source = 'api'`, conta, auditoria, decifrar a chave), `historyService.ts` (casos de uso sem Express, testáveis) e `historyRoutes.ts` (montada em `server.ts`): `POST /integrations/connections/:id/history/start`, `POST /integrations/history/:runId/step`, `GET /integrations/history/:runId`, `POST …/cancel`.

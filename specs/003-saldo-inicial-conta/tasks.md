@@ -1,6 +1,6 @@
 # Tasks 003 — Saldo inicial e edição de conta
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Plan:** `specs/003-saldo-inicial-conta/plan.md` (aprovado em 2026-11-27)
 - **Branch:** `feat/003-saldo-inicial-conta` (saindo da `dev`)
 - **Aprovado em:** 2026-11-27
@@ -66,3 +66,4 @@ Tarefas marcadas **(usuário)** dependem de uma ação sua; eu não as simulo.
 - T09: migration `0007` aplicada pelo usuário em 2026-11-27. Conferido por consulta de leitura: colunas presentes nas 3 contas reais (0/null) e a view `v_account_balances` responde 200. (Com a service role a view devolve vazio, pois filtra por `auth.uid()`; o cálculo foi validado antes no Postgres descartável.)
 - T10: PR #3 mergeado na `dev` em 2026-11-27 (com a 0007 já aplicada); deploy verde; h-cfo saudável.
 - T11: verificação registrada na spec. **CA10 fica parcial** (isolamento entre tenants não testado); spec/plan/tasks permanecem `em-andamento` até o usuário aceitar isso e autorizar a promoção para a `main`.
+- CA10 aceito como parcial pelo usuário em 2026-11-27; promoção da `dev` para a `main` autorizada na mesma data.

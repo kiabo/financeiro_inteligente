@@ -7,7 +7,7 @@ Status: `rascunho` → `aprovado` → `em-andamento` → `concluído`.
 |---|---|---|---|---|
 | 001 | [Remover referências a "Módulo N"](001-remover-referencias-modulos/spec.md) | concluído | concluído | concluído |
 | 002 | [URL por tela](002-url-por-tela/spec.md) | concluído | concluído | concluído |
-| 003 | [Saldo inicial e edição de conta](003-saldo-inicial-conta/spec.md) | em-andamento | em-andamento | em-andamento |
+| 003 | [Saldo inicial e edição de conta](003-saldo-inicial-conta/spec.md) | concluído | concluído | concluído |
 | 004 | [Importação de histórico por API](004-importacao-historico-api/spec.md) | rascunho | — | — |
 | 005 | [Marca e temas](005-marca-e-temas/spec.md) | rascunho | — | — |
 | 006 | [Supabase Free: backup e monitor](006-supabase-backup-monitor/spec.md) | rascunho | — | — |

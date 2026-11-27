@@ -1,6 +1,6 @@
 # Plan 003 — Saldo inicial e edição de conta
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Spec:** `specs/003-saldo-inicial-conta/spec.md` (aprovada em 2026-11-27)
 - **Criado em:** 2026-11-27
 - **Aprovado em:** 2026-11-27

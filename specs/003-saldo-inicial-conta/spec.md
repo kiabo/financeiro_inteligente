@@ -1,6 +1,6 @@
 # Spec 003 — Saldo inicial e edição de conta
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Criada em:** 2026-11-26
 - **Aprovada em:** 2026-11-27
 - **Responsável pela aprovação:** usuário
@@ -36,7 +36,7 @@ refletir isso. Também não existe tela para editar uma conta depois de criada (
 - [x] CA7: criar a conta já com saldo inicial (positivo e negativo) funciona no formulário de cadastro, sem precisar editar depois.
 - [x] CA8: alterar o saldo inicial de uma conta com lançamentos pede confirmação com o aviso; cancelar não altera nada.
 - [x] CA9: no Fluxo & Lançamentos o saldo inicial aparece só como observação discreta (cartão "Saldo Anterior" e cartão da conta), sem criar lançamento nem linha no extrato.
-- [ ] CA10: outro tenant não vê nem altera as contas (RLS); a escrita envia só as colunas permitidas (sem "permission denied").
+- [x] CA10 (parcial, aceito pelo usuário em 2026-11-27): outro tenant não vê nem altera as contas (RLS); a escrita envia só as colunas permitidas (sem "permission denied").
 - [x] CA11: testes automáticos cobrem a regra de cálculo (com/sem data, negativo, transferência).
 
 ## Fora de escopo

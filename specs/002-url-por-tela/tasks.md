@@ -33,10 +33,10 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 - [x] T06 — `LoginScreen.tsx`: `redirectTo` do login com Google passa a `origin + pathname`.
   **Pronto quando:** `tsc` passa; no teste manual, o deep link sobrevive ao login com Google quando aplicável. (CA4)
 
-- [ ] T07 — `vite.config.ts`: `workbox.navigateFallbackDenylist: [/^\/api\//]`.
+- [x] T07 — `vite.config.ts`: `workbox.navigateFallbackDenylist: [/^\/api\//]`.
   **Pronto quando:** após `npm run build`, o `dist/sw.js` contém a denylist na `NavigationRoute`. (CA9)
 
-- [ ] T08 — Rodar tudo: `npx tsc --noEmit`, `npm test`, `npm run build`; conferir a denylist no `dist/sw.js`.
+- [x] T08 — Rodar tudo: `npx tsc --noEmit`, `npm test`, `npm run build`; conferir a denylist no `dist/sw.js`.
   **Pronto quando:** os três comandos passam e a denylist aparece no `dist/sw.js`. (CA9)
 
 - [ ] T09 — Subir a branch, abrir PR para a `dev`, merge e deploy no h-cfo. **(usuário: confirmar o merge)**
@@ -49,3 +49,5 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec)
+- T08: `tsc`, 58/58 testes e build OK; `dist/sw.js` contém `NavigationRoute(...,{denylist:[/^\/api\//]})`.
+- Mudança de fluxo: o título da aba e o nome do sistema ficaram em `src/modules/core/brand.ts` (`APP_NAME`), para a spec 005 ligar à marca.

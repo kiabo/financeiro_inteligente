@@ -11,7 +11,7 @@ Status: `rascunho` → `aprovado` → `em-andamento` → `concluído`.
 | 004 | [Importação de histórico por API](004-importacao-historico-api/spec.md) | concluído | concluído | concluído |
 | 005 | [Nome e marca do sistema](005-marca-e-temas/spec.md) | aprovado | aprovado | rascunho |
 | 006 | [Supabase Free: backup e monitor](006-supabase-backup-monitor/spec.md) | aprovado | aprovado | rascunho |
-| 007 | [Trocar o segredo do webhook](007-trocar-segredo-webhook/spec.md) | aprovado | aprovado | rascunho |
+| 007 | [Trocar o segredo do webhook](007-trocar-segredo-webhook/spec.md) | em-andamento | em-andamento | em-andamento |
 | 008 | [Importação completa das operações financeiras](008-importacao-completa-operacoes/spec.md) | rascunho | — | — |
 
 Ordem sugerida: 001 → 004 concluídas; depois 007 (pequena), 006, 005 e 008 (grande; vira várias specs: 009 Asaas, 010 Mercado Pago, 011 outros bancos).

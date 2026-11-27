@@ -14,7 +14,7 @@ Pontos centrais:
 1. **Chave de deduplicação = (tenant, provedor, id do pagamento, papel)**, gravada em colunas novas de `transactions` com índice único.
    Não depende de conta nem de conexão (CA12) e fecha a corrida entre importação e webhook (o segundo insert falha e vira "já existe").
 2. **Execução em lotes dirigida pelo navegador**: o servidor cria uma "execução" (`import_runs`), e o navegador chama `step` repetidamente;
-   cada `step` processa **uma página** (≤100 pagamentos) e devolve o progresso. Sem job em segundo plano (sobrevive a deploy/reinício do container),
+   cada `step` processa **uma página** (100 no Asaas, 50 no Mercado Pago) e devolve o progresso. Sem job em segundo plano (sobrevive a deploy/reinício do container),
    sem requisição longa (nginx), e retomável a partir do cursor gravado (falha parcial não perde nada).
 3. **Só leitura no provedor**: o cliente HTTP novo expõe apenas `GET`.
 4. **Conta de destino por execução**, obrigatória, validada no servidor (CA10).
@@ -45,7 +45,7 @@ requisição (estoura timeout e rate limit); tabela própria de "pagamentos impo
 | Estornado | `REFUNDED`, `REFUND_REQUESTED`, `REFUND_IN_PROGRESS`, `CHARGEBACK_*` | `refunded`, `charged_back` | receita (e taxa, se já existir) com `status = canceled`, descrição "[Estornado]", **sem** linha de estorno |
 | Desconhecido | qualquer outro | qualquer outro | não importa; conta em "ignorados" com o motivo `status <X>` |
 
-Os nomes exatos de status serão **conferidos na documentação oficial de cada API na T01**, antes de codar o mapeamento (a lista acima vem da documentação conhecida e pode ter diferenças).
+Os status foram **conferidos na documentação oficial na T01** (ver `tasks.md`, Notas de execução): os 14 status do Asaas e os do Mercado Pago (`approved`, `authorized`, `in_process`, `pending`, `in_mediation`, `cancelled`, `rejected`, `refunded`, `charged_back`) batem com a tabela. No Asaas o campo `confirmedDate` **não existe** na cobrança; a competência usa `paymentDate`/`clientPaymentDate`/`dateCreated`.
 
 ### Upsert por pagamento (função única, também usada pelo webhook)
 Para um pagamento com chave `(tenant, provedor, ref)`, busca as linhas existentes (por colunas novas; **fallback** por `notes = 'webhook:{provedor}:{ref}:pending|settled'` para linhas criadas antes da migration, que passam a receber as colunas) e decide:
@@ -65,7 +65,8 @@ Para um pagamento com chave `(tenant, provedor, ref)`, busca as linhas existente
 A conta usada em criações é a **da execução** (importação) ou a **da conexão** (webhook). Atualizações **nunca trocam a conta** do lançamento existente (CA12).
 
 ### Período e janelas
-- Período recusado se: `fim < início`, `fim` no futuro, ou mais de 12 meses (`fim ≥ início + 12 meses`) — CA8. Regra pura em `src/modules/integrations/historyPeriod.ts` (usada pelo cliente para validar e pelo servidor para decidir).
+- Período recusado se: `fim < início`, `fim` no futuro, ou mais de 12 meses (`fim ≥ início + 12 meses`) — CA8.
+  **Ajuste da T01 (Mercado Pago):** a busca do MP só devolve pagamentos **dos últimos 12 meses contados de hoje** e recusa intervalo ≥ 365 dias por consulta. Para o Mercado Pago o início também não pode ser anterior a `hoje − 12 meses` (mensagem clara na tela). As janelas mensais já respeitam o limite por consulta. Regra pura em `src/modules/integrations/historyPeriod.ts` (usada pelo cliente para validar e pelo servidor para decidir).
 - **Filtro por data de criação** da cobrança/pagamento (`dateCreated` no Asaas; `date_created` no Mercado Pago). Documentado na tela: "cobranças criadas no período". Decisão aberta a aprovar (ver "Decisões para aprovação").
 - O período é fatiado em **janelas mensais**: mantém cada consulta pequena e evita o teto de resultados da busca do Mercado Pago. O cursor é `{ janela, offset }`.
 
@@ -79,7 +80,7 @@ A conta usada em criações é a **da execução** (importação) ou a **da cone
 ### Novos
 - `supabase/migrations/0008_importacao_historico_api.sql` — ver "Banco de dados".
 - `src/modules/integrations/historyPeriod.ts` — validação pura do período (≤12 meses, sem futuro) e janelas mensais; compartilhado cliente/servidor.
-- `server/integrations/history/providerClients.ts` — `AsaasClient` e `MercadoPagoClient` **somente GET**; `fetch` injetável; espaçamento mínimo entre chamadas; `429` com espera (`Retry-After`, teto 30 s, 3 tentativas); `401/403` → `ProviderAuthError` (mensagem clara, CA7); timeout de 10 s por chamada. A chave **nunca** entra em mensagem de erro, log ou `last_error`.
+- `server/integrations/history/providerClients.ts` — `AsaasClient` e `MercadoPagoClient` **somente GET**; `fetch` injetável; espaçamento mínimo entre chamadas; `429` com espera (Asaas **não envia** `Retry-After` no 429: usa `RateLimit-Reset`, em segundos; `Retry-After` só vem no `403` de bloqueio temporário; nunca repetir de imediato; teto 30 s, 3 tentativas; sem cabeçalho, espera progressiva); `401/403` → `ProviderAuthError` (mensagem clara, CA7); timeout de 10 s por chamada. A chave **nunca** entra em mensagem de erro, log ou `last_error`.
 - `server/integrations/history/mappers.ts` — `mapAsaasPayment` e `mapMercadoPagoPayment` → `{ normalized, lifecycle: 'open'|'settled'|'canceled'|'refunded', counterpartyName, providerStatus }`.
 - `server/integrations/history/paymentUpsert.ts` — decisão **pura** (`decidePaymentUpsert`) + interface `TransactionStore` (achar por chave, inserir, atualizar) + implementação Supabase. A interface permite testar idempotência sem banco.
 - `server/integrations/history/historyRunner.ts` — `startRun`, `stepRun`, `cancelRun`, `getRun` (fases clientes → pagamentos; cursor; contadores; erros por pagamento sem abortar; falha de página/chave marca a execução `failed` mantendo o cursor).
@@ -145,8 +146,8 @@ Tipo da execução devolvida ao navegador: `{ id, connection_id, status, phase, 
 ## Riscos e mitigação
 - **Dados reais compartilhados entre h-cfo e cfo.** Uma importação no h-cfo escreve no mesmo banco da produção. Mitigação: verificar primeiro com **1 mês**; usar a conta e o período que o usuário indicar; rollback por SQL (abaixo).
 - **Conta Asaas real.** Cliente só `GET` (teste automático impede outro método); a chave é colada pelo usuário na tela; nada é gravado no provedor; o webhook "Gestão Comoequetalá" não é tocado.
-- **Rate limit / 429.** Espaçamento mínimo entre chamadas, espera por `Retry-After`, no máximo 3 tentativas; esgotadas, a execução fica `failed` **resumível**. Limites exatos conferidos na documentação na T01.
-- **Teto de resultados da busca do Mercado Pago.** Janelas mensais; se uma janela ainda tiver mais resultados que o teto documentado, ela é fatiada por semana (conferir na T01).
+- **Rate limit / 429.** Espaçamento mínimo entre chamadas, espera por `RateLimit-Reset` (ou `Retry-After`, quando houver), no máximo 3 tentativas; esgotadas, a execução fica `failed` **resumível**. Limites do Asaas (documentação, T01): 25.000 requisições por 12 h por conta, até 50 `GET` simultâneos (a importação é sequencial, 1 por vez) e limites próprios por endpoint. Mercado Pago: limite não documentado nas páginas lidas; mesmo tratamento de `429`.
+- **Teto de resultados da busca do Mercado Pago.** Janelas mensais; se uma janela ainda tiver mais resultados que o teto documentado, ela é fatiada por semana. A documentação oficial não informa o teto; fontes secundárias citam `offset` máximo 10.000 e `limit` 50, então o Mercado Pago usa **50 por página** (menor que qualquer teto) e a regra de fatiar fica como proteção.
 - **Duplicidade entre importação e webhook (corrida).** Índice único parcial por pagamento; violação (`23505`) vira "já existe" e reexecuta a decisão.
 - **Linhas criadas pelo webhook antigo entre a migration e o deploy** (sem colunas novas). Fallback por `notes` na busca + adoção das colunas.
 - **Vazamento de chave.** Cifrada (AES-256-GCM, AAD = tenant); fora de `PUBLIC_CONNECTION_COLUMNS`; fora de logs, `last_error`, `errors` e respostas; teste procura a chave de exemplo em todas as respostas/erros (CA1).
@@ -183,7 +184,7 @@ Suíte nova **"Importação de histórico por API (spec 004)"** em `npm test` (`
 | CA5 | importar pendente, depois pago (webhook e reimportação) → mesma linha vira `paid` | idem; reimportar após pagamento |
 | CA6 | fixtures Mercado Pago equivalentes a CA2–CA5 | importar com token do MP (sandbox ou real) |
 | CA7 | `401/403` → `ProviderAuthError` com mensagem clara, sem exceção não tratada; `start` devolve erro 4xx legível | chave errada na tela |
-| CA8 | `429` com `Retry-After` espera e continua; esgotadas as tentativas, execução `failed` resumível; paginação (`offset`/`hasMore`, `paging.total`); períodos de 12 meses ok, 12 meses + 1 dia, futuro e invertido recusados | tentar 13 meses |
+| CA8 | `429` espera (`RateLimit-Reset`/`Retry-After`) e continua; Mercado Pago recusa início anterior a hoje − 12 meses; esgotadas as tentativas, execução `failed` resumível; paginação (`offset`/`hasMore`, `paging.total`); períodos de 12 meses ok, 12 meses + 1 dia, futuro e invertido recusados | tentar 13 meses |
 | CA9 | a própria suíte (mapeamento, idempotência, paginação) | — |
 | CA10 | `start` sem `account_id` → recusa; conta de outra empresa/tenant → recusa; linhas entram na conta da execução, ≠ conta da conexão | importar escolhendo conta diferente da conexão |
 | CA11 | `counterparty_name` preenchido (Asaas via lista de clientes, MP via pagador); anonimizador remove o nome do contexto da IA (caso novo em `aiContextBuilder.test.ts`) | ver contraparte no lançamento; pedir resumo ao CFO virtual e conferir que só há tokens |

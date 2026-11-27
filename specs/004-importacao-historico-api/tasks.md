@@ -12,7 +12,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Fundamentos
 
-- [ ] T01 — Conferir nas **documentações oficiais** do Asaas e do Mercado Pago: lista de status de pagamento, nome dos filtros de data,
+- [x] T01 — Conferir nas **documentações oficiais** do Asaas e do Mercado Pago: lista de status de pagamento, nome dos filtros de data,
   paginação (`offset/limit/hasMore`, `paging.total`), teto de resultados da busca do MP, limites de requisição/`429`/`Retry-After`,
   cabeçalho de autenticação, URL de produção × sandbox, listagem de clientes do Asaas e campos do pagador no MP. Registrar o resultado nas "Notas de execução".
   **Pronto quando:** as Notas listam cada ponto confirmado; se algo contradiz o plan (status, filtro, teto), **paro** e atualizo o plan para você aprovar antes da T02. (CA2, CA6, CA8)
@@ -36,7 +36,7 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
   + fixtures `server/__tests__/fixtures/asaas-*.json` e `mercadopago-*.json` (com `hasMore`, pendente, vencido, pago, cancelado, estornado, cliente ausente), testes escritos **antes**.
   **Pronto quando:** os testes de mapeamento passam: valores e taxa corretos, status desconhecido vira "ignorado" com motivo, nome do cliente só em `counterpartyName`, sem e-mail/CPF. (CA2, CA6, CA9, CA11, CA13)
 
-- [ ] T06 — `server/integrations/history/providerClients.ts`: `AsaasClient` e `MercadoPagoClient` só com `GET`, `fetch` injetável, espaçamento mínimo, `429` com `Retry-After` (teto 30 s, 3 tentativas),
+- [ ] T06 — `server/integrations/history/providerClients.ts`: `AsaasClient` e `MercadoPagoClient` só com `GET`, `fetch` injetável, espaçamento mínimo, `429` com `RateLimit-Reset`/`Retry-After` (teto 30 s, 3 tentativas),
   `401/403` → `ProviderAuthError`, timeout de 10 s, listagem de clientes do Asaas; testes com `fetch` falso.
   **Pronto quando:** testes provam: só método `GET`; paginação percorre todas as páginas das fixtures; `429` espera e continua; esgotadas as tentativas devolve erro retomável;
   `401` devolve mensagem clara; a chave de exemplo **não** aparece em nenhuma mensagem de erro. (CA1, CA7, CA8)
@@ -99,3 +99,26 @@ Regras duras: só `GET` no provedor; nunca ler/imprimir chaves; nenhuma chamada 
 
 ## Notas de execução
 (decisões e descobertas durante a implementação; mudança de escopo → parar e atualizar a spec/plan)
+
+### T01 — Conferência nas documentações oficiais (2026-11-27)
+**Asaas** (docs.asaas.com, páginas "Listar cobranças", "Listar clientes", "Limites da API"; chaves de API):
+- `GET /v3/payments`: `limit` máx. **100**; `offset`; envelope `object, hasMore, totalCount, limit, offset, data`. Filtros de data: `dateCreated[ge]/[le]`, `dueDate[ge]/[le]`, `paymentDate[ge]/[le]`, `estimatedCreditDate[ge]/[le]` (formato da data não informado; usar `YYYY-MM-DD`).
+- 14 status: PENDING, RECEIVED, CONFIRMED, OVERDUE, REFUNDED, RECEIVED_IN_CASH, REFUND_REQUESTED, REFUND_IN_PROGRESS, CHARGEBACK_REQUESTED, CHARGEBACK_DISPUTE, AWAITING_CHARGEBACK_REVERSAL, DUNNING_REQUESTED, DUNNING_RECEIVED, AWAITING_RISK_ANALYSIS (os mesmos no filtro e na resposta).
+- Campos da cobrança: `id, customer, value, netValue, status, dueDate, originalDueDate, dateCreated, paymentDate, clientPaymentDate, creditDate, estimatedCreditDate, externalReference, description, billingType, deleted, refunds[]`. **Não existe `confirmedDate`.** Se cobranças removidas (`deleted`) vêm por padrão: **não informado** → o mapeamento trata `deleted: true` como cancelada e tolera a ausência.
+- `GET /v3/customers`: `limit` máx. 100, `hasMore`, `totalCount`; cada item tem `id`, `name`, `deleted`.
+- Autenticação: cabeçalho **`access_token: <chave>`** (sem `Bearer`). Produção `https://api.asaas.com/v3`; sandbox `https://api-sandbox.asaas.com/v3`; chaves `$aact_prod_…` (produção) e `$aact_hmlg_…` (sandbox) — a chave de um ambiente não funciona no outro (401). O cliente escolhe a URL pelo prefixo; sem prefixo reconhecido usa produção. `User-Agent` não é exigido pelas páginas lidas; o cliente envia um nome genérico por precaução.
+- Limites: **25.000 requisições por conta a cada 12 h**; até **50 `GET` simultâneos**; limites próprios por endpoint. `429` traz `RateLimit-Limit/Remaining/Reset` (`Reset` em segundos) e **não** traz `Retry-After` (este só vem no `403` de bloqueio temporário). Orientação: não repetir de imediato após `429`.
+- `401` = chave inválida (`invalid_access_token`); `403` também ocorre se um `GET` for enviado com corpo.
+
+**Mercado Pago** (`GET https://api.mercadopago.com/v1/payments/search`; autenticação `Authorization: Bearer <access token>`):
+- Parâmetros: `sort` e `criteria` (`asc|desc`), `range` (`date_created`, `date_last_updated`, `date_approved`, `money_release_date`), `begin_date`/`end_date` (formato `yyyy-MM-dd'T'HH:mm:ss.SSSZ`), `limit`, `offset`; envelope `paging { total, limit, offset }` + `results`.
+- **Restrições:** a busca "retorna pagamentos feitos nos últimos 12 meses a partir da data da consulta"; intervalo ≥ 365 dias dá erro `9062`. Teto de linhas existe (erro `1000`) sem número oficial; fontes secundárias citam `limit` máx. 50 e `offset` máx. 10.000.
+- Status: `approved` (inclui `partially_refunded`), `authorized`, `in_process`, `pending`, `in_mediation`, `cancelled`, `rejected`, `refunded`, `charged_back` — batem com a tabela do plan.
+- Campos: `id, status, status_detail, transaction_amount, transaction_amount_refunded, transaction_details.net_received_amount, date_created, date_approved, money_release_date, payer.{id,email,identification}, external_reference, description, currency_id`. **Não confirmados nas páginas lidas:** `fee_details`, `date_of_expiration`, `payer.first_name/last_name` (o webhook atual já usa `fee_details` do `GET /v1/payments/{id}`). O mapeamento trata os três como opcionais (nome ausente → contraparte nula; sem `date_of_expiration` → usa as datas já usadas pelo webhook) e a **T18** confere com uma resposta real.
+- Limite de requisições: não documentado nas páginas lidas.
+
+**Divergências com o plan (ajustes feitos no `plan.md`, a aprovar):**
+1. Asaas não envia `Retry-After` no `429` → espera por `RateLimit-Reset`.
+2. Mercado Pago só pesquisa os **últimos 12 meses a partir de hoje** → para o MP, início anterior a `hoje − 12 meses` é recusado com mensagem clara (nova regra no `historyPeriod`, T03).
+3. Página do Mercado Pago = 50 (Asaas = 100).
+4. Asaas: sem `confirmedDate`; competência = `paymentDate`/`clientPaymentDate`/`dateCreated`.

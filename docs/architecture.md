@@ -65,7 +65,7 @@ nginx/CloudPanel com HTTPS. Variáveis em `/opt/financeiro-inteligente/env/*.env
 
 ## Dívidas conhecidas
 - Navegação sem URL por tela (spec 002).
-- Cores fixas em ~2.400 pontos, sem tokens de tema (spec 005).
+- Cores fixas em ~2.400 pontos, sem tokens de tema (fora do escopo da spec 005 desde 2026-11-27: temas foram retirados).
 - Sem saldo inicial de conta (spec 003).
 - Textos "Módulo N" na interface (spec 001).
 - `npm start` aponta para `node server.ts`, que não funciona em produção.

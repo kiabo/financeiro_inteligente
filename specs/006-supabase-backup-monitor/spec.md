@@ -42,8 +42,10 @@ e pausa projetos inativos por 7 dias.
 - Constituição nº 3 (segredos), nº 9 (reversível). O usuário fornece a connection string do banco no env do VPS.
 
 ## Perguntas abertas
-- Os backups do VPS também devem ser enviados para fora do servidor (ex.: Drive)? Proposta: o Drive já recebe o backup lógico do app.
-- Horário do backup diário? Proposta: 03:00 (America/Sao_Paulo).
+- **Backup do VPS também no Google Drive?** Você perguntou se dá para guardar backup no Drive. Resposta: **sim**. O backup lógico cifrado do app **já vai** para o seu Drive e funciona (conferido em 2026-11-27: backups agendado e manual com sucesso, um deles verificado). O `pg_dump` cifrado do VPS também pode ir ao Drive, reaproveitando a conexão Google já feita. Proposta: manter os dois (o do app e o `pg_dump`), cada um com a sua retenção. Confirma?
+
+## Respostas do usuário
+- **Horário do backup diário:** 03:00 (America/Sao_Paulo), conforme a proposta (2026-11-27: "às 3 serve sim").
 
 ## Registro de verificação
 —

@@ -6,7 +6,7 @@ Status: `rascunho` → `aprovado` → `em-andamento` → `concluído`.
 | Nº | Spec | Spec | Plan | Tasks |
 |---|---|---|---|---|
 | 001 | [Remover referências a "Módulo N"](001-remover-referencias-modulos/spec.md) | concluído | concluído | concluído |
-| 002 | [URL por tela](002-url-por-tela/spec.md) | em-andamento | em-andamento | em-andamento |
+| 002 | [URL por tela](002-url-por-tela/spec.md) | concluído | concluído | concluído |
 | 003 | [Saldo inicial e edição de conta](003-saldo-inicial-conta/spec.md) | rascunho | — | — |
 | 004 | [Importação de histórico por API](004-importacao-historico-api/spec.md) | rascunho | — | — |
 | 005 | [Marca e temas](005-marca-e-temas/spec.md) | rascunho | — | — |

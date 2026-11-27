@@ -1,6 +1,6 @@
 # Spec 002 — URL por tela (histórico de navegação)
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Criada em:** 2026-11-26
 - **Aprovada em:** 2026-11-27
 - **Responsável pela aprovação:** usuário
@@ -32,11 +32,11 @@ um link de uma tela e o F5 volta sempre para a Visão Geral.
 - [x] CA1: clicar em 5 itens diferentes do menu gera 5 URLs distintas e 5 entradas de histórico.
 - [x] CA2: Voltar e Avançar restauram a tela correta.
 - [x] CA3: F5 em `/dre` reabre a DRE sem passar pelo login (sessão aal2 válida).
-- [ ] CA4: abrir `/integracoes` deslogado → login → TOTP → cai em Integrações.
+- [x] CA4: abrir `/integracoes` deslogado → login → TOTP → cai em Integrações.
 - [x] CA5: caminho inválido leva a `/visao-geral` sem erro.
 - [x] CA6: conectar o Google em Alertas, Agenda & Backup retorna à mesma tela com a mensagem de sucesso/erro.
 - [x] CA7: título da aba muda por tela.
-- [ ] CA8: funciona em h-cfo e cfo (nginx → Express devolve o SPA), e em `localhost:3000`.
+- [x] CA8: funciona em h-cfo e cfo (nginx → Express devolve o SPA), e em `localhost:3000`.
 - [x] CA9 (acrescentado em 2026-11-27, durante o plan): com o service worker do PWA ativo, navegar para `/api/...` (ex.: o callback do Google) chega ao **servidor**, não ao SPA.
 
 ## Fora de escopo
@@ -61,11 +61,11 @@ Verificado em 2026-11-27 no h-cfo (deploy do PR #2), usuário owner aal2, pelo C
 | CA1 | ok | 5 cliques (Saúde, Fluxo, Integrações, Segurança, Visão Geral) → 5 URLs distintas e +5 entradas em `history`; clicar no item já ativo não duplica |
 | CA2 | ok | `history.back()` ×2 e `forward()` ×1 restauraram `/seguranca` → `/integracoes` → `/seguranca` e o título |
 | CA3 | ok | carga direta em `/dre` com sessão abriu a DRE (sem login), título "DRE Gerencial · Vértice" |
-| CA4 | **pendente (usuário)** | exige senha + TOTP: abrir `/integracoes` deslogado, entrar e cair em Integrações |
+| CA4 | ok | usuário abriu `/integracoes` deslogado (janela anônima), entrou com senha + TOTP e caiu em Integrações (confirmado em 2026-11-27) |
 | CA5 | ok | `/qualquer-coisa` → `/visao-geral`, sem erro |
 | CA6 | ok | `GET /api/google/oauth/callback?error=teste_sdd` no navegador → `/alertas-agenda-backup`, mensagem "Não foi possível conectar o Google: teste_sdd" e query limpa |
 | CA7 | ok | título da aba mudou em cada tela ("<Tela> · Vértice") |
-| CA8 | parcial | h-cfo ok; `localhost:3000` informado como funcionando pelo usuário; cfo após a promoção |
+| CA8 | ok | h-cfo verificado; `localhost:3000` informado como funcionando pelo usuário; cfo conferido após a promoção (ver abaixo) |
 | CA9 | ok | `sw.js` publicado contém `denylist:[/^\/api\//]`; com o SW controlando a página o callback chegou ao servidor |
 
 Não verificado: login por Google com deep link (T06), só testado por `tsc`.

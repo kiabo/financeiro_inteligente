@@ -1,6 +1,6 @@
 # Tasks 002 — URL por tela (histórico de navegação)
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Plan:** `specs/002-url-por-tela/plan.md` (aprovado em 2026-11-27)
 - **Branch:** `feat/002-url-por-tela` (saindo da `dev`)
 - **Aprovado em:** 2026-11-27
@@ -42,7 +42,7 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 - [x] T09 — Subir a branch, abrir PR para a `dev`, merge e deploy no h-cfo. **(usuário: confirmar o merge)**
   **Pronto quando:** workflow verde e h-cfo respondendo 200.
 
-- [ ] T10 — Verificação final no h-cfo contra todos os critérios (`/sdd-verify 002`): cliques no menu e `history`, Voltar/Avançar,
+- [x] T10 — Verificação final no h-cfo contra todos os critérios (`/sdd-verify 002`): cliques no menu e `history`, Voltar/Avançar,
   F5 em `/dre`, caminho inválido, retorno do Google/callback pelo navegador com o SW ativo, título da aba.
   **(usuário: entrar no h-cfo; o teste de deep link deslogado — senha e TOTP — é dele)**
   **Pronto quando:** CA1–CA9 marcados `[x]` na spec com evidência (CA8 inclui `localhost:3000`).
@@ -53,3 +53,4 @@ Antes de cada commit: `npx tsc --noEmit && npm test` (e `npm run build` nas tare
 - Mudança de fluxo: o título da aba e o nome do sistema ficaram em `src/modules/core/brand.ts` (`APP_NAME`), para a spec 005 ligar à marca.
 - T09: PR #2 mergeado na `dev` em 2026-11-27; deploy verde; h-cfo saudável.
 - T10: verificação registrada na spec; **CA4 pendente do usuário** (deep link deslogado). Spec/plan/tasks seguem `em-andamento` até o CA4 e a promoção para a `main`.
+- CA4 confirmado pelo usuário; promoção para a `main` em 2026-11-27.

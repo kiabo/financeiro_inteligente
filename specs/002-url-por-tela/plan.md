@@ -1,6 +1,6 @@
 # Plan 002 — URL por tela (histórico de navegação)
 
-- **Status:** em-andamento
+- **Status:** concluído
 - **Spec:** `specs/002-url-por-tela/spec.md` (aprovada em 2026-11-27)
 - **Criado em:** 2026-11-27
 - **Aprovado em:** 2026-11-27
